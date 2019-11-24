@@ -1,0 +1,7 @@
+set_global_assignment -name QIP_FILE src/gba.qip
+set_global_assignment -name QIP_FILE src/mem.qip
+set_global_assignment -name QIP_FILE sdram.qip
+set_global_assignment -name VHDL_FILE bram.vhd
+set_global_assignment -name SYSTEMVERILOG_FILE cheatcodes.sv
+set_global_assignment -name SDC_FILE GBA.sdc
+set_global_assignment -name SYSTEMVERILOG_FILE GBA.sv
