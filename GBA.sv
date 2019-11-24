@@ -645,13 +645,9 @@ always @(posedge clk_sys) begin
 		state <= 0;
 		sd_lba <= 0;
 		bk_loading <= 0;
-		if((~old_load & bk_load) | (~old_save & bk_save & bk_pending)) begin
+		if((~old_load & bk_load) | (~old_save & bk_save & bk_pending) | (cart_download & img_mounted)) begin
 			bk_state <= 1;
-			bk_loading <= bk_load;
-		end
-		if(old_downloading & ~cart_download) begin
-			bk_state <= 1;
-			bk_loading <= 1;
+			bk_loading <= bk_load | img_mounted;
 		end
 	end
 	else if(bk_loading) begin
