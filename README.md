@@ -11,6 +11,22 @@ Original GBA BIOS can be placed to GBA folder with name boot.rom
 
 PLEASE do not report errors without testing with the original BIOS
 
+# Games with Crashes/Hang
+
+- Banjo-Kazooie hangs after start. Workaround: instantly save ingame, reset the game and reload the save
+- Board Game classics hangs in Mainmenu
+- Boktai 2 hangs in language selection
+- Bomberman Max 2 - Blue: black screen after intro
+
+- Chessmaster: can't pick up any stone
+- Colin McRae Rally 2.0 hangs when going into race
+
+- Final Fantasy IV hangs in intro
+
+- Megaman Battle Network: hang after startmenu
+
+- SuperMarioAdvance: MarioBros Minigame hangs. Same game is included  and working in Super Mario Advance 2
+
 # Status
 ~200 games tested until ingame:
 - 95% without major issues (no crash, playable)
