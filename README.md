@@ -1,6 +1,10 @@
 # GBA_MiSTer
 GBA for MiSTer
 
+# HW Requirements/Features
+- Requires 32MB SDRAM for games less than 32MB. 32MB games require either 64MB or 128MB module.
+- HDMI-only. Native VGA output is not implemented (yet). VGA output can be enabled with vga_scaler=1 option in MiSTer.ini, so it will output the same HDMI resolution.
+
 # Bios
 Opensource Bios from Normmatt is included, however it has issues with some games.
 Original GBA BIOS can be placed to GBA folder with name boot.rom
