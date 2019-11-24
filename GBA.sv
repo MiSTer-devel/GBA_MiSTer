@@ -174,13 +174,14 @@ parameter CONF_STR = {
     "D0ON,Autosave,Off,On;",
     "D0-;",
     "O1,Aspect Ratio,3:2,16:9;",
+    "O9,Desaturate,Off,On;",
     "O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
     "O78,Stereo Mix,None,25%,50%,100%;", 
     "-;",
-    "O5,Pause,OFF,ON;",
+    "O5,Pause,Off,On;",
     "-;",
     "R0,Reset;",
-    "J1,A,B,L,R,Select,Start,Turbo;",
+    "J1,A,B,L,R,Select,Start,FastForward;",
 	 "jn,A,B,L,R,Select,Start,X;",
     "V,v",`BUILD_DATE
 };
@@ -568,6 +569,17 @@ wire [2:0] scale = status[4:2];
 wire [2:0] sl = scale ? scale - 1'd1 : 3'd0;
 wire       scandoubler = (scale || forced_scandoubler);
 
+wire [7:0] r_in = {r,r[4:2]};
+wire [7:0] g_in = {g,g[4:2]};
+wire [7:0] b_in = {b,b[4:2]};
+
+//wire [7:0] luma = r_in[7:3] + g_in[7:1] + g_in[7:2] + b_in[7:3];
+wire [7:0] luma = r_in[7:2] + g_in[7:1] + g_in[7:3] + b_in[7:3];
+
+wire [7:0] r_out = status[9] ? r_in[7:1] + r_in[7:2] + luma[7:2] : r_in;
+wire [7:0] g_out = status[9] ? g_in[7:1] + g_in[7:2] + luma[7:2] : g_in;
+wire [7:0] b_out = status[9] ? b_in[7:1] + b_in[7:2] + luma[7:2] : b_in;
+
 video_mixer #(.LINE_LENGTH(520), .GAMMA(1)) video_mixer
 (
 	.*,
@@ -583,9 +595,9 @@ video_mixer #(.LINE_LENGTH(520), .GAMMA(1)) video_mixer
 	.VSync(vs),
 	.HBlank(hbl),
 	.VBlank(vbl),
-	.R({r,r[4:2]}),
-	.G({g,g[4:2]}),
-	.B({b,b[4:2]})
+	.R(r_out),
+	.G(g_out),
+	.B(b_out)
 );
 
 
