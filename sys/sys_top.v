@@ -876,7 +876,12 @@ always @(posedge clk_vid) begin
 	dv_vs  <= dv_vs2;
 end
 
-assign HDMI_TX_CLK = direct_video ? clk_vid : hdmi_clk_out;
+cyclonev_clkselect hdmi_clk_sw
+( 
+	.clkselect({1'b1, direct_video}),
+	.inclk({clk_vid, hdmi_clk_out, 2'b00}),
+	.outclk(HDMI_TX_CLK)
+);
 
 reg hdmi_out_hs;
 reg hdmi_out_vs;
