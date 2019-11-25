@@ -1240,6 +1240,7 @@ begin
                            when x"6" => decode_datacomb(24 downto 21) <= x"A"; decode_datacomb(19) <= '1'; decode_datacomb(15) <= '1';                             decode_datacomb(20) <= '1'; -- 0110 CMP Hd, Rs CMP Hd, Rs Compare a register in the range 8 - 15 with a register in the range 0 - 7.Set the condition code flags on the result.
                            when x"7" => decode_datacomb(24 downto 21) <= x"A"; decode_datacomb( 3) <= '1'; decode_datacomb(19) <= '1'; decode_datacomb(15) <= '1'; decode_datacomb(20) <= '1'; -- 0111 CMP Hd, Hs CMP Hd, Hs Compare two registers in the range 8 - 15.Set the condition code flags on the result.
                                                                                                                                                                    
+                           when x"8" => decode_datacomb(24 downto 21) <= x"D";                                                                                     -- 1000 -> undefined but probably just using low for both  
                            when x"9" => decode_datacomb(24 downto 21) <= x"D"; decode_datacomb( 3) <= '1';                                                         -- 1001 MOV Rd, Hs MOV Rd, Hs Move a value from a register in the range 8 - 15 to a register in the range 0 - 7.  
                            when x"A" => decode_datacomb(24 downto 21) <= x"D"; decode_datacomb(19) <= '1'; decode_datacomb(15) <= '1';                             -- 1010 MOV Hd, Rs MOV Hd, Rs Move a value from a register in the range 0 - 7 to a register in the range 8 - 15.
                            when x"B" => decode_datacomb(24 downto 21) <= x"D"; decode_datacomb( 3) <= '1'; decode_datacomb(19) <= '1'; decode_datacomb(15) <= '1'; -- 1011 MOV Hd, Hs MOV Hd, Hs Move a value between two registers in the range 8 - 15.
@@ -3053,6 +3054,8 @@ begin
                      file_open(f_status, outfile, filename_current, write_mode);
                      file_close(outfile);
                      file_open(f_status, outfile, filename_current, append_mode);
+                     write(line_out, string'("reg 00   reg 01   reg 02   reg 03   reg 04   reg 05   reg 06   reg 07   reg 08   reg 09   reg 10   reg 11   reg 12   reg 13   reg 14   reg 15   opcode   NCZV newticks PF  T Md I IFin T Timer0   Timer1   Timer2   Timer3   MEMORY01 MEMORY02 MEMORY03 DMATrans Reg 16   Reg 17   R13usr   R14usr   R13irq   R14irq   R13svc   R14svc   SPSR_irq SPSR_svc "));
+                     writeline(outfile, line_out);
                   end if;
                   
                   if (recordcount > 1000) then
