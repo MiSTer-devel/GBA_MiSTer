@@ -518,7 +518,8 @@ wire [14:0] rgb;
 reg hs, vs, hbl, vbl, ce_pix;
 reg [4:0] r,g,b;
 always @(posedge CLK_VIDEO) begin
-	reg [7:0] x,y;
+	reg [8:0] x;
+	reg [7:0] y;
 	reg [1:0] div;
 	reg old_vsync;
 	reg sync;
@@ -534,15 +535,17 @@ always @(posedge CLK_VIDEO) begin
 
 		{r,g,b} <= rgb;
 
-		hbl <= &x[7:4];
-		if(x == 244) begin
+		if(x == 240) hbl <= 1;
+		if(x == 000) hbl <= 0;
+
+		if(x == 300) begin
 			hs <= 1;
 
-			if(y == 163) vs <= 1;
-			if(y == 166) vs <= 0;
+			if(y == 166) vs <= 1;
+			if(y == 169) vs <= 0;
 		end
-		if(x == 252) hs  <= 0;
 
+		if(x == 330) hs  <= 0;
 		if(y == 160) vbl <= 1;
 		if(y == 000) vbl <= 0;
 	end
@@ -550,7 +553,7 @@ always @(posedge CLK_VIDEO) begin
 	if(ce_pix) begin
 		if(!hbl) px_addr <= px_addr + 1'd1;
 		x <= x + 1'd1;
-		if(&x) begin
+		if(x == 399) begin
 			if(~&y) y <= y + 1'd1;
 			else if(sync) begin
 				sync <= 0;
