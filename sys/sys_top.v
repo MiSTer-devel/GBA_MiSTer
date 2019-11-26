@@ -876,11 +876,37 @@ always @(posedge clk_vid) begin
 	dv_vs  <= dv_vs2;
 end
 
+wire hdmi_tx_clk;
 cyclonev_clkselect hdmi_clk_sw
 ( 
 	.clkselect({1'b1, direct_video}),
 	.inclk({clk_vid, hdmi_clk_out, 2'b00}),
-	.outclk(HDMI_TX_CLK)
+	.outclk(hdmi_tx_clk)
+);
+
+altddio_out
+#(
+	.extend_oe_disable("OFF"),
+	.intended_device_family("Cyclone V"),
+	.invert_output("OFF"),
+	.lpm_hint("UNUSED"),
+	.lpm_type("altddio_out"),
+	.oe_reg("UNREGISTERED"),
+	.power_up_high("OFF"),
+	.width(1)
+)
+hdmiclk_ddr
+(
+	.datain_h(1'b0),
+	.datain_l(1'b1),
+	.outclock(hdmi_tx_clk),
+	.dataout(HDMI_TX_CLK),
+	.aclr(1'b0),
+	.aset(1'b0),
+	.oe(1'b1),
+	.outclocken(1'b1),
+	.sclr(1'b0),
+	.sset(1'b0)
 );
 
 reg hdmi_out_hs;
@@ -888,7 +914,7 @@ reg hdmi_out_vs;
 reg hdmi_out_de;
 reg [23:0] hdmi_out_d;
 
-always @(posedge HDMI_TX_CLK) begin
+always @(posedge hdmi_tx_clk) begin
 	reg hs,vs,de;
 	reg [23:0] d;
 	
