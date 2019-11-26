@@ -234,7 +234,7 @@ begin
       clk100     => clk100,
       gb_bus     => gb_bus,
       IRP_Joypad => IRP_Joypad,
-      
+                 
       KeyA       => KeyA,
       KeyB       => KeyB,
       KeySelect  => KeySelect,
@@ -244,7 +244,10 @@ begin
       KeyUp      => KeyUp,
       KeyDown    => KeyDown,
       KeyR       => KeyR,
-      KeyL       => KeyL     
+      KeyL       => KeyL,
+
+      vsync      => vblank_trigger,
+      cpu_done   => cpu_done  
    );
    
    mem_bus_Adr  <=  x"0" & debug_bus_Adr  when debug_bus_active = '1' else cpu_bus_Adr  when cpu_bus_ena = '1' else x"0" & dma_bus_Adr;
@@ -522,7 +525,7 @@ begin
       
       dma_on           => dma_on,
       do_step          => gba_step,
-      done             => open,--cpu_done,
+      done             => cpu_done,
       CPU_bus_idle     => CPU_bus_idle,
       PC_in_BIOS       => PC_in_BIOS,
       lastread         => lastread,

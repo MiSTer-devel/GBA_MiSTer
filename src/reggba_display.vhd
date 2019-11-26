@@ -15,7 +15,7 @@ package pReg_gba_display is
    constant DISPCNT_Display_Frame_Select  : regmap_type := (16#000#,   4,      4,        1,        0,   readwrite); -- Display Frame Select        (0-1=Frame 0-1) (for BG Modes 4,5 only)
    constant DISPCNT_H_Blank_IntervalFree  : regmap_type := (16#000#,   5,      5,        1,        0,   readwrite); -- H-Blank Interval Free       (1=Allow access to OAM during H-Blank)
    constant DISPCNT_OBJ_Char_VRAM_Map     : regmap_type := (16#000#,   6,      6,        1,        0,   readwrite); -- OBJ Character VRAM Mapping  (0=Two dimensional, 1=One dimensional)
-   constant DISPCNT_Forced_Blank          : regmap_type := (16#000#,   7,      7,        1,        0,   readwrite); -- Forced Blank                (1=Allow FAST access to VRAM,Palette,OAM)
+   constant DISPCNT_Forced_Blank          : regmap_type := (16#000#,   7,      7,        1,        1,   readwrite); -- Forced Blank                (1=Allow FAST access to VRAM,Palette,OAM)
    constant DISPCNT_Screen_Display_BG0    : regmap_type := (16#000#,   8,      8,        1,        0,   readwrite); -- Screen Display BG0          (0=Off, 1=On)
    constant DISPCNT_Screen_Display_BG1    : regmap_type := (16#000#,   9,      9,        1,        0,   readwrite); -- Screen Display BG1          (0=Off, 1=On)
    constant DISPCNT_Screen_Display_BG2    : regmap_type := (16#000#,  10,     10,        1,        0,   readwrite); -- Screen Display BG2          (0=Off, 1=On)
