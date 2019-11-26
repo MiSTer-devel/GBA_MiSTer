@@ -18,7 +18,6 @@ PLEASE do not report errors without testing with the original BIOS
 - Boktai 2 hangs in language selection
 - Bomberman Max 2 - Blue: black screen after intro
 
-- Chessmaster: can't pick up any stone
 - Colin McRae Rally 2.0 hangs when going into race
 
 - Final Fantasy IV hangs in intro
