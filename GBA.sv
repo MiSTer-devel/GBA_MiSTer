@@ -542,8 +542,8 @@ always @(posedge CLK_VIDEO) begin
 
 		if(x == 330)    hs  <= 0;
 
-		if(y == 60)     vbl <= 0;
-		if(y >= 60+160) vbl <= 1;
+		if(y == 62)     vbl <= 0;
+		if(y >= 62+160) vbl <= 1;
 	end
 
 	if(ce_pix) begin
