@@ -543,7 +543,7 @@ always @(posedge CLK_VIDEO) begin
 		if(x == 330)    hs  <= 0;
 
 		if(y == 60)     vbl <= 0;
-		if(y == 60+160) vbl <= 1;
+		if(y >= 60+160) vbl <= 1;
 	end
 
 	if(ce_pix) begin
@@ -558,7 +558,7 @@ always @(posedge CLK_VIDEO) begin
 	end
 
 	old_vsync <= vsync;
-	if(~old_vsync & vsync) begin
+	if(~old_vsync & vsync & vbl) begin
 		x <= 0;
 		y <= 0;
 		vs <= 0;
