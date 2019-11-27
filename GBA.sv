@@ -492,10 +492,10 @@ wire        pixel_we;
 
 reg vsync;
 always @(posedge clk_sys) begin
-	reg [3:0] sync;
+	reg [7:0] sync;
 
 	sync <= sync << 1;
-	if(pixel_we && pixel_addr == 38399) sync <= 1;
+	if(pixel_we && pixel_addr == 0) sync <= 1;
 
 	vsync <= |sync;
 end
@@ -518,14 +518,9 @@ wire [14:0] rgb;
 reg hs, vs, hbl, vbl, ce_pix;
 reg [4:0] r,g,b;
 always @(posedge CLK_VIDEO) begin
-	reg [8:0] x;
-	reg [7:0] y;
-	reg [1:0] div;
+	reg [8:0] x,y;
+	reg [2:0] div;
 	reg old_vsync;
-	reg sync;
-
-	old_vsync <= vsync;
-	if(~old_vsync & vsync) sync <= 1;
 
 	div <= div + 1'd1;
 
@@ -541,27 +536,33 @@ always @(posedge CLK_VIDEO) begin
 		if(x == 300) begin
 			hs <= 1;
 
-			if(y == 166) vs <= 1;
-			if(y == 169) vs <= 0;
+			if(y == 3) vs <= 1;
+			if(y == 7) vs <= 0;
 		end
 
-		if(x == 330) hs  <= 0;
-		if(y == 160) vbl <= 1;
-		if(y == 000) vbl <= 0;
+		if(x == 330)    hs  <= 0;
+
+		if(y == 60)     vbl <= 0;
+		if(y == 60+160) vbl <= 1;
 	end
 
 	if(ce_pix) begin
-		if(!hbl) px_addr <= px_addr + 1'd1;
+		if(vbl) px_addr <= 0;
+		else if(!hbl) px_addr <= px_addr + 1'd1;
+
 		x <= x + 1'd1;
 		if(x == 399) begin
+			x <= 0;
 			if(~&y) y <= y + 1'd1;
-			else if(sync) begin
-				sync <= 0;
-				px_addr <= 0;
-				x <= 0;
-				y <= 0;
-			end
 		end
+	end
+
+	old_vsync <= vsync;
+	if(~old_vsync & vsync) begin
+		x <= 0;
+		y <= 0;
+		vs <= 0;
+		hs <= 0;
 	end
 end
 
@@ -620,7 +621,6 @@ always @(posedge clk_sys) begin
 	else if (bk_state) bk_pending <= 0;
 end
 
-reg old_downloading = 0;
 reg [7:0] save_sz;
 always @(posedge clk_sys) begin
 	reg old_downloading;
