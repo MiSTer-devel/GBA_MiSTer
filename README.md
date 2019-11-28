@@ -22,7 +22,13 @@ PLEASE do not report errors without testing with the original BIOS
 
 - Final Fantasy IV hangs in intro
 
+- Iridium II: hangs at first boss
+
 - Megaman Battle Network: hang after startmenu
+- Mobile Suit Gundam Seed Battle Assault (USA) - crashes during the intro
+- Motoracer Advance (USA) : Game crashes upon starting a race.
+
+- Rock 'n Roll Racing: Crash after the second intro screen
 
 - SuperMarioAdvance: MarioBros Minigame hangs. Same game is included  and working in Super Mario Advance 2
 
