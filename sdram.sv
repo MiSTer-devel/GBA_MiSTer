@@ -33,6 +33,7 @@ module sdram
 	output            SDRAM_nRAS,  // row address select
 	output            SDRAM_nCAS,  // columns address select
 	output            SDRAM_CKE,   // clock enable
+	output            SDRAM_CLK,   // clock for chip
 
 	input      [26:1] ch1_addr,    // 25 bit address for 8bit mode. addr[0] = 0 for 16bit mode for correct operations.
 	output reg [63:0] ch1_dout,    // data output to cpu
@@ -292,5 +293,30 @@ always @(posedge clk) begin
 		refresh_count <= startup_refresh_max - sdram_startup_cycles;
 	end
 end
+
+altddio_out
+#(
+	.extend_oe_disable("OFF"),
+	.intended_device_family("Cyclone V"),
+	.invert_output("OFF"),
+	.lpm_hint("UNUSED"),
+	.lpm_type("altddio_out"),
+	.oe_reg("UNREGISTERED"),
+	.power_up_high("OFF"),
+	.width(1)
+)
+sdramclk_ddr
+(
+	.datain_h(1'b0),
+	.datain_l(1'b1),
+	.outclock(clk),
+	.dataout(SDRAM_CLK),
+	.aclr(1'b0),
+	.aset(1'b0),
+	.oe(1'b1),
+	.outclocken(1'b1),
+	.sclr(1'b0),
+	.sset(1'b0)
+);
 
 endmodule

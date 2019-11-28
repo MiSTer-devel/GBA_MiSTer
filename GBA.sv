@@ -152,8 +152,7 @@ pll pll
 	.refclk(CLK_50M),
 	.rst(0),
 	.outclk_0(clk_sys),
-	.outclk_1(SDRAM_CLK),
-	.outclk_2(CLK_VIDEO),
+	.outclk_1(CLK_VIDEO),
 	.locked(pll_locked)
 );
 

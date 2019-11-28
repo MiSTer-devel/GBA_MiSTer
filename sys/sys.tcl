@@ -99,11 +99,7 @@ set_location_assignment PIN_W14 -to SDRAM_nRAS
 
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to SDRAM_*
 set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to SDRAM_*
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to SDRAM_A*
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to SDRAM_BA*
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to SDRAM_DQ[*]
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to SDRAM_DQM*
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to SDRAM_n*
+set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to SDRAM_*
 set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQ[*]
 set_instance_assignment -name ALLOW_SYNCH_CTRL_USAGE OFF -to *|SDRAM_*
 
