@@ -93,6 +93,7 @@ architecture arch of gba_cpu is
 
    type t_regs is array(0 to 17) of unsigned(31 downto 0);
    signal regs : t_regs;
+   signal regs_plus_12 : unsigned(31 downto 0);
 
    signal PC               : unsigned(31 downto 0) := (others => '0');
 
@@ -911,6 +912,7 @@ begin
                      else
                         regs(15)(decode_PC'left downto 0) <= decode_PC + 4;
                      end if;
+                     regs_plus_12 <= decode_PC + 8; -- only used for data operation available in arm mode
                   
                      execute_skip := '1';
                      case (decode_condition) is
@@ -2385,6 +2387,8 @@ begin
                            swap_write       <= '0';
                            if (execute_datatransfer_swap = '1') then
                               gb_bus_dout <= std_logic_vector(regs(to_integer(unsigned(execute_RM_op2))));
+                           elsif (execute_rdest = x"F") then  -- pc is + 12 for data writes
+                              gb_bus_dout <= std_logic_vector(regs_plus_12);  
                            else
                               gb_bus_dout <= std_logic_vector(regs(to_integer(unsigned(execute_rdest))));
                            end if;
@@ -2608,6 +2612,8 @@ begin
                               when 14 => block_writevalue <= regs_0_14;
                               when others => block_writevalue <= (others => '0'); -- never happens in armwrestler or suite...
                            end case;
+                        elsif (block_regindex = 15) then  -- pc is + 12 for block writes
+                           block_writevalue     <= regs_plus_12;  
                         else
                            block_writevalue     <= regs(block_regindex);
                         end if;
