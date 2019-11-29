@@ -14,21 +14,15 @@ PLEASE do not report errors without testing with the original BIOS
 # Games with Crashes/Hang
 
 - Banjo-Kazooie hangs after start. Workaround: instantly save ingame, reset the game and reload the save
-- Board Game classics hangs in Mainmenu
 - Boktai 2 hangs in language selection
 - Bomberman Max 2 - Blue: black screen after intro
 
 - Colin McRae Rally 2.0 hangs when going into race
 
-- Final Fantasy IV hangs in intro
-
 - Iridium II: hangs at first boss
 
-- Megaman Battle Network: hang after startmenu
 - Mobile Suit Gundam Seed Battle Assault (USA) - crashes during the intro
 - Motoracer Advance (USA) : Game crashes upon starting a race.
-
-- Rock 'n Roll Racing: Crash after the second intro screen
 
 - SuperMarioAdvance: MarioBros Minigame hangs. Same game is included  and working in Super Mario Advance 2
 
