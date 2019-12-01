@@ -2605,7 +2605,7 @@ begin
                            end if;
                         end if;
                         
-                        if (execute_block_usermoderegs = '1' and block_regindex >=8 and block_regindex <= 14) then
+                        if (execute_block_usermoderegs = '1' and cpu_mode /= CPUMODE_USER and cpu_mode /= CPUMODE_SYSTEM) then
                            case (block_regindex) is
                               when 8  => block_writevalue <= regs_0_8;
                               when 9  => block_writevalue <= regs_0_9;
@@ -2686,15 +2686,18 @@ begin
                            end if;
                            calc_result <= unsigned(gb_bus_din);
                            executebus  <= '0';
-                           execute_writeback_calc    <= not execute_block_usermoderegs;
-                           execute_writeback_userreg <= execute_block_usermoderegs;
+                           if (execute_block_usermoderegs = '1' and cpu_mode /= CPUMODE_USER and cpu_mode /= CPUMODE_SYSTEM) then
+                              execute_writeback_userreg <= '1';
+                           else
+                              execute_writeback_calc    <= '1';
+                           end if;
                            writeback_reg             <= std_logic_vector(to_unsigned(block_regindex, 4));
                            if (block_regindex = 15) then
                               block_switch_pc <= unsigned(gb_bus_din);
                               blockr15jump    <= execute_block_switchmode;
                            end if;
                         end if;
-                        
+
                      when BLOCKWRITEBACKADDR =>
                         writeback_reg          <= execute_Rn_op1;
                         calc_result            <= busaddress;
