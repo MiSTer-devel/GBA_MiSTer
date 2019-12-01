@@ -781,8 +781,13 @@ begin
                VRAM_Hi_datain <= rotate_writedata;
                VRAM_Lo_datain <= rotate_writedata;
                if (acc_save = ACCESS_8BIT) then
-                  VRAM_Hi_datain(15 downto 8) <= rotate_writedata(7 downto 0);
-                  VRAM_Lo_datain(15 downto 8) <= rotate_writedata(7 downto 0);
+                  case (to_integer(unsigned(adr_save(1 downto 0)))) is
+                     when 0 => VRAM_Hi_datain(15 downto  8) <= rotate_writedata( 7 downto  0); VRAM_Lo_datain(15 downto  8) <= rotate_writedata( 7 downto  0);
+                     when 1 => VRAM_Hi_datain( 7 downto  0) <= rotate_writedata(15 downto  8); VRAM_Lo_datain( 7 downto  0) <= rotate_writedata(15 downto  8);
+                     when 2 => VRAM_Hi_datain(31 downto 24) <= rotate_writedata(23 downto 16); VRAM_Lo_datain(31 downto 24) <= rotate_writedata(23 downto 16);
+                     when 3 => VRAM_Hi_datain(23 downto 16) <= rotate_writedata(31 downto 24); VRAM_Lo_datain(23 downto 16) <= rotate_writedata(31 downto 24);
+                     when others => null;
+                  end case;
                end if;
                state <= IDLE;
                VRAM_be := (others => '0');
