@@ -232,10 +232,10 @@ begin
          -- window select
          special_enable_cycle1 <= '1';
          if (anywindow = '1') then
-             if (inwin_0y = '1' and ((WND0_X1 <= WND0_X2 and xpos_cycle1 >= WND0_X1 and xpos_cycle1 < WND0_X2) or (WND0_X1 > WND0_X2 and (xpos_cycle1 >= WND0_X1 or xpos_cycle1 < WND0_X2)))) then
+             if (inwin_0y = '1' and ((WND0_X1 <= WND0_X2 and xpos >= WND0_X1 and xpos < WND0_X2) or (WND0_X1 > WND0_X2 and (xpos >= WND0_X1 or xpos < WND0_X2)))) then
                special_enable_cycle1 <= enables_wnd0(5);
                enables_var           := enables_var and enables_wnd0(4 downto 0);
-            elsif (inwin_1y = '1' and ((WND1_X1 <= WND1_X2 and xpos_cycle1 >= WND1_X1 and xpos_cycle1 < WND1_X2) or (WND1_X1 > WND1_X2 and (xpos_cycle1 >= WND1_X1 or xpos_cycle1 < WND1_X2)))) then
+            elsif (inwin_1y = '1' and ((WND1_X1 <= WND1_X2 and xpos >= WND1_X1 and xpos < WND1_X2) or (WND1_X1 > WND1_X2 and (xpos >= WND1_X1 or xpos < WND1_X2)))) then
                special_enable_cycle1  <= enables_wnd1(5);
                enables_var            := enables_var and enables_wnd1(4 downto 0);
             elsif (objwindow_in = '1') then
