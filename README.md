@@ -17,14 +17,11 @@ PLEASE do not report errors without testing with the original BIOS
 
 - Colin McRae Rally 2.0 hangs when going into race
 
-- Dai-Mahjong: instant crash
 - Digimon Racing: hang on 3rd screen(Griptonite)
 
 - Fear Factor Unleashed: hang after ~4 seconds
 
 - Madden06/06: crash at coin toss
-
-- Nihon Pro Mahjong Renmei Kounin Tetsuman Advance - Menkyo Kaiden Series: instant crash
 
 - Iridium II: hangs at first boss
 
