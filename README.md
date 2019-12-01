@@ -32,15 +32,6 @@ PLEASE do not report errors without testing with the original BIOS
 - TOCA World Touring Cars: hangs going into race
 - Top Gun - Combat Zones: doesn't recognize A-button in main menu
 
-# Games with black bars in 3D view
-- Doom2
-- DukeNukem
-- IceNine
-- Fifa 06/06 (only 1st person view)
-- Need for Speed(all 5 games)
-- Ultimate Winter Games
-- Winter Sports
-
 # Games that are unplayable because of catridge hardware missing
 - Boktai 1/2/Shin Bokura no Taiyou(Japanese Boktai)
 - Warioware Twisted
