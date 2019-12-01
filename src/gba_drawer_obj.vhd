@@ -14,6 +14,7 @@ entity gba_drawer_obj is
       ypos                 : in  integer range 0 to 159;
       ypos_mosaic          : in  integer range 0 to 159;
       
+      BG_Mode              : in  std_logic_vector(2 downto 0);
       one_dim_mapping      : in  std_logic;
       Mosaic_H_Size        : in  unsigned(3 downto 0);
       
@@ -217,6 +218,7 @@ begin
 
    -- OAM Fetch
    process (clk100)
+      variable tileindex_var : integer range 0 to 1023;
    begin
       if rising_edge(clk100) then
 
@@ -275,11 +277,14 @@ begin
                when EVALOAM =>
                   if (OAM_data0(OAM_AFFINE) = '1') then
                      OAM_data_aff3 <= OAMRAM_Drawer_data(31 downto 16);
+                     tileindex_var := to_integer(unsigned(OAM_data2(OAM_TILE_HI downto OAM_TILE_LO)));
                   else
-                     OAM_data2 <= OAMRAM_Drawer_data(15 downto 0);
+                     OAM_data2     <= OAMRAM_Drawer_data(15 downto 0);
+                     tileindex_var := to_integer(unsigned(OAMRAM_Drawer_data(OAM_TILE_HI downto OAM_TILE_LO)));
                   end if;
                
-                  if (OAM_data0(OAM_OFF_HI downto OAM_OFF_LO) = "10") then
+                  -- skip if sprite is off or bitmapmode is on and tileindex in the vram area of bitmap
+                  if (OAM_data0(OAM_OFF_HI downto OAM_OFF_LO) = "10" or (unsigned(BG_Mode) >= 3 and tileindex_var < 512)) then
                      if (OAM_currentobj = 127) then
                         OAMFetch <= IDLE;
                         busy     <= '0';

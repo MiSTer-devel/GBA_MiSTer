@@ -893,6 +893,7 @@ begin
       ypos                 => linecounter_int,
       ypos_mosaic          => linecounter_mosaic_obj,
       
+      BG_Mode              => BG_Mode,
       one_dim_mapping      => REG_DISPCNT_OBJ_Char_VRAM_Map(REG_DISPCNT_OBJ_Char_VRAM_Map'left),
       Mosaic_H_Size        => unsigned(REG_MOSAIC_OBJ_Mosaic_H_Size),
       
