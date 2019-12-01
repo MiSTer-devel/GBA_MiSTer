@@ -25,8 +25,6 @@ PLEASE do not report errors without testing with the original BIOS
 
 - Iridium II: hangs at first boss
 
-- Rocky: hang on first screen
-
 - Sennen Kazoku: hang on first screen
 - Starsky & Hutch: crash going ingame
 - SuperMarioAdvance: MarioBros Minigame hangs. Same game is included  and working in Super Mario Advance 2
@@ -52,6 +50,7 @@ PLEASE do not report errors without testing with the original BIOS
 - Nes/Famicon classics (most of them)
 - Dragon Ball Z - Taiketsu
 - Dragon Ball Z - The Legacy of Goku
+- Rocky: tests for sram, game is using eeprom
 
 # Status
 ~1600 games tested until ingame:
