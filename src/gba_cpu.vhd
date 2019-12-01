@@ -129,9 +129,10 @@ architecture arch of gba_cpu is
    -- internal calculation signals
    -- ####################################
    
-   signal jump       : std_logic := '0';
-   signal new_pc     : unsigned(31 downto 0) := (others => '0');
-   signal branchnext : std_logic := '0';
+   signal jump         : std_logic := '0';
+   signal new_pc       : unsigned(31 downto 0) := (others => '0');
+   signal branchnext   : std_logic := '0';
+   signal blockr15jump : std_logic := '0';
    
    -- ############# Timing ##############
    
@@ -490,6 +491,7 @@ architecture arch of gba_cpu is
    signal endaddress       : unsigned(31 downto 0) := (others => '0');
    signal block_writevalue : unsigned(31 downto 0) := (others => '0');
    signal block_reglist    : std_logic_vector(15 downto 0) := (others => '0');
+   signal block_switch_pc  : unsigned(31 downto 0) := (others => '0');
    
    
    -- ############# MSR/MRS ##############
@@ -994,7 +996,7 @@ begin
                
                when CALC =>
                
-                  if ((execute_writeback_calc = '0' or writeback_reg /= x"F") and calc_done = '1') then
+                  if ((execute_writeback_calc = '0' or writeback_reg /= x"F") and calc_done = '1' and branchnext = '0') then
                      state_execute <= FETCH_OP;
                      done             <= '1';
                      new_cycles_out   <= to_unsigned(execute_cycles + execute_addcycles, new_cycles_out'length);
@@ -1888,9 +1890,10 @@ begin
             executebus      <= '0';
          else
       
-            calc_done  <= '0';
-            jump       <= '0';
-            branchnext <= '0';
+            calc_done     <= '0';
+            jump          <= '0';
+            branchnext    <= '0';
+            blockr15jump  <= '0';
             
             bus_execute_ena <= '0';
             
@@ -1907,7 +1910,7 @@ begin
             
             shifter_start              <= '0';
             
-            if ((execute_writeback_calc = '1' and writeback_reg = x"F")) then
+            if ((execute_writeback_calc = '1' and writeback_reg = x"F" and blockr15jump = '0')) then
                branchnext       <= '1';
                if (thumbmode = '1') then
                   new_pc     <= calc_result(new_pc'left downto 1) & '0';
@@ -2464,7 +2467,7 @@ begin
                               busPrefetchClear   <= busaddress(27);
                               execute_addcycles  <= 3 + dataTicksAccess32 + dataTicksAccess32;
                               prefetch_addcycles <= 4 + dataTicksAccess32 + dataTicksAccess32;
-                           else
+                           elsif (execute_datatransfer_swap = '0') then
                               busPrefetchAdd    <= '1';
                               busPrefetchClear  <= busaddress(27);
                               if (execute_functions_detail = data_read) then
@@ -2564,6 +2567,7 @@ begin
                            endaddress       <= to_unsigned(to_integer(regs(to_integer(unsigned(execute_Rn_op1)))(busaddress'left downto 0)) + execute_block_endmod, busaddress'length);
                            block_reglist    <= execute_block_reglist;
                            block_rw_stage   <= BLOCKCHECKNEXT;
+                           block_switch_pc  <= execute_PC;
                         end if;
                         
                      when BLOCKCHECKNEXT =>
@@ -2685,6 +2689,10 @@ begin
                            execute_writeback_calc    <= not execute_block_usermoderegs;
                            execute_writeback_userreg <= execute_block_usermoderegs;
                            writeback_reg             <= std_logic_vector(to_unsigned(block_regindex, 4));
+                           if (block_regindex = 15) then
+                              block_switch_pc <= unsigned(gb_bus_din);
+                              blockr15jump    <= execute_block_switchmode;
+                           end if;
                         end if;
                         
                      when BLOCKWRITEBACKADDR =>
@@ -2718,16 +2726,22 @@ begin
                         Flag_Zero          <= regs(17)(30);
                         Flag_Carry         <= regs(17)(29);
                         Flag_V_Overflow    <= regs(17)(28);
-                        if (thumbmode /= regs(17)(5)) then
-                           new_pc             <= execute_PC;
-                           jump               <= '1';
+                        
+                        if (regs(17)(5) = '1') then
+                           new_pc     <= block_switch_pc(new_pc'left downto 1) & '0';
                         else
+                           new_pc     <= block_switch_pc(new_pc'left downto 2) & "00";
+                        end if;
+                        
+                        if (thumbmode = regs(17)(5)) then
                            execute_addcycles  <= 1 + codeticksAccess1632;
                            busPrefetchSub     <= '1';
                            prefetch_subcycles <= codeBaseAccess1632;
+                           jump               <= '1';
+                        else
+                           branchnext         <= '1';
                         end if;
-                        
-                        
+
                   end case;
                   
                when software_interrupt_detail =>
