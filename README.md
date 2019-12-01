@@ -13,7 +13,6 @@ PLEASE do not report errors without testing with the original BIOS
 
 # Games with crashes/hang
 - Banjo-Kazooie hangs after start. Workaround: instantly save ingame, reset the game and reload the save
-- Boktai 2 hangs in language selection
 - Bomberman Max 2 - Blue: black screen after intro
 
 - Colin McRae Rally 2.0 hangs when going into race
@@ -23,14 +22,11 @@ PLEASE do not report errors without testing with the original BIOS
 
 - Fear Factor Unleashed: hang after ~4 seconds
 
-- Madden: all games not working
+- Madden06/06: crash at coin toss
 
 - Nihon Pro Mahjong Renmei Kounin Tetsuman Advance - Menkyo Kaiden Series: instant crash
 
 - Iridium II: hangs at first boss
-
-- Mobile Suit Gundam Seed Battle Assault (USA) - crashes during the intro
-- Motoracer Advance (USA) : Game crashes upon starting a race.
 
 - Rocky: hang on first screen
 
