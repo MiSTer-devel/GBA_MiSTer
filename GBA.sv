@@ -156,9 +156,15 @@ pll pll
 	.locked(pll_locked)
 );
 
-wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading;
+wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_reset;
 
 ////////////////////////////  HPS I/O  //////////////////////////////////
+
+// Status Bit Map:
+// 0         1         2         3
+// 01234567890123456789012345678901
+// 0123456789ABCDEFGHIJKLMNOPQRSTUV
+// XXXXXXXXXXX XX         X
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -174,6 +180,7 @@ parameter CONF_STR = {
     "D0-;",
     "O1,Aspect Ratio,3:2,16:9;",
     "O9,Desaturate,Off,On;",
+    "OA,Framebuffer,Off,On;",
     "O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
     "O78,Stereo Mix,None,25%,50%,100%;", 
     "-;",
@@ -499,24 +506,30 @@ always @(posedge clk_sys) begin
 	vsync <= |sync;
 end
 
-dpram_n #(16,15,38400) vram
+dpram_n #(17,15,76800) vram
 (
 	.clock_a(clk_sys),
-	.address_a(pixel_addr),
+	.address_a(px_in_bank ? (pixel_addr+17'd38400) : pixel_addr),
 	.data_a(pixel_data),
 	.wren_a(pixel_we),
 
 	.clock_b(CLK_VIDEO),
-	.address_b(px_addr),
+	.address_b(px_out_bank ? (px_addr+17'd38400) : px_addr),
 	.q_b(rgb)
 );
 
 wire [15:0] px_addr;
 wire [14:0] rgb;
+wire framebuffer = status[10];
 
 reg hs, vs, hbl, vbl, ce_pix;
 reg [4:0] r,g,b;
+reg px_in_bank, px_out_bank;
+
+reg hold_reset;
 always @(posedge CLK_VIDEO) begin
+	localparam V_START = 50;
+
 	reg [8:0] x,y;
 	reg [2:0] div;
 	reg old_vsync;
@@ -532,17 +545,17 @@ always @(posedge CLK_VIDEO) begin
 		if(x == 240) hbl <= 1;
 		if(x == 000) hbl <= 0;
 
-		if(x == 300) begin
+		if(x == 293) begin
 			hs <= 1;
 
-			if(y == 3) vs <= 1;
-			if(y == 7) vs <= 0;
+			if(y == V_START+203)   vs <= 1;
+			if(y == V_START+203+3) vs <= 0;
 		end
 
-		if(x == 330)    hs  <= 0;
+		if(x == 293+32)    hs  <= 0;
 
-		if(y == 62)     vbl <= 0;
-		if(y >= 62+160) vbl <= 1;
+		if(y == V_START)     vbl <= 0;
+		if(y >= V_START+160) vbl <= 1;
 	end
 
 	if(ce_pix) begin
@@ -550,19 +563,37 @@ always @(posedge CLK_VIDEO) begin
 		else if(!hbl) px_addr <= px_addr + 1'd1;
 
 		x <= x + 1'd1;
-		if(x == 399) begin
+		if(x == 398) begin
 			x <= 0;
-			if(~&y) y <= y + 1'd1;
+			y <= y + 1'd1;
+			if (y == 263) y <= 0;
+
+			if (y == V_START-1) begin
+				// Read from write buffer if it is far enough ahead
+				px_out_bank <= ~framebuffer ? 0 : (pixel_addr >= (240*22)) ? px_in_bank : ~px_in_bank;
+			end
 		end
+
 	end
 
 	old_vsync <= vsync;
-	if(~old_vsync & vsync & vbl) begin
-		x <= 0;
-		y <= 0;
-		vs <= 0;
-		hs <= 0;
+	if(~old_vsync & vsync) begin
+		if(~framebuffer & vbl) begin
+			x <= 0;
+			y <= 0;
+			vs <= 0;
+			hs <= 0;
+		end
+
+		px_in_bank <= ~framebuffer ? 0 : ~px_in_bank;
 	end
+
+	// Avoid lost sync by reset
+	if (x == 0 && y == 0)
+		hold_reset <= 1'b0;
+	else if (reset)
+		hold_reset <= 1'b1;
+
 end
 
 assign VGA_F1 = 0;
