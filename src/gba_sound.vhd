@@ -61,6 +61,8 @@ architecture arch of gba_sound is
    signal REG_SOUNDBIAS                : std_logic_vector(SOUNDBIAS                               .upper downto SOUNDBIAS                               .lower) := (others => '0');
                
    signal SOUNDCNT_H_DMA_written  : std_logic;
+   
+   signal gbsound_on          : std_logic := '0';
 
    signal new_cycles_slow     : unsigned(7 downto 0) := (others => '0');
    signal new_cycles_valid    : std_logic := '0';
@@ -169,7 +171,7 @@ begin
    port map
    (
       clk100           => clk100, 
-      gb_on            => gb_on,      
+      gb_on            => gbsound_on,      
       gb_bus           => gb_bus,           
       new_cycles_valid => new_cycles_valid,
       sound_out        => sound_out_ch1,
@@ -196,7 +198,7 @@ begin
    port map
    (
       clk100           => clk100, 
-      gb_on            => gb_on,        
+      gb_on            => gbsound_on,        
       gb_bus           => gb_bus,          
       new_cycles_valid => new_cycles_valid,
       sound_out        => sound_out_ch2,
@@ -207,7 +209,7 @@ begin
    port map
    (
       clk100           => clk100,     
-      gb_on            => gb_on,        
+      gb_on            => gbsound_on,        
       gb_bus           => gb_bus,              
       new_cycles_valid => new_cycles_valid,
       sound_out        => sound_out_ch3,
@@ -218,7 +220,7 @@ begin
    port map
    (
       clk100           => clk100,  
-      gb_on            => gb_on,        
+      gb_on            => gbsound_on,        
       gb_bus           => gb_bus,             
       new_cycles_valid => new_cycles_valid,
       sound_out        => sound_out_ch4,
@@ -286,6 +288,8 @@ begin
    process (clk100)
    begin
       if rising_edge(clk100) then
+        
+         gbsound_on <= gb_on and PSG_FIFO_Master_Enable(PSG_FIFO_Master_Enable'left);
         
          new_cycles_valid <= '0';
                 
