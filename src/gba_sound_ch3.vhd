@@ -13,7 +13,6 @@ entity gba_sound_ch3 is
       gb_on               : in    std_logic;        
       gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
       
-      new_cycles          : in    unsigned(7 downto 0);
       new_cycles_valid    : in    std_logic;
       
       sound_out           : out   signed(15 downto 0) := (others => '0');
@@ -182,14 +181,13 @@ begin
             
             -- cpu cycle trigger
             if (new_cycles_valid = '1') then
-               soundcycles_freq     <= soundcycles_freq     + new_cycles;
-               soundcycles_length   <= soundcycles_length   + new_cycles;
+               soundcycles_freq     <= soundcycles_freq     + 1;
+               soundcycles_length   <= soundcycles_length   + 1;
             end if;
             
-            -- freq / wavetable
-            if (soundcycles_freq > 4) then
-               freq_cnt <= freq_cnt + soundcycles_freq / 2;
-               soundcycles_freq(soundcycles_freq'left downto 1) <= (others => '0');
+            if (new_cycles_valid = '0' and soundcycles_freq >= 2) then -- freq / wavetable
+               freq_cnt             <= freq_cnt + 1;
+               soundcycles_freq     <= soundcycles_freq - 2;
             end if;
             
             freq_check <= 2048 - freq_divider;
@@ -203,7 +201,7 @@ begin
             end if;
    
             -- length
-            if (soundcycles_length >= 16384) then -- 256 Hz
+            if (new_cycles_valid = '0' and soundcycles_length >= 16384) then -- 256 Hz
                soundcycles_length <= soundcycles_length - 16384;
                if (length_left > 0 and length_on = '1') then
                   length_left <= length_left - 1;
