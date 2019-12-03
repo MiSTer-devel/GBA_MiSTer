@@ -180,7 +180,7 @@ parameter CONF_STR = {
     "D0-;",
     "O1,Aspect Ratio,3:2,16:9;",
     "O9,Desaturate,Off,On;",
-    "OA,Framebuffer,Off,On;",
+    "OA,Sync core to video,Off,On;",
     "O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
     "O78,Stereo Mix,None,25%,50%,100%;", 
     "-;",
@@ -299,6 +299,7 @@ end
 
 wire save_eeprom, save_sram, save_flash;
 wire [31:0] cpu_addr, cpu_frombus;
+wire fast_forward = joy[10];
 
 gba_top
 #(
@@ -312,9 +313,9 @@ gba
 (
 	.clk100(clk_sys),
 	.GBA_on(~reset),                  // switching from off to on = reset
-	.GBA_lockspeed(~joy[10]),         // 1 = 100% speed, 0 = max speed
+	.GBA_lockspeed(~fast_forward),    // 1 = 100% speed, 0 = max speed
 	.GBA_flash_1m(flash_1m),          // 1 when string "FLASH1M_V" is anywhere in gamepak
-	.CyclePrecalc(status[5] ? 16'd0 : 16'd100), // 100 seems to be ok to keep fullspeed for all games
+	.CyclePrecalc(force_pause | status[5] ? 16'd0 : 16'd100), // 100 seems to be ok to keep fullspeed for all games
 	.MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
 	.CyclesMissing(),                 // debug only for speed measurement, keep open
 
@@ -506,27 +507,26 @@ always @(posedge clk_sys) begin
 	vsync <= |sync;
 end
 
-dpram_n #(17,15,76800) vram
+dpram_n #(16,15,38400) vram
 (
 	.clock_a(clk_sys),
-	.address_a(px_in_bank ? (pixel_addr+17'd38400) : pixel_addr),
+	.address_a(pixel_addr),
 	.data_a(pixel_data),
 	.wren_a(pixel_we),
 
 	.clock_b(CLK_VIDEO),
-	.address_b(px_out_bank ? (px_addr+17'd38400) : px_addr),
+	.address_b(px_addr),
 	.q_b(rgb)
 );
 
 wire [15:0] px_addr;
 wire [14:0] rgb;
-wire framebuffer = status[10];
+wire sync_core = status[10];
 
 reg hs, vs, hbl, vbl, ce_pix;
 reg [4:0] r,g,b;
-reg px_in_bank, px_out_bank;
-
-reg hold_reset;
+reg hold_reset, force_pause;
+reg [13:0] force_pause_cnt;
 always @(posedge CLK_VIDEO) begin
 	localparam V_START = 50;
 
@@ -565,27 +565,33 @@ always @(posedge CLK_VIDEO) begin
 		x <= x + 1'd1;
 		if(x == 398) begin
 			x <= 0;
-			y <= y + 1'd1;
-			if (y == 263) y <= 0;
+			if (~&y) y <= y + 1'd1;
+			if (~fast_forward && y == 263) y <= 0;
 
 			if (y == V_START-1) begin
-				// Read from write buffer if it is far enough ahead
-				px_out_bank <= ~framebuffer ? 0 : (pixel_addr >= (240*22)) ? px_in_bank : ~px_in_bank;
+				// Pause the core for 22 Gameboy lines to avoid reading & writing overlap (tearing)
+				force_pause <= (sync_core && ~fast_forward && pixel_addr < (240*22));
+				force_pause_cnt <= 14'd10164; // 22* 264/228 *399
 			end
+		end
+
+		if (force_pause) begin
+			if (force_pause_cnt > 0)
+				force_pause_cnt <= force_pause_cnt - 1'b1;
+			else
+				force_pause <= 0;
 		end
 
 	end
 
 	old_vsync <= vsync;
 	if(~old_vsync & vsync) begin
-		if(~framebuffer & vbl) begin
+		if((fast_forward | ~sync_core) & vbl) begin
 			x <= 0;
 			y <= 0;
 			vs <= 0;
 			hs <= 0;
 		end
-
-		px_in_bank <= ~framebuffer ? 0 : ~px_in_bank;
 	end
 
 	// Avoid lost sync by reset
