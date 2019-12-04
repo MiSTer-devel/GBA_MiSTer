@@ -527,8 +527,9 @@ reg hs, vs, hbl, vbl, ce_pix;
 reg [4:0] r,g,b;
 reg hold_reset, force_pause;
 reg [13:0] force_pause_cnt;
+
 always @(posedge CLK_VIDEO) begin
-	localparam V_START = 50;
+	localparam V_START = 62;
 
 	reg [8:0] x,y;
 	reg [2:0] div;
@@ -548,8 +549,8 @@ always @(posedge CLK_VIDEO) begin
 		if(x == 293) begin
 			hs <= 1;
 
-			if(y == V_START+203)   vs <= 1;
-			if(y == V_START+203+3) vs <= 0;
+			if(y == 1)   vs <= 1;
+			if(y == 4)   vs <= 0;
 		end
 
 		if(x == 293+32)    hs  <= 0;
@@ -566,7 +567,7 @@ always @(posedge CLK_VIDEO) begin
 		if(x == 398) begin
 			x <= 0;
 			if (~&y) y <= y + 1'd1;
-			if (~fast_forward && y == 263) y <= 0;
+			if (sync_core && y == 263) y <= 0;
 
 			if (y == V_START-1) begin
 				// Pause the core for 22 Gameboy lines to avoid reading & writing overlap (tearing)
@@ -586,7 +587,7 @@ always @(posedge CLK_VIDEO) begin
 
 	old_vsync <= vsync;
 	if(~old_vsync & vsync) begin
-		if((fast_forward | ~sync_core) & vbl) begin
+		if(~sync_core & vbl) begin
 			x <= 0;
 			y <= 0;
 			vs <= 0;
@@ -597,7 +598,7 @@ always @(posedge CLK_VIDEO) begin
 	// Avoid lost sync by reset
 	if (x == 0 && y == 0)
 		hold_reset <= 1'b0;
-	else if (reset)
+	else if (reset & sync_core)
 		hold_reset <= 1'b1;
 
 end
