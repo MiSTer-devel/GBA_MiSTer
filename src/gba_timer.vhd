@@ -42,6 +42,7 @@ begin
    generic map
    (
       is_simu                => is_simu,
+      index                  => 0, 
       Reg_L                  => TM0CNT_L,
       Reg_H_Prescaler        => TM0CNT_H_Prescaler       ,
       Reg_H_Count_up         => TM0CNT_H_Count_up        ,
@@ -68,6 +69,7 @@ begin
    generic map
    (
       is_simu                => is_simu,
+      index                  => 1, 
       Reg_L                  => TM1CNT_L,
       Reg_H_Prescaler        => TM1CNT_H_Prescaler       ,
       Reg_H_Count_up         => TM1CNT_H_Count_up        ,
@@ -94,6 +96,7 @@ begin
    generic map
    (
       is_simu                => is_simu,
+      index                  => 2, 
       Reg_L                  => TM2CNT_L,
       Reg_H_Prescaler        => TM2CNT_H_Prescaler       ,
       Reg_H_Count_up         => TM2CNT_H_Count_up        ,
@@ -120,6 +123,7 @@ begin
    generic map
    (
       is_simu                => is_simu,
+      index                  => 3, 
       Reg_L                  => TM3CNT_L,
       Reg_H_Prescaler        => TM3CNT_H_Prescaler       ,
       Reg_H_Count_up         => TM3CNT_H_Count_up        ,

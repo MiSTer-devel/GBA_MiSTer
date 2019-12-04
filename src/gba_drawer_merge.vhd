@@ -328,22 +328,22 @@ begin
          
          firstprio_cycle3 <= firstprio_var;
          
-         secondprio_var := enables_cycle2 and second_target;
-         secondprio_var := secondprio_var and (not firstprio_var);
          
-         if (secondprio_var(BG0) = '1' and secondprio_var(OBJ) = '1' and unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG0) then secondprio_var(OBJ) := '0'; end if;
-         if (secondprio_var(BG1) = '1' and secondprio_var(OBJ) = '1' and unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG1) then secondprio_var(OBJ) := '0'; end if;
-         if (secondprio_var(BG2) = '1' and secondprio_var(OBJ) = '1' and unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG2) then secondprio_var(OBJ) := '0'; end if;
-         if (secondprio_var(BG3) = '1' and secondprio_var(OBJ) = '1' and unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG3) then secondprio_var(OBJ) := '0'; end if;
+         secondprio_var := enables_cycle2 and (not firstprio_var);
          
-         if (secondprio_var(BG0) = '1' and secondprio_var(BG1) = '1' and Prio_BG0 > Prio_BG1) then secondprio_var(BG0) := '0'; end if;
-         if (secondprio_var(BG0) = '1' and secondprio_var(BG2) = '1' and Prio_BG0 > Prio_BG2) then secondprio_var(BG0) := '0'; end if;
-         if (secondprio_var(BG0) = '1' and secondprio_var(BG3) = '1' and Prio_BG0 > Prio_BG3) then secondprio_var(BG0) := '0'; end if;
-         if (secondprio_var(BG1) = '1' and secondprio_var(BG2) = '1' and Prio_BG1 > Prio_BG2) then secondprio_var(BG1) := '0'; end if;
-         if (secondprio_var(BG1) = '1' and secondprio_var(BG3) = '1' and Prio_BG1 > Prio_BG3) then secondprio_var(BG1) := '0'; end if;
-         if (secondprio_var(BG2) = '1' and secondprio_var(BG3) = '1' and Prio_BG2 > Prio_BG3) then secondprio_var(BG2) := '0'; end if;
+         if (secondprio_var(BG0) = '1' and secondprio_var(OBJ) = '1') then if (unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG0) then secondprio_var(OBJ) := '0'; else secondprio_var(BG0) := '0'; end if; end if;
+         if (secondprio_var(BG1) = '1' and secondprio_var(OBJ) = '1') then if (unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG1) then secondprio_var(OBJ) := '0'; else secondprio_var(BG1) := '0'; end if; end if;
+         if (secondprio_var(BG2) = '1' and secondprio_var(OBJ) = '1') then if (unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG2) then secondprio_var(OBJ) := '0'; else secondprio_var(BG2) := '0'; end if; end if;
+         if (secondprio_var(BG3) = '1' and secondprio_var(OBJ) = '1') then if (unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG3) then secondprio_var(OBJ) := '0'; else secondprio_var(BG3) := '0'; end if; end if;
+         
+         if (secondprio_var(BG0) = '1' and secondprio_var(BG1) = '1') then if (Prio_BG0 > Prio_BG1) then secondprio_var(BG0) := '0'; else secondprio_var(BG1) := '0'; end if; end if;
+         if (secondprio_var(BG0) = '1' and secondprio_var(BG2) = '1') then if (Prio_BG0 > Prio_BG2) then secondprio_var(BG0) := '0'; else secondprio_var(BG2) := '0'; end if; end if;
+         if (secondprio_var(BG0) = '1' and secondprio_var(BG3) = '1') then if (Prio_BG0 > Prio_BG3) then secondprio_var(BG0) := '0'; else secondprio_var(BG3) := '0'; end if; end if;
+         if (secondprio_var(BG1) = '1' and secondprio_var(BG2) = '1') then if (Prio_BG1 > Prio_BG2) then secondprio_var(BG1) := '0'; else secondprio_var(BG2) := '0'; end if; end if;
+         if (secondprio_var(BG1) = '1' and secondprio_var(BG3) = '1') then if (Prio_BG1 > Prio_BG3) then secondprio_var(BG1) := '0'; else secondprio_var(BG3) := '0'; end if; end if;
+         if (secondprio_var(BG2) = '1' and secondprio_var(BG3) = '1') then if (Prio_BG2 > Prio_BG3) then secondprio_var(BG2) := '0'; else secondprio_var(BG3) := '0'; end if; end if;
             
-         secondprio_cycle3 <= secondprio_var;
+         secondprio_cycle3 <= secondprio_var and second_target;
          
          -- special effect data
          firstpixel_cycle3 <= (others => '0');

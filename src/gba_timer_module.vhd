@@ -9,6 +9,7 @@ entity gba_timer_module is
    generic
    (
       is_simu                : std_logic;
+      index                  : integer;
       Reg_L                  : regmap_type;
       Reg_H_Prescaler        : regmap_type;
       Reg_H_Count_up         : regmap_type;
@@ -101,7 +102,7 @@ begin
             if (timer_on = '1' and timer_on_next = '1') then
                if (H_Count_up = "1" and countup_in = '1') then
                   counter <= counter + 1;
-               elsif (H_Count_up = "0" and new_cycles_valid = '1') then
+               elsif ((H_Count_up = "0" or index = 0) and new_cycles_valid = '1') then
                   if (H_Prescaler = "00") then
                      counter <= counter + new_cycles;
                   else
