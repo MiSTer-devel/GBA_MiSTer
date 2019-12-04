@@ -567,7 +567,7 @@ always @(posedge CLK_VIDEO) begin
 		if(x == 398) begin
 			x <= 0;
 			if (~&y) y <= y + 1'd1;
-			if (sync_core && y == 263) y <= 0;
+			if (sync_core && y >= 263) y <= 0;
 
 			if (y == V_START-1) begin
 				// Pause the core for 22 Gameboy lines to avoid reading & writing overlap (tearing)
