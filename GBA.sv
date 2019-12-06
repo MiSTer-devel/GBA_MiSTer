@@ -304,10 +304,11 @@ wire fast_forward = joy[10];
 gba_top
 #(
    // assume: cart may have either flash or eeprom, not both! (need to verify)
-	.Softmap_GBA_FLASH_ADDR  (0),           // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
-	.Softmap_GBA_EEPROM_ADDR (0),           //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
-	.Softmap_GBA_WRam_ADDR   (131072),      //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
-	.Softmap_GBA_Gamerom_ADDR(65536+131072) //   32MB of ROM
+	.Softmap_GBA_FLASH_ADDR  (0),            // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
+	.Softmap_GBA_EEPROM_ADDR (0),            //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
+	.Softmap_GBA_WRam_ADDR   (131072),       //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
+	.Softmap_GBA_Gamerom_ADDR(65536+131072), //   32MB of ROM
+	.turbosound('1)								  // sound buffer to play sound in turbo mode without sound pitched up
 )
 gba
 (
@@ -318,6 +319,7 @@ gba
 	.CyclePrecalc(force_pause | status[5] ? 16'd0 : 16'd100), // 100 seems to be ok to keep fullspeed for all games
 	.MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
 	.CyclesMissing(),                 // debug only for speed measurement, keep open
+	.CyclesVsyncSpeed(),              // debug only for speed measurement, keep open
 
 	.sdram_read_ena(sdram_req),       // triggered once for read request 
 	.sdram_read_done(sdram_ack),      // must be triggered once when sdram_read_data is valid after last read

@@ -7,11 +7,12 @@ use work.pProc_bus_gba.all;
 entity gba_top is
    generic
    (
-      Softmap_GBA_Gamerom_ADDR : integer := 13631488; -- count: 8388608  -- 32 Mbyte Data for GameRom
-      Softmap_GBA_WRam_ADDR    : integer := 55574528; -- count:   65536  -- 256 Kbyte Data for GBA WRam Large
-      Softmap_GBA_FLASH_ADDR   : integer := 56623104; -- count:  131072  -- 128/512 Kbyte Data for GBA Flash
-      Softmap_GBA_EEPROM_ADDR  : integer := 57671680; -- count:    8192  -- 8/32 Kbyte Data for GBA EEProm
-      is_simu                  : std_logic := '0'
+      Softmap_GBA_Gamerom_ADDR : integer; -- count: 8388608  -- 32 Mbyte Data for GameRom
+      Softmap_GBA_WRam_ADDR    : integer; -- count:   65536  -- 256 Kbyte Data for GBA WRam Large
+      Softmap_GBA_FLASH_ADDR   : integer; -- count:  131072  -- 128/512 Kbyte Data for GBA Flash
+      Softmap_GBA_EEPROM_ADDR  : integer; -- count:    8192  -- 8/32 Kbyte Data for GBA EEProm
+      is_simu                  : std_logic := '0';
+      turbosound               : std_logic  -- sound buffer to play sound in turbo mode without sound pitched up
    );
    port 
    (
@@ -23,6 +24,7 @@ entity gba_top is
       CyclePrecalc       : in     std_logic_vector(15 downto 0); -- 100 seems to be ok to keep fullspeed for all games
       MaxPakAddr         : in     std_logic_vector(24 downto 0); -- max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
       CyclesMissing      : buffer std_logic_vector(31 downto 0); -- debug only for speed measurement, keep open
+      CyclesVsyncSpeed   : out    std_logic_vector(31 downto 0); -- debug only for speed measurement, keep open
       -- sdram interface
       sdram_read_ena     : out    std_logic;                     -- triggered once for read request 
       sdram_read_done    : in     std_logic := '0';              -- must be triggered once when sdram_read_data is valid after last read
@@ -211,15 +213,11 @@ architecture arch of gba_top is
    signal IRP_Joypad  : std_logic;
    signal IRP_Gamepak : std_logic;
    
-   -- timing/speedmult
-   --signal oCoord_Y_100_1 : integer range -1023 to 2047;
-   --signal oCoord_Y_100_2 : integer range -1023 to 2047;
-   --signal new_image_req  : unsigned(3 downto 0) := (others => '0');
-   
    signal cycles_ahead  : integer range 0 to 131071 := 0;
    signal cycles_16_100 : integer range 0 to (SPEEDDIV - 1) := 0;
    signal new_missing   : std_logic := '0';
-   
+   signal CyclesVsync   : unsigned(31 downto 0) := (others => '0');
+   signal bench_slow    : integer range 0 to 1685375 := 0;
    
 begin 
 
@@ -403,6 +401,10 @@ begin
    );
    
    igba_sound : entity work.gba_sound        
+   generic map
+   (
+      turbosound => turbosound
+   )   
    port map 
    ( 
       clk100               => clk100,
@@ -646,6 +648,18 @@ begin
             CyclesMissing <= (others => '0');
          elsif (new_missing = '1') then
             CyclesMissing <= std_logic_vector(unsigned(CyclesMissing) + 1);
+         end if;
+         
+         
+         if (bench_slow < 1685375) then -- vsync time
+            bench_slow <= bench_slow + 1;
+         end if;
+         if (bench_slow = 1685375) then
+            CyclesVsyncSpeed <= std_logic_vector(CyclesVsync);
+            CyclesVsync      <= (others => '0');
+            bench_slow       <= 0;
+         elsif (new_cycles_valid = '1') then
+            CyclesVsync <= CyclesVsync + new_cycles;
          end if;
    
       end if;

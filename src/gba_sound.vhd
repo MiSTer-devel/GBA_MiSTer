@@ -5,7 +5,13 @@ use IEEE.numeric_std.all;
 use work.pProc_bus_gba.all;
 use work.pReg_gba_sound.all;
 
+library MEM;
+
 entity gba_sound is
+   generic
+   (
+      turbosound          : std_logic  -- sound buffer to play sound in turbo mode without sound pitched up
+   );
    port 
    (
       clk100              : in    std_logic; 
@@ -84,6 +90,8 @@ architecture arch of gba_sound is
    signal sound_on_ch4  : std_logic;
    signal sound_on_dmaA : std_logic;
    signal sound_on_dmaB : std_logic;
+   
+   signal dma_new_sample : std_logic;
    
    signal soundmix1_l  : signed(15 downto 0) := (others => '0'); 
    signal soundmix1_r  : signed(15 downto 0) := (others => '0'); 
@@ -253,6 +261,8 @@ begin
       sound_out_right     => sound_out_dmaA_r,
       sound_on            => sound_on_dmaA,
       
+      new_sample_out      => dma_new_sample,
+      
       debug_fifocount     => debug_fifocount
    );
    
@@ -282,6 +292,8 @@ begin
       sound_out_right     => sound_out_dmaB_r,
       sound_on            => sound_on_dmaB,
       
+      new_sample_out      => open, 
+      
       debug_fifocount     => open
    );
    
@@ -289,6 +301,7 @@ begin
    begin
       if rising_edge(clk100) then
         
+         -- PSG_FIFO_Master_Enable should usually also reset all sound registers
          gbsound_on <= gb_on and PSG_FIFO_Master_Enable(PSG_FIFO_Master_Enable'left);
         
          new_cycles_valid <= '0';
@@ -410,18 +423,92 @@ begin
          else
             soundmix9_r <= soundmix8_r(9 downto 0);
          end if;
-
-         -- output enable
-         if (PSG_FIFO_Master_Enable = "1") then -- should usually also reset all sound registers
-            sound_out_left  <= std_logic_vector(resize(soundmix9_l * 16, 16));
-            sound_out_right <= std_logic_vector(resize(soundmix9_r * 16, 16));
-         else
-            sound_out_left  <= (others => '0');
-            sound_out_right <= (others => '0');
-         end if;
       
       end if;
    end process;
+   
+   gturbosound : if turbosound = '1' generate
+      
+      signal fifo_Din   : std_logic_vector(8 downto 0);
+      signal fifo_Wr    : std_logic := '0';
+      signal fifo_Full  : std_logic;
+      signal fifo_Dout  : std_logic_vector(8 downto 0);
+      signal fifo_Rd    : std_logic := '0';
+      signal fifo_Empty : std_logic;
+   
+      signal filling    : std_logic := '0';
+      signal readcount  : integer range 0 to 9090 := 0; -- 11khz
+   
+   begin
+   
+      fifo_Wr <= dma_new_sample when fifo_Full = '0' and filling = '1' else '0';
+      fifo_Din <= std_logic_vector(soundmix9_l(9 downto 1));
+   
+      iSyncFifo : entity MEM.SyncFifo
+      generic map
+      (
+         SIZE             => 2048,
+         DATAWIDTH        => 9,
+         NEARFULLDISTANCE => 0
+      )
+      port map
+      ( 
+         clk      => clk100,
+         reset    => '0',
+                  
+         Din      => fifo_Din,  
+         Wr       => fifo_Wr,   
+         Full     => fifo_Full, 
+                     
+         Dout     => fifo_Dout, 
+         Rd       => fifo_Rd,   
+         Empty    => fifo_Empty
+      );
+      
+      process (clk100)
+      begin
+         if rising_edge(clk100) then
+         
+            if (filling = '0' and fifo_Empty = '1') then
+               filling <= '1';
+            end if;
+            
+            if (filling = '1' and fifo_Full = '1') then
+               filling <= '0';
+            end if;
+            
+            fifo_Rd <= '0';
+            if (readcount < 9090) then
+               readcount <= readcount + 1;
+            else
+               readcount <= 0;
+               fifo_Rd   <= not fifo_Empty;
+            end if;
+            
+         end if;
+      end process;
+   
+      sound_out_left  <= std_logic_vector(resize(soundmix9_l       * 16, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '1' else 
+                         std_logic_vector(resize(signed(fifo_Dout) * 32, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '0' else 
+                         (others => '0');
+      sound_out_right <= std_logic_vector(resize(soundmix9_r       * 16, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '1' else 
+                         std_logic_vector(resize(signed(fifo_Dout) * 32, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '0' else 
+                         (others => '0');
+
+   end generate;
+   
+   gnoturbosound : if turbosound = '0' generate
+   begin
+   
+      sound_out_left  <= std_logic_vector(resize(soundmix9_l * 16, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '1' else 
+                         std_logic_vector(resize(soundmix9_l *  4, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '0' else 
+                         (others => '0');
+      sound_out_right <= std_logic_vector(resize(soundmix9_r * 16, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '1' else 
+                         std_logic_vector(resize(soundmix9_r *  4, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '0' else 
+                         (others => '0');
+   
+   end generate;
+   
     
 end architecture;
 

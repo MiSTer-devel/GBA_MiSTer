@@ -199,14 +199,12 @@ architecture arch of gba_cpu is
    signal decode_request   : std_logic;
    signal decode_ack       : std_logic;
    signal decode_data      : std_logic_vector(31 downto 0) := (others => '0');
-   signal decode_datacomb  : std_logic_vector(27 downto 0) := (others => '0');
    signal decode_PC        : unsigned(31 downto 0) := (others => '0');
    signal decode_condition : std_logic_vector(3 downto 0);
    
    type tState_decode is
    (
       WAITFETCH,
-      DECODE_FUNCTION,
       DECODE_DETAILS,
       DECODE_DONE
    );
@@ -263,7 +261,6 @@ architecture arch of gba_cpu is
       -- thumb
       long_branch_with_link
    );
-   signal decode_functions : tFunctions;
 
    type tFunctions_detail is
    (
@@ -471,9 +468,6 @@ architecture arch of gba_cpu is
    
    -- ############# Block RW ##############
    
-   signal bitcount8_low   : integer range 0 to 8;
-   signal bitcount8_high  : integer range 0 to 8;
-   
    type tblock_stage is
    (
       BLOCKFETCHADDR,
@@ -509,10 +503,10 @@ architecture arch of gba_cpu is
      
 begin  
    
-   gb_bus_Adr <= bus_fetch_Adr when fetch_ack = '1' else bus_execute_Adr;
-   gb_bus_rnw <= bus_fetch_rnw when fetch_ack = '1' else bus_execute_rnw;
-   gb_bus_ena <= bus_fetch_ena when fetch_ack = '1' else bus_execute_ena;
-   gb_bus_acc <= bus_fetch_acc when fetch_ack = '1' else bus_execute_acc;
+   gb_bus_Adr <= bus_fetch_Adr  when fetch_ack = '1' else bus_execute_Adr;
+   gb_bus_rnw <= bus_fetch_rnw  when fetch_ack = '1' else bus_execute_rnw;
+   gb_bus_ena <= not branchnext when fetch_ack = '1' else bus_execute_ena;
+   gb_bus_acc <= bus_fetch_acc  when fetch_ack = '1' else bus_execute_acc;
    
    PC_in_BIOS <= '1' when bus_fetch_Adr(27 downto 24) = x"0" else '0';
 
@@ -573,6 +567,7 @@ begin
             
             -- ################ internal
                
+            fetch_ack          <= '0';
             wait_fetch         <= '0';
             skip_pending_fetch <= '0';
             fetch_available    <= '0';
@@ -588,15 +583,15 @@ begin
             
                lastread           <= x"DEADDEAD"; -- for testing purpose only
             
-               if (do_step = '1') then 
-                  if (halt_cnt < 5) then
-                     halt_cnt <= halt_cnt + 1;
-                  else
-                     halt_cnt <= 0;
-                     new_cycles_valid <= '1';
-                     new_cycles_out   <= to_unsigned(6, 8);
-                  end if;
-               end if;
+               --if (do_step = '1') then 
+               --   if (halt_cnt < 5) then
+               --      halt_cnt <= halt_cnt + 1;
+               --   else
+               --      halt_cnt <= 0;
+               --      new_cycles_valid <= '1';
+               --      new_cycles_out   <= to_unsigned(6, 8);
+               --   end if;
+               --end if;
             end if;
             
          else
@@ -612,27 +607,23 @@ begin
                skip_pending_fetch <= wait_fetch and not gb_bus_done;
                wait_fetch         <= '0';
                PC                 <= new_pc;
-            else
-            
-               if ((fetch_available = '0' or decode_request = '1') and wait_fetch = '0' and skip_pending_fetch = '0' and executebus = '0') then
-                  bus_fetch_Adr <= std_logic_vector(PC);
+               
+               if (wait_fetch = '0' or gb_bus_done = '1') then
+                  bus_fetch_Adr <= std_logic_vector(new_pc);
                   bus_fetch_rnw <= '1';
                   bus_fetch_ena <= '1';
                   if (thumbmode = '1') then 
                      bus_fetch_acc <= ACCESS_16BIT; 
-                     PC            <= PC + 2;
+                     PC            <= new_pc + 2;
                   else 
                      bus_fetch_acc <= ACCESS_32BIT; 
-                     PC            <= PC + 4;
+                     PC            <= new_pc + 4;
                   end if;
-                  wait_fetch <= '1';
                   fetch_ack  <= '1';
+                  wait_fetch <= '1';
                end if;
-               
-               if (gb_bus_done = '1' and skip_pending_fetch = '1') then
-                  skip_pending_fetch <= '0';
-               end if;  
-   
+            else
+            
                if (gb_bus_done = '1' and wait_fetch = '1') then
                   wait_fetch <= '0';
                   if (decode_request = '0') then
@@ -645,6 +636,31 @@ begin
                      end if;
                   end if;
                end if;
+            
+               if (executebus = '0') then
+                  if ((fetch_available = '0' or decode_request = '1') and (wait_fetch = '0' or (gb_bus_done = '1' and decode_request = '1')) and (skip_pending_fetch = '0' or gb_bus_done = '1')) then
+                     bus_fetch_Adr <= std_logic_vector(PC);
+                     bus_fetch_rnw <= '1';
+                     bus_fetch_ena <= '1';
+                     if (thumbmode = '1') then 
+                        bus_fetch_acc <= ACCESS_16BIT; 
+                        PC            <= PC + 2;
+                     else 
+                        bus_fetch_acc <= ACCESS_32BIT; 
+                        PC            <= PC + 4;
+                     end if;
+                     fetch_ack  <= '1';
+                     wait_fetch <= '1';
+                  end if;
+               end if;
+               
+               if (fetch_ack = '1' and branchnext = '1') then
+                  wait_fetch <= '0';
+               end if;
+
+               if (gb_bus_done = '1' and skip_pending_fetch = '1') then
+                  skip_pending_fetch <= '0';
+               end if;  
                
                if (fetch_available = '1' and decode_request = '1') then
                   fetch_available <= '0';
@@ -686,12 +702,9 @@ begin
                            decode_cycles  <= nextOpCodeAccessSeq32;
                         end if;
                         
-                        state_decode   <= DECODE_FUNCTION;
+                        state_decode   <= DECODE_DETAILS;
                         decode_request <= '0';
                      end if;
-                  
-                  when DECODE_FUNCTION =>
-                     state_decode <= DECODE_DETAILS;
                   
                   when DECODE_DETAILS =>
                      state_decode   <= DECODE_DONE;
@@ -1015,27 +1028,43 @@ begin
    
    -- decoding function
    process (clk100) 
-      variable opcode_high3   : std_logic_vector(2 downto 0);
-      variable opcode_mid     : std_logic_vector(3 downto 0);
-      variable opcode_low     : std_logic_vector(3 downto 0);
-      variable bitcount8low_var  : integer range 0 to 8;
-      variable bitcount8high_var : integer range 0 to 8;
+      variable opcode_high3      : std_logic_vector(2 downto 0);
+      variable opcode_mid        : std_logic_vector(3 downto 0);
+      variable opcode_low        : std_logic_vector(3 downto 0);
+      variable bitcount8_low     : integer range 0 to 8;
+      variable bitcount8_high    : integer range 0 to 8;
+      
+      variable decode_functions  : tFunctions;
+      variable decode_datacomb   : std_logic_vector(27 downto 0) := (others => '0');
+      
+      -- decoding details
+      variable opcode       : std_logic_vector(3 downto 0);
+      variable use_imm      : std_logic;
+      variable updateflags  : std_logic;
+      variable Rn_op1       : std_logic_vector(3 downto 0);
+      variable Rdest        : std_logic_vector(3 downto 0);
+      variable RM_op2       : std_logic_vector(3 downto 0);
+      variable OP2          : std_logic_vector(11 downto 0);
+      
+      variable rotateamount  : unsigned(4 downto 0);
+      variable immidiate    : unsigned(31 downto 0);
+      variable shiftcarry   : std_logic;
+      variable useoldcarry  : std_logic;
+
    begin
    
       if (rising_edge(clk100)) then
    
-         decode_datacomb  <= decode_data(27 downto 0);
+         decode_datacomb  := decode_data(27 downto 0);
          
          decode_clearbit1 <= '0';
          
-         bitcount8low_var  := 0;
-         bitcount8high_var := 0;
+         bitcount8_low  := 0;
+         bitcount8_high := 0;
          for i in 0 to 7 loop
-            if (decode_data(i) = '1')     then bitcount8low_var  := bitcount8low_var + 1;  end if;
-            if (decode_data(8 + i) = '1') then bitcount8high_var := bitcount8high_var + 1; end if;
+            if (decode_data(i) = '1')     then bitcount8_low  := bitcount8_low + 1;  end if;
+            if (decode_data(8 + i) = '1') then bitcount8_high := bitcount8_high + 1; end if;
          end loop;
-         bitcount8_low  <= bitcount8low_var;
-         bitcount8_high <= bitcount8high_var;
    
          if (thumbmode = '0') then
          
@@ -1052,58 +1081,58 @@ begin
    
                      when x"1" =>
                         if (decode_data(24 downto 8) = '1' & x"2FFF") then
-                           decode_functions <= branch_and_exchange;
+                           decode_functions := branch_and_exchange;
                            --branch_and_exchange(RM_op2);
                         else
-                           decode_functions <= data_processing;
+                           decode_functions := data_processing;
                            --data_processing(use_imm, opcode_mid, updateflags, Rn_op1, Rdest, OP2, asmcmd);
                         end if;
    
                      when x"9" =>
                         if (unsigned(opcode_mid) >= 8) then
-                           decode_functions <= single_data_swap;
+                           decode_functions := single_data_swap;
                            --single_data_swap((opcode_mid & 2) == 2, Rn_op1, Rdest, OP2);
                         elsif (unsigned(opcode_mid) >= 4) then
-                           decode_functions <= multiply_long;
+                           decode_functions := multiply_long;
                            --multiply_long(opcode_mid, updateflags, Rn_op1, Rdest, OP2);
                         else
-                           decode_functions <= multiply;
+                           decode_functions := multiply;
                            --multiply(opcode_mid, updateflags, Rdest, Rn_op1, (byte)((OP2 >> 8) & 0xF), (byte)(OP2 & 0xF));
                         end if;
    
                      when x"B" | x"D" | x"F" =>  -- halfword data transfer
                         if (decode_data(22) = '1') then --  immidiate offset
-                           decode_functions <= halfword_data_transfer_immoffset;
+                           decode_functions := halfword_data_transfer_immoffset;
                            --halfword_data_transfer(opcode_mid, opcode_low, updateflags, Rn_op1, Rdest, (UInt32)(((OP2 >> 4) & 0xF0) | RM_op2));
                         else -- register offset
-                           decode_functions <= halfword_data_transfer_regoffset;
+                           decode_functions := halfword_data_transfer_regoffset;
                            --halfword_data_transfer(opcode_mid, opcode_low, updateflags, Rn_op1, Rdest, regs[RM_op2]);
                         end if;
    
                      when others =>
-                        decode_functions <= data_processing;
+                        decode_functions := data_processing;
                         --data_processing(use_imm, opcode_mid, updateflags, Rn_op1, Rdest, OP2, asmcmd);
    
                   end case;
    
                when 1 =>
-                  decode_functions <= data_processing;
+                  decode_functions := data_processing;
                   --data_processing(use_imm, opcode_mid, updateflags, Rn_op1, Rdest, OP2, asmcmd);
    
                when 2 | 3 =>
-                  decode_functions <= single_data_transfer;
+                  decode_functions := single_data_transfer;
                   --single_data_transfer(use_imm, opcode_mid, opcode_low, updateflags, Rn_op1, Rdest, OP2);
    
                when 4 => 
-                  decode_functions <= block_data_transfer;
+                  decode_functions := block_data_transfer;
                   --block_data_transfer(opcode_mid, updateflags, Rn_op1, (UInt16)asmcmd);
    
                when 5 =>
-                  decode_functions <= branch;
+                  decode_functions := branch;
                   --branch((opcode_mid & 8) == 8, asmcmd & 0xFFFFFF);
    
                when 7 =>
-                  decode_functions <= software_interrupt;
+                  decode_functions := software_interrupt;
                   --software_interrupt();
             
                when others => report "should never happen" severity failure; 
@@ -1118,139 +1147,139 @@ begin
          
                when 0 => 
                   if (decode_data(12 downto 11) = "11") then
-                     decode_datacomb(27 downto 26)  <= "00"; -- fixed
-                     decode_datacomb(25)            <= decode_data(10);  -- Immidiate
+                     decode_datacomb(27 downto 26)  := "00"; -- fixed
+                     decode_datacomb(25)            := decode_data(10);  -- Immidiate
                      if (decode_data(9) = '1') then
-                        decode_datacomb(24 downto 21)  <= x"2"; -- Opcode -> sub
+                        decode_datacomb(24 downto 21)  := x"2"; -- Opcode -> sub
                      else
-                        decode_datacomb(24 downto 21)  <= x"4"; -- Opcode -> add
+                        decode_datacomb(24 downto 21)  := x"4"; -- Opcode -> add
                      end if;
-                     decode_datacomb(20)            <= '1'; -- set condition codes
-                     decode_datacomb(19 downto 16)  <= '0' & decode_data(5 downto 3); -- RN -> 1st op
-                     decode_datacomb(15 downto 12)  <= '0' & decode_data(2 downto 0); -- Rdest
+                     decode_datacomb(20)            := '1'; -- set condition codes
+                     decode_datacomb(19 downto 16)  := '0' & decode_data(5 downto 3); -- RN -> 1st op
+                     decode_datacomb(15 downto 12)  := '0' & decode_data(2 downto 0); -- Rdest
                      if (decode_data(10) = '1') then
-                        decode_datacomb(11 downto  0)  <= x"00" & '0' & decode_data(8 downto 6); -- 3 bit immidiate, no rotate
+                        decode_datacomb(11 downto  0)  := x"00" & '0' & decode_data(8 downto 6); -- 3 bit immidiate, no rotate
                      else
-                        decode_datacomb(11 downto  4)  <= x"00"; -- don't shift
-                        decode_datacomb( 3 downto  0)  <= '0' & decode_data(8 downto 6); -- Rm -> 2nd OP
+                        decode_datacomb(11 downto  4)  := x"00"; -- don't shift
+                        decode_datacomb( 3 downto  0)  := '0' & decode_data(8 downto 6); -- Rm -> 2nd OP
                      end if;
-                     decode_functions <= data_processing;
+                     decode_functions := data_processing;
                      --add_subtract(((asmcmd >> 10) & 1) == 1, ((asmcmd >> 9) & 1) == 1, (byte)((asmcmd >> 6) & 0x7), (byte)((asmcmd >> 3) & 0x7), (byte)(asmcmd & 0x7));
                   else
-                     decode_datacomb(27 downto 26)  <= "00"; -- fixed
-                     decode_datacomb(25)            <= '0';  -- Immidiate
-                     decode_datacomb(24 downto 21)  <= x"D"; -- Opcode -> mov
-                     decode_datacomb(20)            <= '1'; -- set condition codes
-                     decode_datacomb(19 downto 16)  <= x"0"; -- RN -> 1st op
-                     decode_datacomb(15 downto 12)  <= '0' & decode_data(2 downto 0); -- Rdest
-                     decode_datacomb(11 downto  7)  <= decode_data(10 downto 6);  -- shift amount
-                     decode_datacomb( 6 downto  5)  <= decode_data(12 downto 11); -- shift type
-                     decode_datacomb( 4)            <= '0';  -- shift with immidiate
-                     decode_datacomb( 3 downto  0)  <= '0' & decode_data(5 downto 3); -- Rm -> 2nd OP
-                     decode_functions <= data_processing;
+                     decode_datacomb(27 downto 26)  := "00"; -- fixed
+                     decode_datacomb(25)            := '0';  -- Immidiate
+                     decode_datacomb(24 downto 21)  := x"D"; -- Opcode -> mov
+                     decode_datacomb(20)            := '1'; -- set condition codes
+                     decode_datacomb(19 downto 16)  := x"0"; -- RN -> 1st op
+                     decode_datacomb(15 downto 12)  := '0' & decode_data(2 downto 0); -- Rdest
+                     decode_datacomb(11 downto  7)  := decode_data(10 downto 6);  -- shift amount
+                     decode_datacomb( 6 downto  5)  := decode_data(12 downto 11); -- shift type
+                     decode_datacomb( 4)            := '0';  -- shift with immidiate
+                     decode_datacomb( 3 downto  0)  := '0' & decode_data(5 downto 3); -- Rm -> 2nd OP
+                     decode_functions := data_processing;
                      --move_shifted_register((byte)((asmcmd >> 11) & 3), (byte)((asmcmd >> 6) & 0x1F), (byte)((asmcmd >> 3) & 0x7), (byte)(asmcmd & 0x7));
                   end if;
                
                when 1 =>
-                  decode_datacomb(27 downto 26)  <= "00"; -- fixed
-                  decode_datacomb(25)            <= '1';  -- Immidiate
+                  decode_datacomb(27 downto 26)  := "00"; -- fixed
+                  decode_datacomb(25)            := '1';  -- Immidiate
                   case (decode_data(12 downto 11)) is
-                     when "00" => decode_datacomb(24 downto 21)  <= x"D"; -- Opcode -> mov
-                     when "01" => decode_datacomb(24 downto 21)  <= x"A"; -- Opcode -> cmp
-                     when "10" => decode_datacomb(24 downto 21)  <= x"4"; -- Opcode -> add
-                     when "11" => decode_datacomb(24 downto 21)  <= x"2"; -- Opcode -> sub
+                     when "00" => decode_datacomb(24 downto 21)  := x"D"; -- Opcode -> mov
+                     when "01" => decode_datacomb(24 downto 21)  := x"A"; -- Opcode -> cmp
+                     when "10" => decode_datacomb(24 downto 21)  := x"4"; -- Opcode -> add
+                     when "11" => decode_datacomb(24 downto 21)  := x"2"; -- Opcode -> sub
                      when others => report "should never happen" severity failure;
                   end case;
-                  decode_datacomb(20)            <= '1'; -- set condition codes
-                  decode_datacomb(19 downto 16)  <= '0' & decode_data(10 downto 8); -- RN -> 1st op
-                  decode_datacomb(15 downto 12)  <= '0' & decode_data(10 downto 8); -- Rdest
-                  decode_datacomb(11 downto  0)  <= x"0" & decode_data(7 downto 0); -- 8 bit immidiate, no rotate
-                  decode_functions <= data_processing;
+                  decode_datacomb(20)            := '1'; -- set condition codes
+                  decode_datacomb(19 downto 16)  := '0' & decode_data(10 downto 8); -- RN -> 1st op
+                  decode_datacomb(15 downto 12)  := '0' & decode_data(10 downto 8); -- Rdest
+                  decode_datacomb(11 downto  0)  := x"0" & decode_data(7 downto 0); -- 8 bit immidiate, no rotate
+                  decode_functions := data_processing;
                   --move_compare_add_subtract_immediate((byte)((asmcmd >> 11) & 3), (byte)((asmcmd >> 8) & 7), (byte)(asmcmd & 0xFF));
          
                when 2 =>
                   case (to_integer(unsigned(decode_data(12 downto 10)))) is
                      
                      when 0 =>
-                        decode_datacomb(27 downto 26)  <= "00"; -- fixed
-                        decode_datacomb(25)            <= '0';  -- Immidiate
-                        decode_datacomb(20)            <= '1'; -- set condition codes
-                        decode_datacomb(19 downto 16)  <= '0' & decode_data(2 downto 0); -- RN -> 1st op
-                        decode_datacomb(15 downto 12)  <= '0' & decode_data(2 downto 0); -- Rdest
-                        decode_datacomb(11 downto  0)  <= x"00" & '0' & decode_data(5 downto 3); -- RS -> 2nd OP -> no shift using op2 is default
-                        decode_functions <= data_processing;
+                        decode_datacomb(27 downto 26)  := "00"; -- fixed
+                        decode_datacomb(25)            := '0';  -- Immidiate
+                        decode_datacomb(20)            := '1'; -- set condition codes
+                        decode_datacomb(19 downto 16)  := '0' & decode_data(2 downto 0); -- RN -> 1st op
+                        decode_datacomb(15 downto 12)  := '0' & decode_data(2 downto 0); -- Rdest
+                        decode_datacomb(11 downto  0)  := x"00" & '0' & decode_data(5 downto 3); -- RS -> 2nd OP -> no shift using op2 is default
+                        decode_functions := data_processing;
                         case (decode_data(9 downto 6)) is
-                           when x"0" => decode_datacomb(24 downto 21)  <= x"0"; -- 0000 AND Rd, Rs ANDS Rd, Rd, Rs Rd:= Rd AND Rs
-                           when x"1" => decode_datacomb(24 downto 21)  <= x"1"; -- 0001 EOR Rd, Rs EORS Rd, Rd, Rs Rd:= Rd EOR Rs
+                           when x"0" => decode_datacomb(24 downto 21)  := x"0"; -- 0000 AND Rd, Rs ANDS Rd, Rd, Rs Rd:= Rd AND Rs
+                           when x"1" => decode_datacomb(24 downto 21)  := x"1"; -- 0001 EOR Rd, Rs EORS Rd, Rd, Rs Rd:= Rd EOR Rs
                            
                            when x"2" =>                                         -- 0010 LSL Rd, Rs MOVS Rd, Rd, LSL Rs Rd := Rd << Rs
-                              decode_datacomb(24 downto 21)  <= x"D"; 
-                              decode_datacomb(11 downto  0)  <= '0' & decode_data(5 downto 3) & "0001" & '0' & decode_data(2 downto 0);
+                              decode_datacomb(24 downto 21)  := x"D"; 
+                              decode_datacomb(11 downto  0)  := '0' & decode_data(5 downto 3) & "0001" & '0' & decode_data(2 downto 0);
                            
                            when x"3" =>                                         -- 0011 LSR Rd, Rs MOVS Rd, Rd, LSR Rs Rd := Rd >> Rs
-                              decode_datacomb(24 downto 21)  <= x"D"; 
-                              decode_datacomb(11 downto  0)  <= '0' & decode_data(5 downto 3) & "0011" & '0' & decode_data(2 downto 0);
+                              decode_datacomb(24 downto 21)  := x"D"; 
+                              decode_datacomb(11 downto  0)  := '0' & decode_data(5 downto 3) & "0011" & '0' & decode_data(2 downto 0);
                               
                            when x"4" =>                                         -- 0100 ASR Rd, Rs MOVS Rd, Rd, ASR Rs Rd := Rd ASR Rs
-                              decode_datacomb(24 downto 21)  <= x"D"; 
-                              decode_datacomb(11 downto  0)  <= '0' & decode_data(5 downto 3) & "0101" & '0' & decode_data(2 downto 0);
+                              decode_datacomb(24 downto 21)  := x"D"; 
+                              decode_datacomb(11 downto  0)  := '0' & decode_data(5 downto 3) & "0101" & '0' & decode_data(2 downto 0);
                               
-                           when x"5" => decode_datacomb(24 downto 21)  <= x"5"; -- 0101 ADC Rd, Rs ADCS Rd, Rd, Rs Rd:= Rd + Rs + C - bit
-                           when x"6" => decode_datacomb(24 downto 21)  <= x"6"; -- 0110 SBC Rd, Rs SBCS Rd, Rd, Rs Rd:= Rd - Rs - NOT C - bit
+                           when x"5" => decode_datacomb(24 downto 21)  := x"5"; -- 0101 ADC Rd, Rs ADCS Rd, Rd, Rs Rd:= Rd + Rs + C - bit
+                           when x"6" => decode_datacomb(24 downto 21)  := x"6"; -- 0110 SBC Rd, Rs SBCS Rd, Rd, Rs Rd:= Rd - Rs - NOT C - bit
                            
                            when x"7" =>                                         -- 0111 ROR Rd, Rs MOVS Rd, Rd, ROR Rs Rd := Rd ROR Rs
-                              decode_datacomb(24 downto 21)  <= x"D"; 
-                              decode_datacomb(11 downto  0)  <= '0' & decode_data(5 downto 3) & "0111" & '0' & decode_data(2 downto 0);                              
+                              decode_datacomb(24 downto 21)  := x"D"; 
+                              decode_datacomb(11 downto  0)  := '0' & decode_data(5 downto 3) & "0111" & '0' & decode_data(2 downto 0);                              
               
-                           when x"8" => decode_datacomb(24 downto 21)  <= x"8"; -- 1000 TST Rd, Rs TST Rd, Rs Set condition codes on Rd AND Rs
+                           when x"8" => decode_datacomb(24 downto 21)  := x"8"; -- 1000 TST Rd, Rs TST Rd, Rs Set condition codes on Rd AND Rs
                            
                            when x"9" =>                                         -- 1001 NEG Rd, Rs RSBS Rd, Rs, #0 Rd = -Rs
-                              decode_datacomb(24 downto 21)  <= x"3"; 
-                              decode_datacomb(25)            <= '1';  -- Immidiate
-                              decode_datacomb(11 downto  0)  <= x"000";
-                              decode_datacomb(19 downto 16)  <= '0' & decode_data(5 downto 3); -- RS as 1st op
+                              decode_datacomb(24 downto 21)  := x"3"; 
+                              decode_datacomb(25)            := '1';  -- Immidiate
+                              decode_datacomb(11 downto  0)  := x"000";
+                              decode_datacomb(19 downto 16)  := '0' & decode_data(5 downto 3); -- RS as 1st op
                               
-                           when x"A" => decode_datacomb(24 downto 21)  <= x"A"; -- 1010 CMP Rd, Rs CMP Rd, Rs Set condition codes on Rd - Rs
-                           when x"B" => decode_datacomb(24 downto 21)  <= x"B"; -- 1011 CMN Rd, Rs CMN Rd, Rs Set condition codes on Rd + Rs
-                           when x"C" => decode_datacomb(24 downto 21)  <= x"C"; -- 1100 ORR Rd, Rs ORRS Rd, Rd, Rs Rd:= Rd OR Rs
+                           when x"A" => decode_datacomb(24 downto 21)  := x"A"; -- 1010 CMP Rd, Rs CMP Rd, Rs Set condition codes on Rd - Rs
+                           when x"B" => decode_datacomb(24 downto 21)  := x"B"; -- 1011 CMN Rd, Rs CMN Rd, Rs Set condition codes on Rd + Rs
+                           when x"C" => decode_datacomb(24 downto 21)  := x"C"; -- 1100 ORR Rd, Rs ORRS Rd, Rd, Rs Rd:= Rd OR Rs
                            
                            when x"D" =>                                      -- 1101 MUL Rd, Rs MULS Rd, Rs, Rd Rd:= Rs * Rd
-                              decode_datacomb(27 downto 20)  <= x"01"; -- fixed 
-                              decode_datacomb( 7 downto  4)  <= x"9";  -- fixed 
-                              decode_datacomb(11 downto  8)  <= '0' & decode_data(2 downto 0); -- multiplier
-                              decode_functions <= multiply;
+                              decode_datacomb(27 downto 20)  := x"01"; -- fixed 
+                              decode_datacomb( 7 downto  4)  := x"9";  -- fixed 
+                              decode_datacomb(11 downto  8)  := '0' & decode_data(2 downto 0); -- multiplier
+                              decode_functions := multiply;
                               
-                           when x"E" => decode_datacomb(24 downto 21)  <= x"E"; -- 1110 BIC Rd, Rs BICS Rd, Rd, Rs Rd:= Rd AND NOT Rs
-                           when x"F" => decode_datacomb(24 downto 21)  <= x"F"; -- 1111 MVN Rd, Rs MVNS Rd, Rs Rd:= NOT Rs
+                           when x"E" => decode_datacomb(24 downto 21)  := x"E"; -- 1110 BIC Rd, Rs BICS Rd, Rd, Rs Rd:= Rd AND NOT Rs
+                           when x"F" => decode_datacomb(24 downto 21)  := x"F"; -- 1111 MVN Rd, Rs MVNS Rd, Rs Rd:= NOT Rs
                            when others => report "should never happen" severity failure;
                         end case;
                         
                         --alu_operations((byte)((asmcmd >> 6) & 0xF), (byte)((asmcmd >> 3) & 0x7), (byte)(asmcmd & 0x7));
                       
                      when 1 =>
-                        decode_datacomb(27 downto 26)  <= "00"; -- fixed
-                        decode_datacomb(25)            <= '0';  -- Immidiate
-                        decode_datacomb(20)            <= '0'; -- set condition codes
-                        decode_datacomb(19 downto 16)  <= '0' & decode_data(2 downto 0); -- RN -> 1st op
-                        decode_datacomb(15 downto 12)  <= '0' & decode_data(2 downto 0); -- Rdest
-                        decode_datacomb(11 downto  0)  <= x"00" & '0' & decode_data(5 downto 3); -- RS -> 2nd OP -> no shift using op2 is default
-                        decode_functions               <= data_processing;
+                        decode_datacomb(27 downto 26)  := "00"; -- fixed
+                        decode_datacomb(25)            := '0';  -- Immidiate
+                        decode_datacomb(20)            := '0'; -- set condition codes
+                        decode_datacomb(19 downto 16)  := '0' & decode_data(2 downto 0); -- RN -> 1st op
+                        decode_datacomb(15 downto 12)  := '0' & decode_data(2 downto 0); -- Rdest
+                        decode_datacomb(11 downto  0)  := x"00" & '0' & decode_data(5 downto 3); -- RS -> 2nd OP -> no shift using op2 is default
+                        decode_functions               := data_processing;
                         case (decode_data(9 downto 6)) is
-                           when x"1" => decode_datacomb(24 downto 21) <= x"4"; decode_datacomb( 3) <= '1';                                                         -- 0001 ADD Rd, Hs ADD Rd, Rd, Hs Add a register in the range 8 - 15 to a register in the range 0 - 7.
-                           when x"2" => decode_datacomb(24 downto 21) <= x"4"; decode_datacomb(19) <= '1'; decode_datacomb(15) <= '1';                             -- 0010 ADD Hd, Rs ADD Hd, Hd, Rs Add a register in the range 0 - 7 to a register in the range 8 - 15.
-                           when x"3" => decode_datacomb(24 downto 21) <= x"4"; decode_datacomb( 3) <= '1'; decode_datacomb(19) <= '1'; decode_datacomb(15) <= '1'; -- 0011 ADD Hd, Hs ADD Hd, Hd, Hs Add two registers in the range 8 - 15
+                           when x"1" => decode_datacomb(24 downto 21) := x"4"; decode_datacomb( 3) := '1';                                                         -- 0001 ADD Rd, Hs ADD Rd, Rd, Hs Add a register in the range 8 - 15 to a register in the range 0 - 7.
+                           when x"2" => decode_datacomb(24 downto 21) := x"4"; decode_datacomb(19) := '1'; decode_datacomb(15) := '1';                             -- 0010 ADD Hd, Rs ADD Hd, Hd, Rs Add a register in the range 0 - 7 to a register in the range 8 - 15.
+                           when x"3" => decode_datacomb(24 downto 21) := x"4"; decode_datacomb( 3) := '1'; decode_datacomb(19) := '1'; decode_datacomb(15) := '1'; -- 0011 ADD Hd, Hs ADD Hd, Hd, Hs Add two registers in the range 8 - 15
                                                                                 
-                           when x"5" => decode_datacomb(24 downto 21) <= x"A"; decode_datacomb( 3) <= '1';                                                         decode_datacomb(20) <= '1'; -- 0101 CMP Rd, Hs CMP Rd, Hs Compare a register in the range 0 - 7 with a register in the range 8 - 15.Set the condition code flags on the result.
-                           when x"6" => decode_datacomb(24 downto 21) <= x"A"; decode_datacomb(19) <= '1'; decode_datacomb(15) <= '1';                             decode_datacomb(20) <= '1'; -- 0110 CMP Hd, Rs CMP Hd, Rs Compare a register in the range 8 - 15 with a register in the range 0 - 7.Set the condition code flags on the result.
-                           when x"7" => decode_datacomb(24 downto 21) <= x"A"; decode_datacomb( 3) <= '1'; decode_datacomb(19) <= '1'; decode_datacomb(15) <= '1'; decode_datacomb(20) <= '1'; -- 0111 CMP Hd, Hs CMP Hd, Hs Compare two registers in the range 8 - 15.Set the condition code flags on the result.
+                           when x"5" => decode_datacomb(24 downto 21) := x"A"; decode_datacomb( 3) := '1';                                                         decode_datacomb(20) := '1'; -- 0101 CMP Rd, Hs CMP Rd, Hs Compare a register in the range 0 - 7 with a register in the range 8 - 15.Set the condition code flags on the result.
+                           when x"6" => decode_datacomb(24 downto 21) := x"A"; decode_datacomb(19) := '1'; decode_datacomb(15) := '1';                             decode_datacomb(20) := '1'; -- 0110 CMP Hd, Rs CMP Hd, Rs Compare a register in the range 8 - 15 with a register in the range 0 - 7.Set the condition code flags on the result.
+                           when x"7" => decode_datacomb(24 downto 21) := x"A"; decode_datacomb( 3) := '1'; decode_datacomb(19) := '1'; decode_datacomb(15) := '1'; decode_datacomb(20) := '1'; -- 0111 CMP Hd, Hs CMP Hd, Hs Compare two registers in the range 8 - 15.Set the condition code flags on the result.
                                                                                                                                                                    
-                           when x"8" => decode_datacomb(24 downto 21) <= x"D";                                                                                     -- 1000 -> undefined but probably just using low for both  
-                           when x"9" => decode_datacomb(24 downto 21) <= x"D"; decode_datacomb( 3) <= '1';                                                         -- 1001 MOV Rd, Hs MOV Rd, Hs Move a value from a register in the range 8 - 15 to a register in the range 0 - 7.  
-                           when x"A" => decode_datacomb(24 downto 21) <= x"D"; decode_datacomb(19) <= '1'; decode_datacomb(15) <= '1';                             -- 1010 MOV Hd, Rs MOV Hd, Rs Move a value from a register in the range 0 - 7 to a register in the range 8 - 15.
-                           when x"B" => decode_datacomb(24 downto 21) <= x"D"; decode_datacomb( 3) <= '1'; decode_datacomb(19) <= '1'; decode_datacomb(15) <= '1'; -- 1011 MOV Hd, Hs MOV Hd, Hs Move a value between two registers in the range 8 - 15.
+                           when x"8" => decode_datacomb(24 downto 21) := x"D";                                                                                     -- 1000 -> undefined but probably just using low for both  
+                           when x"9" => decode_datacomb(24 downto 21) := x"D"; decode_datacomb( 3) := '1';                                                         -- 1001 MOV Rd, Hs MOV Rd, Hs Move a value from a register in the range 8 - 15 to a register in the range 0 - 7.  
+                           when x"A" => decode_datacomb(24 downto 21) := x"D"; decode_datacomb(19) := '1'; decode_datacomb(15) := '1';                             -- 1010 MOV Hd, Rs MOV Hd, Rs Move a value from a register in the range 0 - 7 to a register in the range 8 - 15.
+                           when x"B" => decode_datacomb(24 downto 21) := x"D"; decode_datacomb( 3) := '1'; decode_datacomb(19) := '1'; decode_datacomb(15) := '1'; -- 1011 MOV Hd, Hs MOV Hd, Hs Move a value between two registers in the range 8 - 15.
                                                                                
-                           when x"C" => decode_functions <= branch_and_exchange;                               -- 1100 BX Rs Perform branch(plus optional state change) to address in a register in the range 0 - 7.
-                           when x"D" => decode_functions <= branch_and_exchange; decode_datacomb(3) <= '1';  -- 1101 BX Hs Perform branch(plus optional state change) to address in a register in the range 8 - 15.
+                           when x"C" => decode_functions := branch_and_exchange;                               -- 1100 BX Rs Perform branch(plus optional state change) to address in a register in the range 0 - 7.
+                           when x"D" => decode_functions := branch_and_exchange; decode_datacomb(3) := '1';  -- 1101 BX Hs Perform branch(plus optional state change) to address in a register in the range 8 - 15.
 
                            -- can't do this check, as prefetch may fetch data that could contain this
                            --when others => report "decode_data(12 downto 10) = 1 => case should never happen" severity failure;
@@ -1260,55 +1289,55 @@ begin
                         --hi_register_operations_branch_exchange((byte)((asmcmd >> 6) & 0xF), (byte)((asmcmd >> 3) & 0x7), (byte)(asmcmd & 0x7));   
                
                      when 2 | 3 =>
-                        decode_datacomb(27 downto 26)  <= "01"; -- fixed
-                        decode_datacomb(25)            <= '0';  -- offset is immidiate
-                        decode_datacomb(24)            <= '1';  -- pre add offset
-                        decode_datacomb(23)            <= '1';  -- add offset
-                        decode_datacomb(22)            <= '0';  -- word
-                        decode_datacomb(21)            <= '0';  -- writeback
-                        decode_datacomb(20)            <= decode_data(11); -- read/write
-                        decode_datacomb(19 downto 16)  <= x"F"; -- base register
+                        decode_datacomb(27 downto 26)  := "01"; -- fixed
+                        decode_datacomb(25)            := '0';  -- offset is immidiate
+                        decode_datacomb(24)            := '1';  -- pre add offset
+                        decode_datacomb(23)            := '1';  -- add offset
+                        decode_datacomb(22)            := '0';  -- word
+                        decode_datacomb(21)            := '0';  -- writeback
+                        decode_datacomb(20)            := decode_data(11); -- read/write
+                        decode_datacomb(19 downto 16)  := x"F"; -- base register
                         decode_clearbit1               <= '1';
-                        decode_datacomb(15 downto 12)  <= '0' & decode_data(10 downto 8); -- Rdest
-                        decode_datacomb(11 downto  0)  <= "00" & decode_data(7 downto 0) & "00"; -- offset immidiate
-                        decode_functions <= single_data_transfer;
+                        decode_datacomb(15 downto 12)  := '0' & decode_data(10 downto 8); -- Rdest
+                        decode_datacomb(11 downto  0)  := "00" & decode_data(7 downto 0) & "00"; -- offset immidiate
+                        decode_functions := single_data_transfer;
                         --pc_relative_load((byte)((asmcmd >> 8) & 0x7), (byte)(asmcmd & 0xFF));
                         
                      when 4 | 5 | 6 | 7 =>
                         if (decode_data(9) = '0') then
-                           decode_datacomb(27 downto 26)  <= "01"; -- fixed
-                           decode_datacomb(25)            <= '1';  -- offset is reg
-                           decode_datacomb(24)            <= '1';  -- pre add offset
-                           decode_datacomb(23)            <= '1';  -- add offset
-                           decode_datacomb(22)            <= decode_data(10);  -- byte/word
-                           decode_datacomb(21)            <= '0';  -- writeback
-                           decode_datacomb(20)            <= decode_data(11); -- read/write
-                           decode_datacomb(19 downto 16)  <= '0' & decode_data(5 downto 3); -- base register
-                           decode_datacomb(15 downto 12)  <= '0' & decode_data(2 downto 0); -- Rdest
-                           decode_datacomb(11 downto  4)  <= x"00"; -- don't shift
-                           decode_datacomb( 3 downto  0)  <= '0' & decode_data(8 downto 6); -- offset register
-                           decode_functions <= single_data_transfer;
+                           decode_datacomb(27 downto 26)  := "01"; -- fixed
+                           decode_datacomb(25)            := '1';  -- offset is reg
+                           decode_datacomb(24)            := '1';  -- pre add offset
+                           decode_datacomb(23)            := '1';  -- add offset
+                           decode_datacomb(22)            := decode_data(10);  -- byte/word
+                           decode_datacomb(21)            := '0';  -- writeback
+                           decode_datacomb(20)            := decode_data(11); -- read/write
+                           decode_datacomb(19 downto 16)  := '0' & decode_data(5 downto 3); -- base register
+                           decode_datacomb(15 downto 12)  := '0' & decode_data(2 downto 0); -- Rdest
+                           decode_datacomb(11 downto  4)  := x"00"; -- don't shift
+                           decode_datacomb( 3 downto  0)  := '0' & decode_data(8 downto 6); -- offset register
+                           decode_functions := single_data_transfer;
                            --load_store_with_register_offset(((asmcmd >> 11) & 1) == 1, ((asmcmd >> 10) & 1) == 1, (byte)((asmcmd >> 6) & 0x7), (byte)((asmcmd >> 3) & 0x7), (byte)(asmcmd & 0x7));
                         else
-                           decode_datacomb(27 downto 25)  <= "000"; -- fixed
-                           decode_datacomb(24)            <= '1';  -- pre add offset
-                           decode_datacomb(23)            <= '1';  -- add offset
-                           decode_datacomb(22)            <= '1';  -- fixed
-                           decode_datacomb(21)            <= '0';  -- writeback
-                           decode_datacomb(19 downto 16)  <= '0' & decode_data(5 downto 3); -- base register
-                           decode_datacomb(15 downto 12)  <= '0' & decode_data(2 downto 0); -- Rdest
-                           decode_datacomb(11 downto  8)  <= "0000"; -- fixed
-                           decode_datacomb( 7)            <= '1'; -- fixed
-                           decode_datacomb( 4)            <= '1'; -- fixed
-                           decode_datacomb( 3 downto  0)  <= '0' & decode_data(8 downto 6); -- offset register
+                           decode_datacomb(27 downto 25)  := "000"; -- fixed
+                           decode_datacomb(24)            := '1';  -- pre add offset
+                           decode_datacomb(23)            := '1';  -- add offset
+                           decode_datacomb(22)            := '1';  -- fixed
+                           decode_datacomb(21)            := '0';  -- writeback
+                           decode_datacomb(19 downto 16)  := '0' & decode_data(5 downto 3); -- base register
+                           decode_datacomb(15 downto 12)  := '0' & decode_data(2 downto 0); -- Rdest
+                           decode_datacomb(11 downto  8)  := "0000"; -- fixed
+                           decode_datacomb( 7)            := '1'; -- fixed
+                           decode_datacomb( 4)            := '1'; -- fixed
+                           decode_datacomb( 3 downto  0)  := '0' & decode_data(8 downto 6); -- offset register
                            case (decode_data(11 downto 10)) is -- read     S                             H
-                              when "00" => decode_datacomb(20) <= '0'; decode_datacomb(6) <= '0'; decode_datacomb(5) <= '1'; -- Store halfword
-                              when "01" => decode_datacomb(20) <= '1'; decode_datacomb(6) <= '1'; decode_datacomb(5) <= '0'; -- Load sign-extended byte
-                              when "10" => decode_datacomb(20) <= '1'; decode_datacomb(6) <= '0'; decode_datacomb(5) <= '1'; -- Load halfword
-                              when "11" => decode_datacomb(20) <= '1'; decode_datacomb(6) <= '1'; decode_datacomb(5) <= '1'; -- Load sign-extended halfword
+                              when "00" => decode_datacomb(20) := '0'; decode_datacomb(6) := '0'; decode_datacomb(5) := '1'; -- Store halfword
+                              when "01" => decode_datacomb(20) := '1'; decode_datacomb(6) := '1'; decode_datacomb(5) := '0'; -- Load sign-extended byte
+                              when "10" => decode_datacomb(20) := '1'; decode_datacomb(6) := '0'; decode_datacomb(5) := '1'; -- Load halfword
+                              when "11" => decode_datacomb(20) := '1'; decode_datacomb(6) := '1'; decode_datacomb(5) := '1'; -- Load sign-extended halfword
                               when others => null;  
                            end case;
-                           decode_functions <= halfword_data_transfer_regoffset;
+                           decode_functions := halfword_data_transfer_regoffset;
                            --load_store_sign_extended_byte_halfword((byte)((asmcmd >> 10) & 0x3), (byte)((asmcmd >> 6) & 0x7), (byte)((asmcmd >> 3) & 0x7), (byte)(asmcmd & 0x7));
                         end if;
                         
@@ -1317,146 +1346,146 @@ begin
                   end case;
                
                when 3 =>
-                  decode_datacomb(27 downto 26)  <= "01"; -- fixed
-                  decode_datacomb(25)            <= '0';  -- offset is reg
-                  decode_datacomb(24)            <= '1';  -- pre add offset
-                  decode_datacomb(23)            <= '1';  -- add offset
-                  decode_datacomb(22)            <= decode_data(12);  -- dword
-                  decode_datacomb(21)            <= '0';  -- writeback
-                  decode_datacomb(20)            <= decode_data(11); -- read/write
-                  decode_datacomb(19 downto 16)  <= '0' & decode_data(5 downto 3); -- base register
-                  decode_datacomb(15 downto 12)  <= '0' & decode_data(2 downto 0); -- Rdest
+                  decode_datacomb(27 downto 26)  := "01"; -- fixed
+                  decode_datacomb(25)            := '0';  -- offset is reg
+                  decode_datacomb(24)            := '1';  -- pre add offset
+                  decode_datacomb(23)            := '1';  -- add offset
+                  decode_datacomb(22)            := decode_data(12);  -- dword
+                  decode_datacomb(21)            := '0';  -- writeback
+                  decode_datacomb(20)            := decode_data(11); -- read/write
+                  decode_datacomb(19 downto 16)  := '0' & decode_data(5 downto 3); -- base register
+                  decode_datacomb(15 downto 12)  := '0' & decode_data(2 downto 0); -- Rdest
                   if (decode_data(12) = '1') then -- byte -> 5 bit address
-                     decode_datacomb(11 downto  0)  <= "0000000" & decode_data(10 downto 6); -- offset immidiate
+                     decode_datacomb(11 downto  0)  := "0000000" & decode_data(10 downto 6); -- offset immidiate
                   else
-                     decode_datacomb(11 downto  0)  <= "00000" & decode_data(10 downto 6) & "00"; -- offset immidiate
+                     decode_datacomb(11 downto  0)  := "00000" & decode_data(10 downto 6) & "00"; -- offset immidiate
                   end if;
-                  decode_functions <= single_data_transfer;
+                  decode_functions := single_data_transfer;
                   --load_store_with_immidiate_offset(((asmcmd >> 11) & 1) == 1, ((asmcmd >> 12) & 1) == 1, (byte)((asmcmd >> 6) & 0x1F), (byte)((asmcmd >> 3) & 0x7), (byte)(asmcmd & 0x7));
                
                when 4 =>
                   if (decode_data(12) = '0') then
-                     decode_datacomb(27 downto 25)  <= "000"; -- fixed
-                     decode_datacomb(24)            <= '1';  -- pre add offset
-                     decode_datacomb(23)            <= '1';  -- add offset
-                     decode_datacomb(22)            <= '1';  -- fixed
-                     decode_datacomb(21)            <= '0';  -- writeback
-                     decode_datacomb(20)            <= decode_data(11); -- read/write
-                     decode_datacomb(19 downto 16)  <= '0' & decode_data(5 downto 3); -- base register
-                     decode_datacomb(15 downto 12)  <= '0' & decode_data(2 downto 0); -- Rdest
-                     decode_datacomb(11 downto  8)  <= "00" & decode_data(10 downto 9); -- offset immidiate
-                     decode_datacomb( 7)            <= '1'; -- fixed
-                     decode_datacomb( 6)            <= '0'; -- S
-                     decode_datacomb( 5)            <= '1'; -- H
-                     decode_datacomb( 4)            <= '1'; -- fixed
-                     decode_datacomb( 3 downto  0)  <= decode_data(8 downto 6) & '0'; -- offset immidiate
-                     decode_functions <= halfword_data_transfer_immoffset;
+                     decode_datacomb(27 downto 25)  := "000"; -- fixed
+                     decode_datacomb(24)            := '1';  -- pre add offset
+                     decode_datacomb(23)            := '1';  -- add offset
+                     decode_datacomb(22)            := '1';  -- fixed
+                     decode_datacomb(21)            := '0';  -- writeback
+                     decode_datacomb(20)            := decode_data(11); -- read/write
+                     decode_datacomb(19 downto 16)  := '0' & decode_data(5 downto 3); -- base register
+                     decode_datacomb(15 downto 12)  := '0' & decode_data(2 downto 0); -- Rdest
+                     decode_datacomb(11 downto  8)  := "00" & decode_data(10 downto 9); -- offset immidiate
+                     decode_datacomb( 7)            := '1'; -- fixed
+                     decode_datacomb( 6)            := '0'; -- S
+                     decode_datacomb( 5)            := '1'; -- H
+                     decode_datacomb( 4)            := '1'; -- fixed
+                     decode_datacomb( 3 downto  0)  := decode_data(8 downto 6) & '0'; -- offset immidiate
+                     decode_functions := halfword_data_transfer_immoffset;
                      --load_store_halfword(((asmcmd >> 11) & 1) == 1, (byte)((asmcmd >> 6) & 0x1F), (byte)((asmcmd >> 3) & 0x7), (byte)(asmcmd & 0x7));
                   else
-                     decode_datacomb(27 downto 26)  <= "01"; -- fixed
-                     decode_datacomb(25)            <= '0';  -- offset is reg
-                     decode_datacomb(24)            <= '1';  -- pre add offset
-                     decode_datacomb(23)            <= '1';  -- add offset
-                     decode_datacomb(22)            <= '0';  -- dword
-                     decode_datacomb(21)            <= '0';  -- writeback
-                     decode_datacomb(20)            <= decode_data(11); -- read/write
-                     decode_datacomb(19 downto 16)  <= x"D"; -- base register
-                     decode_datacomb(15 downto 12)  <= '0' & decode_data(10 downto 8); -- Rdest
-                     decode_datacomb(11 downto  0)  <= "00" & decode_data(7 downto 0) & "00"; -- offset immidiate
-                     decode_functions <= single_data_transfer;
+                     decode_datacomb(27 downto 26)  := "01"; -- fixed
+                     decode_datacomb(25)            := '0';  -- offset is reg
+                     decode_datacomb(24)            := '1';  -- pre add offset
+                     decode_datacomb(23)            := '1';  -- add offset
+                     decode_datacomb(22)            := '0';  -- dword
+                     decode_datacomb(21)            := '0';  -- writeback
+                     decode_datacomb(20)            := decode_data(11); -- read/write
+                     decode_datacomb(19 downto 16)  := x"D"; -- base register
+                     decode_datacomb(15 downto 12)  := '0' & decode_data(10 downto 8); -- Rdest
+                     decode_datacomb(11 downto  0)  := "00" & decode_data(7 downto 0) & "00"; -- offset immidiate
+                     decode_functions := single_data_transfer;
                      --sp_relative_load_store(((asmcmd >> 11) & 1) == 1, (byte)((asmcmd >> 8) & 0x7), (byte)(asmcmd & 0xFF));
                   end if;
                   
                when 5 =>
                   if (decode_data(12) = '0') then
-                     decode_datacomb(27 downto 26)  <= "00"; -- fixed
-                     decode_datacomb(25)            <= '1';  -- Immidiate
-                     decode_datacomb(24 downto 21)  <= x"4"; -- Opcode -> add
-                     decode_datacomb(20)            <= '0';  -- set condition codes
+                     decode_datacomb(27 downto 26)  := "00"; -- fixed
+                     decode_datacomb(25)            := '1';  -- Immidiate
+                     decode_datacomb(24 downto 21)  := x"4"; -- Opcode -> add
+                     decode_datacomb(20)            := '0';  -- set condition codes
                      if (decode_data(11) = '1') then -- stack pointer 13(1) or PC(15)
-                        decode_datacomb(19 downto 16)  <= x"D"; -- RN -> 1st op
+                        decode_datacomb(19 downto 16)  := x"D"; -- RN -> 1st op
                      else 
-                        decode_datacomb(19 downto 16)  <= x"F"; -- RN -> 1st op
+                        decode_datacomb(19 downto 16)  := x"F"; -- RN -> 1st op
                         decode_clearbit1               <= '1';
                      end if;
-                     decode_datacomb(15 downto 12)  <= '0' & decode_data(10 downto 8); -- Rdest
-                     decode_datacomb(11 downto  0)  <= x"F" & decode_data(7 downto 0); -- 8 bit immidiate, shift left by 2
-                     decode_functions <= data_processing;
+                     decode_datacomb(15 downto 12)  := '0' & decode_data(10 downto 8); -- Rdest
+                     decode_datacomb(11 downto  0)  := x"F" & decode_data(7 downto 0); -- 8 bit immidiate, shift left by 2
+                     decode_functions := data_processing;
                      --load_address(((asmcmd >> 11) & 1) == 1, (byte)((asmcmd >> 8) & 0x7), (byte)(asmcmd & 0xFF));
                   else
                      if (decode_data(10) = '0') then
-                        decode_datacomb(27 downto 26)  <= "00"; -- fixed
-                        decode_datacomb(25)            <= '1';  -- Immidiate
+                        decode_datacomb(27 downto 26)  := "00"; -- fixed
+                        decode_datacomb(25)            := '1';  -- Immidiate
                         if (decode_data(7) = '1') then -- sign bit
-                           decode_datacomb(24 downto 21)  <= x"2"; -- Opcode -> sub
+                           decode_datacomb(24 downto 21)  := x"2"; -- Opcode -> sub
                         else 
-                           decode_datacomb(24 downto 21)  <= x"4"; -- Opcode -> add
+                           decode_datacomb(24 downto 21)  := x"4"; -- Opcode -> add
                         end if;
-                        decode_datacomb(20)            <= '0'; -- set condition codes
-                        decode_datacomb(19 downto 16)  <= x"D"; -- RN -> 1st op
-                        decode_datacomb(15 downto 12)  <= x"D"; -- Rdest
-                        decode_datacomb(11 downto  0)  <= x"F" & '0' & decode_data(6 downto 0); -- 8 bit immidiate, shift left by 2
-                        decode_functions <= data_processing;
+                        decode_datacomb(20)            := '0'; -- set condition codes
+                        decode_datacomb(19 downto 16)  := x"D"; -- RN -> 1st op
+                        decode_datacomb(15 downto 12)  := x"D"; -- Rdest
+                        decode_datacomb(11 downto  0)  := x"F" & '0' & decode_data(6 downto 0); -- 8 bit immidiate, shift left by 2
+                        decode_functions := data_processing;
                         --add_offset_to_stack_pointer(((asmcmd >> 7) & 1) == 1, (byte)(asmcmd & 0x7F));
                      else
-                        decode_datacomb(27 downto 25)  <= "100"; -- fixed
-                        decode_datacomb(22)            <= '0'; -- PSR
-                        decode_datacomb(21)            <= '1'; -- Writeback
-                        decode_datacomb(20)            <= decode_data(11); -- Load
-                        decode_datacomb(15 downto 0)   <= x"00" & decode_data(7 downto 0); -- reglist
-                        decode_datacomb(19 downto 16)  <= x"D"; -- base register -> 13
-                        bitcount8_high <= 0;
+                        decode_datacomb(27 downto 25)  := "100"; -- fixed
+                        decode_datacomb(22)            := '0'; -- PSR
+                        decode_datacomb(21)            := '1'; -- Writeback
+                        decode_datacomb(20)            := decode_data(11); -- Load
+                        decode_datacomb(15 downto 0)   := x"00" & decode_data(7 downto 0); -- reglist
+                        decode_datacomb(19 downto 16)  := x"D"; -- base register -> 13
+                        bitcount8_high := 0;
                         if (decode_data(8) = '1') then -- link
-                           bitcount8_high <= 1;
+                           bitcount8_high := 1;
                            if (decode_data(11) = '1') then -- load
-                              decode_datacomb(15) <= '1';
+                              decode_datacomb(15) := '1';
                            else
-                              decode_datacomb(14) <= '1';
+                              decode_datacomb(14) := '1';
                            end if;
                         end if;
                         -- LDMIA!  opcode = !pre up !csr store  <-> // STMDB !  opcode = pre !up !csr store
-                        decode_datacomb(24) <= not decode_data(11); -- Pre
-                        decode_datacomb(23) <= decode_data(11);     -- up
-                        decode_functions <= block_data_transfer;
+                        decode_datacomb(24) := not decode_data(11); -- Pre
+                        decode_datacomb(23) := decode_data(11);     -- up
+                        decode_functions := block_data_transfer;
                         --push_pop_register(((asmcmd >> 11) & 1) == 1, ((asmcmd >> 8) & 1) == 1, (byte)(asmcmd & 0xFF));
                      end if;
                   end if;
                   
                when 6 => 
                   if (decode_data(12) = '0') then
-                     decode_datacomb(27 downto 25)  <= "100"; -- fixed
-                     decode_datacomb(24)            <= '0'; -- Pre
-                     decode_datacomb(23)            <= '1'; -- up
-                     decode_datacomb(22)            <= '0'; -- PSR
-                     decode_datacomb(21)            <= '1'; -- Writeback
-                     decode_datacomb(20)            <= decode_data(11); -- Load
-                     decode_datacomb(19 downto 16)  <= '0' & decode_data(10 downto 8); -- base register
-                     decode_datacomb(15 downto 0)   <= x"00" & decode_data(7 downto 0); -- reglist
-                     decode_functions <= block_data_transfer;
+                     decode_datacomb(27 downto 25)  := "100"; -- fixed
+                     decode_datacomb(24)            := '0'; -- Pre
+                     decode_datacomb(23)            := '1'; -- up
+                     decode_datacomb(22)            := '0'; -- PSR
+                     decode_datacomb(21)            := '1'; -- Writeback
+                     decode_datacomb(20)            := decode_data(11); -- Load
+                     decode_datacomb(19 downto 16)  := '0' & decode_data(10 downto 8); -- base register
+                     decode_datacomb(15 downto 0)   := x"00" & decode_data(7 downto 0); -- reglist
+                     decode_functions := block_data_transfer;
                      --multiple_load_store(((asmcmd >> 11) & 1) == 1, (byte)((asmcmd >> 8) & 0x7), (byte)(asmcmd & 0xFF));
                   else
                      if (decode_data(11 downto 8) = x"F") then
-                        decode_functions <= software_interrupt;
+                        decode_functions := software_interrupt;
                         --software_interrupt();
                      else
-                        decode_datacomb(27 downto 25) <= "101"; -- fixed
-                        decode_datacomb(24)           <= '0';   -- without link
-                        decode_datacomb(23 downto 0)  <= std_logic_vector(resize(signed(decode_data(7 downto 0)), 24));
+                        decode_datacomb(27 downto 25) := "101"; -- fixed
+                        decode_datacomb(24)           := '0';   -- without link
+                        decode_datacomb(23 downto 0)  := std_logic_vector(resize(signed(decode_data(7 downto 0)), 24));
                         decode_condition              <= decode_data(11 downto 8);
-                        decode_functions <= branch;
+                        decode_functions := branch;
                         --conditional_branch((byte)((asmcmd >> 8) & 0xF), (byte)(asmcmd & 0xFF));
                      end if;
                   end if;
                      
                when 7 =>
                   if (decode_data(12) = '0') then
-                     decode_datacomb(27 downto 25) <= "101"; -- fixed
-                     decode_datacomb(24)           <= '0';   -- without link
-                     decode_datacomb(23 downto 0)  <= std_logic_vector(resize(signed(decode_data(10 downto 0)), 24));
-                     decode_functions <= branch;
+                     decode_datacomb(27 downto 25) := "101"; -- fixed
+                     decode_datacomb(24)           := '0';   -- without link
+                     decode_datacomb(23 downto 0)  := std_logic_vector(resize(signed(decode_data(10 downto 0)), 24));
+                     decode_functions := branch;
                      --unconditional_branch((UInt16)(asmcmd & 0x7FF));
                   else
-                     decode_functions <= long_branch_with_link;
+                     decode_functions := long_branch_with_link;
                      --long_branch_with_link(((asmcmd >> 11) & 1) == 1, (UInt16)(asmcmd & 0x7FF));
                   end if;
                
@@ -1465,29 +1494,8 @@ begin
             end case;
          
          end if;
-         
-      end if;
    
-   end process;
-   
-   
-   -- decoding details
-   process (clk100) 
-      variable opcode       : std_logic_vector(3 downto 0);
-      variable use_imm      : std_logic;
-      variable updateflags  : std_logic;
-      variable Rn_op1       : std_logic_vector(3 downto 0);
-      variable Rdest        : std_logic_vector(3 downto 0);
-      variable RM_op2       : std_logic_vector(3 downto 0);
-      variable OP2          : std_logic_vector(11 downto 0);
-      
-      variable rotateamount  : unsigned(4 downto 0);
-      variable immidiate    : unsigned(31 downto 0);
-      variable shiftcarry   : std_logic;
-      variable useoldcarry  : std_logic;
-   begin
-   
-      if (rising_edge(clk100)) then
+      -- decoding details
    
          use_imm       := decode_datacomb(25);
          updateflags   := decode_datacomb(20);
@@ -1864,8 +1872,9 @@ begin
    
    -- calc
    process (clk100) 
-      variable new_pc_var : unsigned(31 downto 0);
-      variable new_value  : unsigned(31 downto 0);
+      variable new_pc_var  : unsigned(31 downto 0);
+      variable new_value   : unsigned(31 downto 0);
+      variable firstbitpos : integer range 0 to 15;
    begin
    
       if (rising_edge(clk100)) then
@@ -2570,16 +2579,24 @@ begin
                            block_switch_pc  <= execute_PC;
                         end if;
                         
-                     when BLOCKCHECKNEXT =>
-                        block_reglist  <= '0' & block_reglist(15 downto 1);
+                     when BLOCKCHECKNEXT => 
+                        firstbitpos := 0;
+                        for i in 15 downto 1 loop
+                           if (block_reglist(i) = '1') then
+                              firstbitpos := i;
+                           end if;
+                        end loop;
+
                         if (block_reglist(0) = '1') then
+                           block_reglist  <= '0' & block_reglist(15 downto 1);
                            if (execute_functions_detail = block_read) then
                               block_rw_stage  <= BLOCKREAD;
                            else
                               block_rw_stage  <= BLOCKWRITE;
                            end if;
-                        elsif (block_regindex < 15) then
-                              block_regindex <= block_regindex + 1;
+                        else
+                           block_reglist  <= std_logic_vector(unsigned(block_reglist) srl firstbitpos);
+                           block_regindex <= block_regindex + firstbitpos;
                         end if;
                         
                         if (block_reglist = x"0000") then

@@ -34,6 +34,8 @@ entity gba_sound_dma is
       sound_out_right     : out   signed(15 downto 0) := (others => '0');
       sound_on            : out   std_logic := '0';
       
+      new_sample_out      : out   std_logic;
+      
       debug_fifocount     : out   integer
    );
 end entity;
@@ -75,6 +77,8 @@ begin
    
    sound_out_left  <= sound_out when Enable_LEFT  = '1' else (others => '0');
    sound_out_right <= sound_out when Enable_RIGHT = '1' else (others => '0');
+   
+   new_sample_out  <= new_sample_request;
    
    iSyncFifo : entity MEM.SyncFifo
    generic map

@@ -30,3 +30,4 @@ set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) reggba_ser
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) reggba_sound.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) reggba_system.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) reggba_timer.vhd ]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) cache.vhd ]
