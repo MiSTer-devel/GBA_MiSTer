@@ -139,7 +139,6 @@ assign BUTTONS   = 0;
 assign VIDEO_ARX = status[1] ? 8'd16 : 8'd3;
 assign VIDEO_ARY = status[1] ? 8'd9  : 8'd2;
 
-assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
 ///////////////////////  CLOCK/RESET  ///////////////////////////////////
@@ -184,11 +183,11 @@ parameter CONF_STR = {
     "O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
     "O78,Stereo Mix,None,25%,50%,100%;", 
     "-;",
+    "OEF,Storage,Auto,SDRAM,DDR3;",
     "O5,Pause,Off,On;",
-    "-;",
     "R0,Reset;",
     "J1,A,B,L,R,Select,Start,FastForward;",
-	 "jn,A,B,L,R,Select,Start,X;",
+    "jn,A,B,L,R,Select,Start,X;",
     "V,v",`BUILD_DATE
 };
 
@@ -215,6 +214,9 @@ wire  [7:0] ioctl_index;
 
 wire [11:0] joy;
 wire [21:0] gamma_bus;
+reg         ioctl_wait = 0;
+
+wire [15:0] sdram_sz;
 
 hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 (
@@ -235,6 +237,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.ioctl_wr(ioctl_wr),
 	.ioctl_download(ioctl_download),
 	.ioctl_index(ioctl_index),
+	.ioctl_wait(ioctl_wait),
 
 	.sd_lba(sd_lba),
 	.sd_rd(sd_rd),
@@ -248,7 +251,8 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.img_mounted(img_mounted),
 	.img_readonly(img_readonly),
 	.img_size(img_size),
-	
+
+	.sdram_sz(sdram_sz),
 	.gamma_bus(gamma_bus)
 );
 
@@ -304,9 +308,9 @@ wire fast_forward = joy[10];
 gba_top
 #(
    // assume: cart may have either flash or eeprom, not both! (need to verify)
-	.Softmap_GBA_FLASH_ADDR  (0),            // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
-	.Softmap_GBA_EEPROM_ADDR (0),            //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
-	.Softmap_GBA_WRam_ADDR   (131072),       //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
+	.Softmap_GBA_FLASH_ADDR  (0),           // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
+	.Softmap_GBA_EEPROM_ADDR (0),           //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
+	.Softmap_GBA_WRam_ADDR   (131072),      //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
 	.Softmap_GBA_Gamerom_ADDR(65536+131072), //   32MB of ROM
 	.turbosound('1)								  // sound buffer to play sound in turbo mode without sound pitched up
 )
@@ -414,15 +418,27 @@ CODES #(.ADDR_WIDTH(32), .DATA_WIDTH(32)) codes (
 
 ////////////////////////////  MEMORY  ///////////////////////////////////
 
+localparam ROM_START = (65536+131072)*4;
+
+reg sdram_en;
+always @(posedge clk_sys) if(reset) sdram_en <= (!status[15:14]) ? |sdram_sz[2:0] : status[14];
+
+
 wire [25:2] sdram_addr;
-wire [31:0] sdram_dout1, sdram_dout2;
-wire        sdram_req, sdram_ack;
+wire [31:0] sdram_dout1 = sdram_en ? sdr_sdram_dout1 : ddr_sdram_dout1;
+wire [31:0] sdram_dout2 = sdram_en ? sdr_sdram_dout2 : ddr_sdram_dout2;
+wire        sdram_ack   = sdram_en ? sdr_sdram_ack   : ddr_sdram_ack;
+wire        sdram_req;
 
 wire [25:2] bus_addr;
-wire [31:0] bus_dout, bus_din;
-wire        bus_rd, bus_req, bus_ack;
+wire [31:0] bus_din;
+wire [31:0] bus_dout = sdram_en ? sdr_bus_dout : ddr_bus_dout;
+wire        bus_ack  = sdram_en ? sdr_bus_ack  : ddr_bus_ack;
+wire        bus_rd, bus_req;
 
-localparam ROM_START = (65536+131072)*4;
+wire [31:0] sdr_sdram_dout1, sdr_sdram_dout2, sdr_bus_dout;
+wire [15:0] sdr_bram_din;
+wire        sdr_sdram_ack, sdr_bus_ack, sdr_bram_ack;
 
 sdram sdram
 (
@@ -432,28 +448,68 @@ sdram sdram
 
 	.ch1_addr(cart_download ? ioctl_addr[26:1]+ROM_START[26:1] : {sdram_addr, 1'b0}),
 	.ch1_din(ioctl_dout),
-	.ch1_dout({sdram_dout2, sdram_dout1}),
-	.ch1_req(cart_download ? ioctl_wr : sdram_req),
+	.ch1_dout({sdr_sdram_dout2, sdr_sdram_dout1}),
+	.ch1_req((cart_download ? ioctl_wr : sdram_req) & sdram_en),
 	.ch1_rnw(cart_download ? 1'b0     : 1'b1     ),
-	.ch1_ready(sdram_ack),
+	.ch1_ready(sdr_sdram_ack),
 
 	.ch2_addr({bus_addr, 1'b0}),
 	.ch2_din(bus_din),
-	.ch2_dout(bus_dout),
-	.ch2_req(~cart_download & bus_req),
+	.ch2_dout(sdr_bus_dout),
+	.ch2_req(~cart_download & bus_req & sdram_en),
 	.ch2_rnw(bus_rd),
-	.ch2_ready(bus_ack),
+	.ch2_ready(sdr_bus_ack),
 
 	.ch3_addr({sd_lba[7:0],bram_addr}),
 	.ch3_din(bram_dout),
-	.ch3_dout(bram_din),
-	.ch3_req(bram_req),
+	.ch3_dout(sdr_bram_din),
+	.ch3_req(bram_req & sdram_en),
 	.ch3_rnw(~bk_loading),
-	.ch3_ready(bram_ack)
+	.ch3_ready(sdr_bram_ack)
 );
 
-wire [15:0] bram_dout, bram_din;
-wire        bram_ack;
+always @(posedge clk_sys) begin
+	if(cart_download) begin
+		if(ioctl_wr)  ioctl_wait <= 1;
+		if(sdram_ack) ioctl_wait <= 0;
+	end
+	else ioctl_wait <= 0;
+end
+
+wire [31:0] ddr_sdram_dout1, ddr_sdram_dout2, ddr_bus_dout;
+wire [15:0] ddr_bram_din;
+wire        ddr_sdram_ack, ddr_bus_ack, ddr_bram_ack;
+
+assign DDRAM_CLK = clk_sys;
+ddram ddram
+(
+	.*,
+
+	.ch1_addr(cart_download ? ioctl_addr[26:1]+ROM_START[26:1] : {sdram_addr, 1'b0}),
+	.ch1_din(ioctl_dout),
+	.ch1_dout({ddr_sdram_dout2, ddr_sdram_dout1}),
+	.ch1_req((cart_download ? ioctl_wr : sdram_req) & ~sdram_en),
+	.ch1_rnw(cart_download ? 1'b0     : 1'b1     ),
+	.ch1_ready(ddr_sdram_ack),
+
+	.ch2_addr({bus_addr, 1'b0}),
+	.ch2_din(bus_din),
+	.ch2_dout(ddr_bus_dout),
+	.ch2_req(~cart_download & bus_req & ~sdram_en),
+	.ch2_rnw(bus_rd),
+	.ch2_ready(ddr_bus_ack),
+
+	.ch3_addr({sd_lba[7:0],bram_addr}),
+	.ch3_din(bram_dout),
+	.ch3_dout(ddr_bram_din),
+	.ch3_req(bram_req & ~sdram_en),
+	.ch3_rnw(~bk_loading),
+	.ch3_ready(ddr_bram_ack)
+);
+
+wire [15:0] bram_dout;
+wire [15:0] bram_din = sdram_en ? sdr_bram_din : ddr_bram_din;
+wire        bram_ack = sdram_en ? sdr_bram_ack : ddr_bram_ack;
 
 dpram #(8,16) bram
 (
