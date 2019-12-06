@@ -1217,12 +1217,15 @@ begin
                if (draw_allmod /= x"00") then
                   drawstate <= DRAWING;
                else
-                  drawstate <= IDLE;
+                  drawstate        <= MERGING;
+                  linebuffer_addr  <= 0;
+                  merge_enable     <= '1';
+                  clear_trigger    <= '1';
                end if;
 
             when DRAWING =>
                if (busy_allmod = x"00") then
-                  drawstate     <= MERGING;
+                  drawstate        <= MERGING;
                   linebuffer_addr  <= 0;
                   merge_enable     <= '1';
                   clear_trigger    <= '1';
