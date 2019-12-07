@@ -407,7 +407,7 @@ begin
                   elsif (secondprio_cycle3(BG2) = '1') then prio2 := Prio_BG2;
                   elsif (secondprio_cycle3(BG3) = '1') then prio2 := Prio_BG3; end if;                  
                
-                  if (secondprio_cycle3(4 downto 0) /= "00000" and prio2 >= prio1) then
+                  if (secondprio_cycle3 /= "000000" and prio2 >= prio1) then
                      special_out_cycle4  <= '1';
                   end if;
                
@@ -430,7 +430,8 @@ begin
          elsif (secondprio_cycle3(BG0) = '1') then secondpixel := pixeldata_bg0_cycle3(14 downto 0);
          elsif (secondprio_cycle3(BG1) = '1') then secondpixel := pixeldata_bg1_cycle3(14 downto 0);
          elsif (secondprio_cycle3(BG2) = '1') then secondpixel := pixeldata_bg2_cycle3(14 downto 0);
-         elsif (secondprio_cycle3(BG3) = '1') then secondpixel := pixeldata_bg3_cycle3(14 downto 0); end if;
+         elsif (secondprio_cycle3(BG3) = '1') then secondpixel := pixeldata_bg3_cycle3(14 downto 0); 
+         else  secondpixel := pixeldata_back(14 downto 0); end if;
 
          alpha_blue    <= (to_integer(unsigned(firstpixel_cycle3(14 downto 10))) * EVA_MAXED + to_integer(unsigned(secondpixel(14 downto 10))) * EVB_MAXED) / 16;
          alpha_green   <= (to_integer(unsigned(firstpixel_cycle3( 9 downto  5))) * EVA_MAXED + to_integer(unsigned(secondpixel( 9 downto  5))) * EVB_MAXED) / 16;
@@ -498,11 +499,7 @@ begin
             pixel_x       <= xpos_cycle4;
             pixel_y       <= ypos_cycle4;
             pixel_we      <= '1';
-      
 
-      
-      
-      
          end if;
       
       end if;
