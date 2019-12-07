@@ -141,7 +141,7 @@ begin
    goutput : if (Reg.acccesstype = readwrite or Reg.acccesstype = readonly) generate
    begin
       goutputbit: for i in Reg.lower to Reg.upper generate
-         proc_bus.Dout(i) <= not Din(i) when proc_bus.Adr = Adr else 'Z';
+         proc_bus.Dout(i) <= Din(i) when proc_bus.Adr = Adr else 'Z';
       end generate;
    end generate;
    
