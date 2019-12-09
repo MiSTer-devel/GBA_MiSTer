@@ -388,16 +388,16 @@ begin
 
          -- mix in dma sound
          if (sound_on_dmaA = '1') then
-            soundmix6_l <= soundmix5_l + sound_out_dmaA_l;
-            soundmix6_r <= soundmix5_r + sound_out_dmaA_r;
+            soundmix6_l <= soundmix5_l - sound_out_dmaA_l;
+            soundmix6_r <= soundmix5_r - sound_out_dmaA_r;
          else
             soundmix6_l <= soundmix5_l;
             soundmix6_r <= soundmix5_r;
          end if;
          
          if (sound_on_dmaB = '1') then
-            soundmix7_l <= soundmix6_l + sound_out_dmaB_l;
-            soundmix7_r <= soundmix6_r + sound_out_dmaB_r;
+            soundmix7_l <= soundmix6_l - sound_out_dmaB_l;
+            soundmix7_r <= soundmix6_r - sound_out_dmaB_r;
          else
             soundmix7_l <= soundmix6_l;
             soundmix7_r <= soundmix6_r;

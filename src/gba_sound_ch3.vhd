@@ -60,12 +60,12 @@ architecture arch of gba_sound_ch3 is
                               
    signal wavetable_ptr       : unsigned(4 downto 0)  := (others => '0');
    signal wavetable           : std_logic_vector(0 to 7)  := (others => '0');
-   signal wave_vol            : std_logic_vector(3 downto 0) := (others => '0');         
+   signal wave_vol            : integer range -16 to 15;         
                               
    signal length_left         : unsigned(8 downto 0) := (others => '0');   
                            
-   signal volume_shift        : integer range 0 to 3  := 0;
-   signal wave_vol_shifted    : integer range 0 to 15 := 0;
+   signal volume_shift        : integer range 0 to 3    := 0;
+   signal wave_vol_shifted    : integer range -16 to 15 := 0;
                            
    signal freq_divider        : unsigned(11 downto 0) := (others => '0');
    signal freq_check          : unsigned(11 downto 0) := (others => '0');
@@ -143,7 +143,7 @@ begin
             choutput_on         <= '0';
             wavetable_ptr       <= (others => '0');
             wavetable           <= (others => '0');
-            wave_vol            <= (others => '0');         
+            wave_vol            <= 0;         
             length_left         <= (others => '0');   
             volume_shift        <= 0;
             wave_vol_shifted    <= 0;
@@ -217,16 +217,16 @@ begin
             end if;
             
             -- wavetable
-            wave_vol <= waveram(bank_play, to_integer(wavetable_ptr(4 downto 0)));
+            wave_vol <= (to_integer(unsigned(waveram(bank_play, to_integer(wavetable_ptr(4 downto 0))))) - 8) * 2;
             
             if (REG_SOUND3CNT_H_Force_Volume = "1") then
-               wave_vol_shifted <= to_integer(unsigned(wave_vol)) * 3 / 4;
+               wave_vol_shifted <= wave_vol * 3 / 4;
             else
                case volume_shift is
                   when 0 => wave_vol_shifted <= 0;
-                  when 1 => wave_vol_shifted <= to_integer(unsigned(wave_vol));
-                  when 2 => wave_vol_shifted <= to_integer(unsigned(wave_vol)) / 2;
-                  when 3 => wave_vol_shifted <= to_integer(unsigned(wave_vol)) / 4;
+                  when 1 => wave_vol_shifted <= wave_vol;
+                  when 2 => wave_vol_shifted <= wave_vol / 2;
+                  when 3 => wave_vol_shifted <= wave_vol / 4;
                   when others => null;
                end case;
             end if;
