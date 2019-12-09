@@ -178,8 +178,8 @@ parameter CONF_STR = {
     "D0ON,Autosave,Off,On;",
     "D0-;",
     "O1,Aspect Ratio,3:2,16:9;",
-    "O9,Desaturate,Off,On;",
-    "OA,Sync core to video,Off,On;",
+    "O9A,Desaturate,Off,Level 1,Level 2,Level 3;",
+    "OB,Sync core to video,Off,On;",
     "O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
     "O78,Stereo Mix,None,25%,50%,100%;", 
     "-;",
@@ -579,7 +579,7 @@ dpram_n #(16,15,38400) vram
 
 wire [15:0] px_addr;
 wire [14:0] rgb;
-wire sync_core = status[10];
+wire sync_core = status[11];
 
 reg hs, vs, hbl, vbl, ce_pix;
 reg [4:0] r,g,b;
@@ -675,9 +675,31 @@ wire [7:0] b_in = {b,b[4:2]};
 //wire [7:0] luma = r_in[7:3] + g_in[7:1] + g_in[7:2] + b_in[7:3];
 wire [7:0] luma = r_in[7:2] + g_in[7:1] + g_in[7:3] + b_in[7:3];
 
-wire [7:0] r_out = status[9] ? r_in[7:1] + r_in[7:2] + luma[7:2] : r_in;
-wire [7:0] g_out = status[9] ? g_in[7:1] + g_in[7:2] + luma[7:2] : g_in;
-wire [7:0] b_out = status[9] ? b_in[7:1] + b_in[7:2] + luma[7:2] : b_in;
+wire [7:0] r_out, g_out, b_out;
+always_comb begin
+	case(status[10:9])
+		0: begin
+				r_out = r_in;
+				g_out = g_in;
+				b_out = b_in;
+			end
+		1: begin
+				r_out = r_in[7:1] + r_in[7:2] + luma[7:2];
+				g_out = g_in[7:1] + g_in[7:2] + luma[7:2];
+				b_out = b_in[7:1] + b_in[7:2] + luma[7:2];
+			end
+		2: begin
+				r_out = r_in[7:1] + luma[7:1];
+				g_out = g_in[7:1] + luma[7:1];
+				b_out = b_in[7:1] + luma[7:1];
+			end
+		3: begin
+				r_out = luma[7:1] + luma[7:2] + r_in[7:2];
+				g_out = luma[7:1] + luma[7:2] + g_in[7:2];
+				b_out = luma[7:1] + luma[7:2] + b_in[7:2];
+			end
+	endcase
+end
 
 video_mixer #(.LINE_LENGTH(520), .GAMMA(1)) video_mixer
 (
