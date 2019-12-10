@@ -2,7 +2,11 @@
 GBA for MiSTer
 
 # HW Requirements/Features
-- Requires 32MB SDRAM for games less than 32MB. 32MB games require either 64MB or 128MB module.
+The games can run from a naked DE10-Nano with the build-in DDR-RAM.
+However, using SDRAM is highly recommended, as some games may slowdown or loose sync when using DDR-RAM.
+
+When using SDRAM, it requires 32MB SDRAM for games less than 32MB. 32MB games require either 64MB or 128MB module.
+SDRAM will be automatically used when available.
 
 # Bios
 Opensource Bios from Normmatt is included, however it has issues with some games.
