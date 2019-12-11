@@ -23,7 +23,6 @@ entity gba_joypad is
       KeyR       : in std_logic;
       KeyL       : in std_logic;
       
-      vsync      : in std_logic;
       cpu_done   : in std_logic
    );
 end entity;
@@ -34,12 +33,16 @@ architecture arch of gba_joypad is
    signal REG_KEYCNT    : std_logic_vector(KEYCNT  .upper downto KEYCNT  .lower) := (others => '0');
 
    signal debug_cnt : integer := 0;
+   
+   signal Keys    : std_logic_vector(KEYINPUT.upper downto KEYINPUT.lower) := (others => '0');
+   signal Keys_1  : std_logic_vector(KEYINPUT.upper downto KEYINPUT.lower) := (others => '0');
 
 begin 
 
    iReg_KEYINPUT  : entity work.eProcReg_gba generic map (KEYINPUT) port map  (clk100, gb_bus, REG_KEYINPUT);  
    iReg_KEYCNT    : entity work.eProcReg_gba generic map (KEYCNT  ) port map  (clk100, gb_bus, REG_KEYCNT, REG_KEYCNT);  
 
+   REG_KEYINPUT <= Keys;
    
    process (clk100)
    begin
@@ -47,27 +50,27 @@ begin
 
          IRP_Joypad <= '0';
          
-         REG_KEYINPUT(0) <= not KeyA; 
-         REG_KEYINPUT(1) <= not KeyB;
-         REG_KEYINPUT(2) <= not KeySelect;
-         REG_KEYINPUT(3) <= not KeyStart;
-         REG_KEYINPUT(4) <= not KeyRight;
-         REG_KEYINPUT(5) <= not KeyLeft;
-         REG_KEYINPUT(6) <= not KeyUp;
-         REG_KEYINPUT(7) <= not KeyDown;
-         REG_KEYINPUT(8) <= not KeyR;
-         REG_KEYINPUT(9) <= not KeyL;
+         Keys_1 <= Keys;
          
-         -- only trigger interrupt once a frame, because some games use this as irq source all the time
-         -- and they hang if this irq comes steady. However it's unclear if this solution is correct
-         if (vsync = '1') then 
+         Keys(0) <= not KeyA; 
+         Keys(1) <= not KeyB;
+         Keys(2) <= not KeySelect;
+         Keys(3) <= not KeyStart;
+         Keys(4) <= not KeyRight;
+         Keys(5) <= not KeyLeft;
+         Keys(6) <= not KeyUp;
+         Keys(7) <= not KeyDown;
+         Keys(8) <= not KeyR;
+         Keys(9) <= not KeyL;
+         
+         if (Keys_1 /= Keys) then
             if (REG_KEYCNT(30) = '1') then
                if (REG_KEYCNT(31) = '1') then -- logical and
-                  if ((not REG_KEYINPUT(9 downto 0)) = REG_KEYCNT(25 downto 16)) then
+                  if ((not Keys(9 downto 0)) = REG_KEYCNT(25 downto 16)) then
                      IRP_Joypad <= '1';
                   end if;
                else -- logical or
-                  if (unsigned((not REG_KEYINPUT(9 downto 0)) and REG_KEYCNT(25 downto 16)) /= 0) then
+                  if (unsigned((not Keys(9 downto 0)) and REG_KEYCNT(25 downto 16)) /= 0) then
                      IRP_Joypad <= '1';
                   end if;
                end if;
