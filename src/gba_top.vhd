@@ -25,6 +25,7 @@ entity gba_top is
       MaxPakAddr         : in     std_logic_vector(24 downto 0); -- max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
       CyclesMissing      : buffer std_logic_vector(31 downto 0); -- debug only for speed measurement, keep open
       CyclesVsyncSpeed   : out    std_logic_vector(31 downto 0); -- debug only for speed measurement, keep open
+      SramFlashEnable    : in     std_logic;
       -- sdram interface
       sdram_read_ena     : out    std_logic;                     -- triggered once for read request 
       sdram_read_done    : in     std_logic := '0';              -- must be triggered once when sdram_read_data is valid after last read
@@ -244,7 +245,6 @@ begin
       KeyR       => KeyR,
       KeyL       => KeyL,
 
-      vsync      => vblank_trigger,
       cpu_done   => cpu_done  
    );
    
@@ -341,6 +341,7 @@ begin
       dma_eepromcount      => dma_eepromcount,
       flash_1m             => GBA_flash_1m,
       MaxPakAddr           => MaxPakAddr,
+      SramFlashEnable      => SramFlashEnable,
       
       VRAM_Lo_addr         => VRAM_Lo_addr,   
       VRAM_Lo_datain       => VRAM_Lo_datain, 

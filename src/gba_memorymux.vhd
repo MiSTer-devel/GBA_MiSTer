@@ -62,6 +62,7 @@ entity gba_memorymux is
       dma_eepromcount      : in     unsigned(16 downto 0);
       flash_1m             : in     std_logic;
       MaxPakAddr           : in     std_logic_vector(24 downto 0);
+      SramFlashEnable      : in     std_logic;
                                     
       VRAM_Lo_addr         : out    integer range 0 to 16383;
       VRAM_Lo_datain       : out    std_logic_vector(31 downto 0);
@@ -462,12 +463,16 @@ begin
                               state            <= EEPROMREAD;  
    
                            when x"E" | x"F" =>
-                              state                <= FLASHREAD; 
-                              adr_save(1 downto 0) <= mem_bus_Adr(1 downto 0) or bus_lowbits;
-                              if (mem_bus_acc = ACCESS_16BIT and (mem_bus_Adr(0) or bus_lowbits(0)) = '1') then
-                                 return_rotate        <= "01";
+                              if (SramFlashEnable = '1') then
+                                 state                <= FLASHREAD; 
+                                 adr_save(1 downto 0) <= mem_bus_Adr(1 downto 0) or bus_lowbits;
+                                 if (mem_bus_acc = ACCESS_16BIT and (mem_bus_Adr(0) or bus_lowbits(0)) = '1') then
+                                    return_rotate        <= "01";
+                                 else
+                                    return_rotate        <= "00";
+                                 end if;
                               else
-                                 return_rotate        <= "00";
+                                 state <= READ_UNREADABLE;
                               end if;
                            
                            when others => state <= READ_UNREADABLE; --report "reading here not implemented!" severity failure;

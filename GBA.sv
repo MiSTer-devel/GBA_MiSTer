@@ -324,6 +324,7 @@ gba
 	.MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
 	.CyclesMissing(),                 // debug only for speed measurement, keep open
 	.CyclesVsyncSpeed(),              // debug only for speed measurement, keep open
+	.SramFlashEnable('1),
 
 	.sdram_read_ena(sdram_req),       // triggered once for read request 
 	.sdram_read_done(sdram_ack),      // must be triggered once when sdram_read_data is valid after last read
