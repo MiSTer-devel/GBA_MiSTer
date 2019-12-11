@@ -40,12 +40,6 @@ PLEASE do not report errors without testing with the original BIOS
 - Warioware Twisted
 - Yoshi's Universal Gravitation
 
-# Games that refuse playing because of copy protection
-- Nes/Famicon classics (most of them)
-- Dragon Ball Z - Taiketsu
-- Dragon Ball Z - The Legacy of Goku
-- Rocky: tests for sram, game is using eeprom
-
 # Status
 ~1600 games tested until ingame:
 - 95% without major issues (no crash, playable)

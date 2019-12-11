@@ -384,8 +384,23 @@ always @(posedge clk_sys) begin
 		if(ioctl_addr[26:4] == 'hA) begin
 			if(ioctl_addr[3:0] <  12) cart_id[{4'd10 - ioctl_addr[3:0], 3'd0} +:16] <= {ioctl_dout[7:0],ioctl_dout[15:8]};
 			if(ioctl_addr[3:0] == 12) begin
-				if(cart_id == {"ROCKY BOXING"} ) sram_quirk <= 1; // Rocky
-				if(cart_id == {"DBZ LGCYGOKU"} ) sram_quirk <= 1; // Dragon Ball Z - The Legacy of Goku
+				if(cart_id == {"ROCKY BOXING"} )              sram_quirk <= 1; // Rocky US
+				if(cart_id == {"ROCKY", 56'h00000000000000} ) sram_quirk <= 1; // Rocky EU
+				if(cart_id == {"DBZ LGCYGOKU"} )              sram_quirk <= 1; // Dragon Ball Z - The Legacy of Goku US
+				if(cart_id == {"DRAGONBALL Z"} )              sram_quirk <= 1; // Dragon Ball Z - The Legacy of Goku EU
+				if(cart_id == {"DBZ TAIKETSU"} )              sram_quirk <= 1; // Dragon Ball Z - Taiketsu US
+				if(cart_id == {"DRAGON BALLZ"} )              sram_quirk <= 1; // Dragon Ball Z - Taiketsu EU
+				if(cart_id == {"BOMBER MAN", 16'h0000} )      sram_quirk <= 1; // Classic NES Series Bomberman
+				if(cart_id == {"CASTLEVANIA", 8'h00} )        sram_quirk <= 1; // Classic NES Series Castlevania
+				if(cart_id == {"DR. MARIO", 24'h000000} )     sram_quirk <= 1; // Classic NES Series DR. MARIO
+				if(cart_id == {"EXCITEBIKE", 16'h0000} )      sram_quirk <= 1; // Classic NES Series EXCITEBIKE
+				if(cart_id == {"ICE CLIMBER", 8'h00} )        sram_quirk <= 1; // Classic NES Series ICE CLIMBER
+				if(cart_id == {"NES METROID", 8'h00} )        sram_quirk <= 1; // Classic NES Series NES METROID
+				if(cart_id == {"PAC-MAN", 40'h0000000000} )   sram_quirk <= 1; // Classic NES Series PAC-MAN
+				if(cart_id == {"SUPER MARIO", 8'h00} )        sram_quirk <= 1; // Classic NES Series SUPER MARIO Bros
+				if(cart_id == {"ZELDA 1", 40'h0000000000} )   sram_quirk <= 1; // Classic NES Series The Legend of Zelda
+				if(cart_id == {"XEVIOUS", 40'h0000000000} )   sram_quirk <= 1; // Classic NES Series XEVIOUS
+				if(cart_id == {"NES ZELDA 2", 8'h00} )        sram_quirk <= 1; // Classic NES Series Zelda II - The Adventure of Link
 			end
 		end
 	end
