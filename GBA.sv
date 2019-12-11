@@ -324,7 +324,7 @@ gba
 	.MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
 	.CyclesMissing(),                 // debug only for speed measurement, keep open
 	.CyclesVsyncSpeed(),              // debug only for speed measurement, keep open
-	.SramFlashEnable('1),
+	.SramFlashEnable(~sram_quirk),
 
 	.sdram_read_ena(sdram_req),       // triggered once for read request 
 	.sdram_read_done(sdram_ack),      // must be triggered once when sdram_read_data is valid after last read
@@ -369,6 +369,27 @@ gba
 	.sound_out_left(AUDIO_L),
 	.sound_out_right(AUDIO_R)
 );
+
+////////////////////////////  QUIRKS  //////////////////////////////////
+
+reg sram_quirk = 0;
+always @(posedge clk_sys) begin
+	reg [95:0] cart_id;
+	reg old_download;
+	old_download <= cart_download;
+
+	if(~old_download && cart_download) {sram_quirk} <= 0;
+
+	if(ioctl_wr & cart_download) begin
+		if(ioctl_addr[26:4] == 'hA) begin
+			if(ioctl_addr[3:0] <  12) cart_id[{4'd10 - ioctl_addr[3:0], 3'd0} +:16] <= {ioctl_dout[7:0],ioctl_dout[15:8]};
+			if(ioctl_addr[3:0] == 12) begin
+				if(cart_id == {"ROCKY BOXING"} ) sram_quirk <= 1; // Rocky
+				if(cart_id == {"DBZ LGCYGOKU"} ) sram_quirk <= 1; // Dragon Ball Z - The Legacy of Goku
+			end
+		end
+	end
+end
 
 ////////////////////////////  CODES  ///////////////////////////////////
 
