@@ -148,11 +148,12 @@ begin
                freq_divider <= '0' & unsigned(Channel_Frequency);
                length_on <= Channel_Length_Flag(Channel_Length_Flag'left);
                if (Channel_Initial = "1") then
-                  sweepcnt     <= (others => '0');
-                  envelope_cnt <= (others => '0');
-                  envelope_add <= (others => '0');
-                  ch_on        <= '1';
-                  freq_cnt     <= (others => '0');
+                  sweepcnt      <= (others => '0');
+                  envelope_cnt  <= (others => '0');
+                  envelope_add  <= (others => '0');
+                  ch_on         <= '1';
+                  freq_cnt      <= (others => '0');
+                  wavetable_ptr <= (others => '0');
                end if;
             end if;
             

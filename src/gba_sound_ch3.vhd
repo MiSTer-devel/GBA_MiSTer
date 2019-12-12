@@ -174,8 +174,9 @@ begin
                freq_divider <= '0' & unsigned(REG_SOUND3CNT_X_Sample_Rate);
                length_on <= REG_SOUND3CNT_X_Length_Flag(REG_SOUND3CNT_X_Length_Flag'left);
                if (REG_SOUND3CNT_X_Initial = "1") then
-                  ch_on        <= '1';
-                  freq_cnt     <= (others => '0');
+                  ch_on         <= '1';
+                  freq_cnt      <= (others => '0');
+                  wavetable_ptr <= (others => '0');
                end if;
             end if;
             
