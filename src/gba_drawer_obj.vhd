@@ -85,6 +85,8 @@ architecture arch of gba_drawer_obj is
    
    signal output_ok : std_logic := '0';
    
+   signal wait_busydone : integer range 0 to 7 := 0;
+   
    signal OAM_currentobj : integer range 0 to 127;
    
    signal OAM_data0 : std_logic_vector(15 downto 0) := (others => '0');
@@ -231,6 +233,15 @@ begin
             case (OAMFetch) is
             
                when IDLE =>
+                  if (PIXELGen = WAITOAM) then
+                     if (wait_busydone > 0) then
+                        wait_busydone <= wait_busydone - 1;
+                     else
+                        busy          <= '0';
+                     end if;
+                  else
+                     wait_busydone <= 7;
+                  end if;
                   if (drawline = '1') then
                      busy               <= '1';
                      OAM_currentobj     <= 0;
@@ -285,7 +296,6 @@ begin
                   if (OAM_data0(OAM_OFF_HI downto OAM_OFF_LO) = "10" or (unsigned(BG_Mode) >= 3 and tileindex_var < 512)) then
                      if (OAM_currentobj = 127) then
                         OAMFetch <= IDLE;
-                        busy     <= '0';
                      else
                         OAMFetch           <= WAITFIRST;
                         OAMRAM_Drawer_addr <= (OAM_currentobj * 2) + 2;
@@ -299,7 +309,6 @@ begin
                   if (PIXELGen = WAITOAM) then
                      if (OAM_currentobj = 127) then
                         OAMFetch <= IDLE;
-                        busy     <= '0';
                      else
                         OAMFetch           <= WAITFIRST;
                         OAMRAM_Drawer_addr <= (OAM_currentobj * 2) + 2;
