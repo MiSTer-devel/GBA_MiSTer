@@ -119,8 +119,6 @@ architecture arch of gba_drawer_obj is
    signal posx              : integer range -512 to 511;
    signal sizeX             : integer range 8 to 64;
    signal sizeY             : integer range 8 to 64;
-   signal fieldX            : integer range 8 to 128;
-   signal fieldY            : integer range 8 to 128;
    signal pixeladdr_pre     : integer range 0 to 32767;
    signal pixeladdr         : integer range -32768 to 32767;
        
@@ -319,6 +317,8 @@ begin
    -- Pixelgen
    process (clk100)
       variable posy           : integer range -256 to 255;
+      variable fieldX         : integer range 8 to 128;
+      variable fieldY         : integer range 8 to 128;
       variable xxx            : integer range 0 to 63;
       variable yyy            : integer range 0 to 63;
       variable pixeladdr_calc : integer;
@@ -340,16 +340,7 @@ begin
                   dy              <= to_integer(signed(OAM_data_aff2));
                   dmy             <= to_integer(signed(OAM_data_aff3));
                   
-                  posy := to_integer(unsigned(OAM_data0(OAM_Y_HI downto OAM_Y_LO)));
-                  if (posy > 16#C0#) then 
-                     posy := posy - 16#100#; 
-                  end if;
-                  if (OAM_data0(OAM_MOSAIC) = '1') then
-                     ty <= ypos_mosaic - posy;
-                  else
-                     ty <= ypos - posy;
-                  end if;
-                  
+
                   posx <= to_integer(unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO)));
                   
                   pixeladdr_pre <= 32 * to_integer(unsigned(OAM_data2(OAM_TILE_HI downto OAM_TILE_LO)));
@@ -404,11 +395,21 @@ begin
             when CALCMOSAIC =>
                PIXELGen <= BASEADDR_PRE;
                if (Pixel_data0(OAM_AFFINE) = '1' and Pixel_data0(OAM_DBLSIZE) = '1') then
-                  fieldX <= 2 * sizeX;
-                  fieldY <= 2 * sizeY;
+                  fieldX := 2 * sizeX;
+                  fieldY := 2 * sizeY;
                else
-                  fieldX <= sizeX;
-                  fieldY <= sizeY;
+                  fieldX := sizeX;
+                  fieldY := sizeY;
+               end if;
+
+               posy := to_integer(unsigned(Pixel_data0(OAM_Y_HI downto OAM_Y_LO)));
+               if (posy > (16#100# - fieldY)) then
+                  posy := posy - 16#100#;
+               end if;
+               if (Pixel_data0(OAM_MOSAIC) = '1') then
+                  ty <= ypos_mosaic - posy;
+               else
+                  ty <= ypos - posy;
                end if;
                
                if (Pixel_data0(OAM_HICOLOR) = '0') then
