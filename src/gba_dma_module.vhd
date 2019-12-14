@@ -43,6 +43,10 @@ entity gba_dma_module is
       
       dma_eepromcount     : out   unsigned(16 downto 0);
       
+      last_dma_out        : out   std_logic_vector(31 downto 0) := (others => '0');
+      last_dma_valid      : out   std_logic := '0';
+      last_dma_in         : in    std_logic_vector(31 downto 0);
+      
       dma_bus_Adr         : out   std_logic_vector(27 downto 0) := (others => '0'); 
       dma_bus_rnw         : out   std_logic := '0';
       dma_bus_ena         : out   std_logic := '0';
@@ -85,8 +89,6 @@ architecture arch of gba_dma_module is
    signal addr_target        : unsigned(27 downto 0);
    signal count              : unsigned(16 downto 0);
    signal fullcount          : unsigned(16 downto 0);
-   
-   signal last_dma_value     : std_logic_vector(31 downto 0) := (others => '0');
 
    type tstate is
    (
@@ -123,6 +125,8 @@ begin
          IRP_DMA       <= '0';
          
          dma_bus_ena <= '0';
+         
+         last_dma_valid   <= '0';
          
          dma_new_cycles   <= '0';
          dma_first_cycles <= '0';
@@ -211,7 +215,6 @@ begin
                   when IDLE =>
                      if (allow_on = '1') then
                         state <= READING;
-                        --if (unsigned(addr_source) > unsigned(x"2000000")) then required to read 0 for bios?
                         dma_bus_rnw <= '1';
                         dma_bus_ena <= '1';
                         if (Transfer_Type_DW = '1') then
@@ -239,9 +242,14 @@ begin
                         
                         if (addr_source >= 16#2000000#) then
                            dma_bus_dout   <= dma_bus_din;
-                           last_dma_value <= dma_bus_din;
+                           last_dma_valid <= '1';
+                           if (Transfer_Type_DW = '1') then                           
+                              last_dma_out   <= dma_bus_din;
+                           else
+                              last_dma_out   <= dma_bus_din(15 downto 0) & dma_bus_din(15 downto 0);
+                           end if;
                         else
-                           dma_bus_dout <= last_dma_value;
+                           dma_bus_dout <= last_dma_in;
                         end if;
                         
                         -- next settings

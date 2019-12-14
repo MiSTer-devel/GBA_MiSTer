@@ -67,6 +67,18 @@ architecture arch of gba_dma is
    
    signal dma_idle   : std_logic := '1';
            
+   signal last_dma_value   : std_logic_vector(31 downto 0) := (others => '0');
+   
+   signal last_dma0        : std_logic_vector(31 downto 0);
+   signal last_dma1        : std_logic_vector(31 downto 0);
+   signal last_dma2        : std_logic_vector(31 downto 0);
+   signal last_dma3        : std_logic_vector(31 downto 0);
+   signal last_dma_valid0  : std_logic;
+   signal last_dma_valid1  : std_logic;
+   signal last_dma_valid2  : std_logic;
+   signal last_dma_valid3  : std_logic;
+   
+           
 begin 
 
    igba_dma_module0 : entity work.gba_dma_module
@@ -106,6 +118,10 @@ begin
       dma_cycles_adrup => single_cycles_adrup(3 downto 0),
       
       dma_eepromcount  => open,
+      
+      last_dma_out     => last_dma0,
+      last_dma_valid   => last_dma_valid0,
+      last_dma_in      => last_dma_value,
       
       dma_bus_Adr      => Array_Adr(0),
       dma_bus_rnw      => Array_rnw(0), 
@@ -154,6 +170,10 @@ begin
       
       dma_eepromcount  => open,
       
+      last_dma_out     => last_dma1,
+      last_dma_valid   => last_dma_valid1,
+      last_dma_in      => last_dma_value,
+      
       dma_bus_Adr      => Array_Adr(1),
       dma_bus_rnw      => Array_rnw(1), 
       dma_bus_ena      => Array_ena(1), 
@@ -200,6 +220,10 @@ begin
       dma_cycles_adrup => single_cycles_adrup(11 downto 8),
       
       dma_eepromcount  => open,
+      
+      last_dma_out     => last_dma2,
+      last_dma_valid   => last_dma_valid2,
+      last_dma_in      => last_dma_value,
       
       dma_bus_Adr      => Array_Adr(2),
       dma_bus_rnw      => Array_rnw(2), 
@@ -248,6 +272,10 @@ begin
       
       dma_eepromcount  => dma_eepromcount,
       
+      last_dma_out     => last_dma3,
+      last_dma_valid   => last_dma_valid3,
+      last_dma_in      => last_dma_value,
+      
       dma_bus_Adr      => Array_Adr(3),
       dma_bus_rnw      => Array_rnw(3), 
       dma_bus_ena      => Array_ena(3), 
@@ -284,6 +312,16 @@ begin
    process (clk100)
    begin
       if rising_edge(clk100) then
+      
+         if (last_dma_valid0 = '1') then
+            last_dma_value <= last_dma0;
+         elsif (last_dma_valid1 = '1') then
+            last_dma_value <= last_dma1;
+         elsif (last_dma_valid2 = '1') then
+            last_dma_value <= last_dma2;
+         elsif (last_dma_valid3 = '1') then
+            last_dma_value <= last_dma3;
+         end if;
          
          -- possible speedup here, as if only 1 dma is requesting, it must wait 1 cycle after each r+w transfer
          -- currently implementing this speedup cannot work, as the dma module is turned off the cycle after dma_bus_done

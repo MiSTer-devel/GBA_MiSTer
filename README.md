@@ -54,3 +54,19 @@ PLEASE do not report errors without testing with the original BIOS
 - Multiplayer features like Serial
 - Tilt/Gyro/Rumble/Sun sensor)
 - RTC
+
+# Accuracy
+
+There is great testsuite you can get from here: https://github.com/mgba-emu/suite
+It tests out correct Memory, Timer, DMA, CPU, BIOS behavior and also instruction timing. It works 100% on the real GBA.
+The suite itself has several thousand single tests. Here is a comparison with mGBA, VBA-M and Higan
+
+Testname | TestCount | FPGBA | mGBA | VBA-M | Higan
+---------|-----------|-------|------|-------|-------
+Memory   |      1552 |  1538 | 1552 |  1337 | 1552
+IOREAD   |       123 |   123 |  116 |   100 |  123
+Timing   |      1660 |  1408 | 1520 |   628 | 1424
+Timer    |       936 |   445 |  511 |   440 |  464
+Carry    |        93 |    93 |   93 |    93 |   93
+BIOSMath |       625 |   625 |  625 |   425 |  625
+DMATests |      1256 |  1212 | 1232 |  1008 | 1064
