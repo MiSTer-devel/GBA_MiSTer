@@ -352,7 +352,11 @@ begin
 
                   posx <= to_integer(unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO)));
                   
-                  pixeladdr_pre <= 32 * to_integer(unsigned(OAM_data2(OAM_TILE_HI downto OAM_TILE_LO)));
+                  if (OAM_data0(OAM_HICOLOR) = '1' and one_dim_mapping = '0') then
+                     pixeladdr_pre <= 32 * to_integer(unsigned(OAM_data2(OAM_TILE_HI downto OAM_TILE_LO+1) & '0'));
+                  else 
+                     pixeladdr_pre <= 32 * to_integer(unsigned(OAM_data2(OAM_TILE_HI downto OAM_TILE_LO)));
+                  end if;
                   
                   case (to_integer(unsigned(OAM_data0(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO)))) is
                      when 0 => -- square
