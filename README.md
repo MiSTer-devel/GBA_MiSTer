@@ -18,6 +18,8 @@ PLEASE do not report errors without testing with the original BIOS
 - Banjo-Kazooie hangs after start. Workaround: instantly save ingame, reset the game and reload the save
 - Bomberman Max 2 - Blue: black screen after intro
 
+- Classic NES Series: controls not working
+
 - Colin McRae Rally 2.0 hangs when going into race
 
 - Digimon Racing: hang on 3rd screen(Griptonite)
@@ -26,14 +28,13 @@ PLEASE do not report errors without testing with the original BIOS
 
 - Madden06/06: crash at coin toss
 
-- Iridium II: hangs at first boss
+- Iridium II: hangs at first boss -> maybe due to bad rom?
 
 - Sennen Kazoku: hang on first screen
 - Starsky & Hutch: crash going ingame
 - SuperMarioAdvance: MarioBros Minigame hangs. Same game is included  and working in Super Mario Advance 2
 
 - TOCA World Touring Cars: hangs going into race
-- Top Gun - Combat Zones: doesn't recognize A-button in main menu
 
 # Games that are unplayable because of catridge hardware missing
 - Boktai 1/2/Shin Bokura no Taiyou(Japanese Boktai)
