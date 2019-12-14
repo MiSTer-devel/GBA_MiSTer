@@ -390,6 +390,7 @@ always @(posedge clk_sys) begin
 				if(cart_id == {"DRAGONBALL Z"} )              sram_quirk <= 1; // Dragon Ball Z - The Legacy of Goku EU
 				if(cart_id == {"DBZ TAIKETSU"} )              sram_quirk <= 1; // Dragon Ball Z - Taiketsu US
 				if(cart_id == {"DRAGON BALLZ"} )              sram_quirk <= 1; // Dragon Ball Z - Taiketsu EU
+				if(cart_id == {"TOPGUN CZ", 24'h000000} )     sram_quirk <= 1; // Top Gun - Combat Zones
 				if(cart_id == {"BOMBER MAN", 16'h0000} )      sram_quirk <= 1; // Classic NES Series Bomberman
 				if(cart_id == {"CASTLEVANIA", 8'h00} )        sram_quirk <= 1; // Classic NES Series Castlevania
 				if(cart_id == {"DR. MARIO", 24'h000000} )     sram_quirk <= 1; // Classic NES Series DR. MARIO
