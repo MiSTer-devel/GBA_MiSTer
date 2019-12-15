@@ -26,6 +26,7 @@ entity gba_top is
       CyclesMissing      : buffer std_logic_vector(31 downto 0); -- debug only for speed measurement, keep open
       CyclesVsyncSpeed   : out    std_logic_vector(31 downto 0); -- debug only for speed measurement, keep open
       SramFlashEnable    : in     std_logic;
+      memory_remap       : in     std_logic;
       -- sdram interface
       sdram_read_ena     : out    std_logic;                     -- triggered once for read request 
       sdram_read_done    : in     std_logic := '0';              -- must be triggered once when sdram_read_data is valid after last read
@@ -179,6 +180,8 @@ architecture arch of gba_top is
    
    signal dma_eepromcount : unsigned(16 downto 0);
    
+   signal MaxPakAddr_modified  : std_logic_vector(24 downto 0);
+   
    -- debug wires
    signal DISPSTAT_debug  : std_logic_vector(31 downto 0);     
    signal debug_fifocount : integer;
@@ -285,6 +288,20 @@ begin
    cpu_frombus  <= mem_bus_din;
    cpu_bus_done <= mem_bus_done;
    
+   
+   process (clk100)
+   begin
+      if rising_edge(clk100) then
+   
+         if (memory_remap = '1') then
+            MaxPakAddr_modified <= (others => '1');
+         else
+            MaxPakAddr_modified <= MaxPakAddr;
+         end if;
+         
+      end if;
+   end process;
+   
    igba_memorymux : entity work.gba_memorymux
    generic map
    (
@@ -340,8 +357,9 @@ begin
       
       dma_eepromcount      => dma_eepromcount,
       flash_1m             => GBA_flash_1m,
-      MaxPakAddr           => MaxPakAddr,
+      MaxPakAddr           => MaxPakAddr_modified,
       SramFlashEnable      => SramFlashEnable,
+      memory_remap         => memory_remap,
       
       VRAM_Lo_addr         => VRAM_Lo_addr,   
       VRAM_Lo_datain       => VRAM_Lo_datain, 

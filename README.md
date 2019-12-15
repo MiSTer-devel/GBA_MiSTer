@@ -18,8 +18,6 @@ PLEASE do not report errors without testing with the original BIOS
 - Banjo-Kazooie hangs after start. Workaround: instantly save ingame, reset the game and reload the save
 - Bomberman Max 2 - Blue: black screen after intro
 
-- Classic NES Series: controls not working
-
 - Colin McRae Rally 2.0 hangs when going into race
 
 - Digimon Racing: hang on 3rd screen(Griptonite)
@@ -43,7 +41,7 @@ PLEASE do not report errors without testing with the original BIOS
 
 # Status
 ~1600 games tested until ingame:
-- 95% without major issues (no crash, playable)
+- 99% without major issues (no crash, playable)
 
 # Features
 - all videomodes including affine and special effects

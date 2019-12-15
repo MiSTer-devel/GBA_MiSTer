@@ -63,6 +63,7 @@ entity gba_memorymux is
       flash_1m             : in     std_logic;
       MaxPakAddr           : in     std_logic_vector(24 downto 0);
       SramFlashEnable      : in     std_logic;
+      memory_remap         : in     std_logic;
                                     
       VRAM_Lo_addr         : out    integer range 0 to 16383;
       VRAM_Lo_datain       : out    std_logic_vector(31 downto 0);
@@ -455,7 +456,11 @@ begin
                                  end if;
                               else
                                  cache_read_enable <= '1';
-                                 cache_read_addr   <= mem_bus_Adr(24 downto 2);
+                                 if (memory_remap = '1') then
+                                    cache_read_addr   <= "00000" & mem_bus_Adr(19 downto 2);
+                                 else
+                                    cache_read_addr   <= mem_bus_Adr(24 downto 2);
+                                 end if;
                                  state             <= WAIT_SDRAM;
                               end if;
                            
