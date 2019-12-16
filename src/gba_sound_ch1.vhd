@@ -157,113 +157,113 @@ begin
                end if;
             end if;
             
-            -- cpu cycle trigger
-            if (new_cycles_valid = '1') then
-               soundcycles_freq     <= soundcycles_freq     + 1;
-               soundcycles_sweep    <= soundcycles_sweep    + 1;
-               soundcycles_envelope <= soundcycles_envelope + 1;
-               soundcycles_length   <= soundcycles_length   + 1;
-            end if;
-            
-            -- freq / wavetable
-            if (new_cycles_valid = '0' and soundcycles_freq >= 4) then
-               freq_cnt <= freq_cnt + 1;
-               soundcycles_freq <= soundcycles_freq - 4;
-            end if;
-            
-            freq_check <= 2048 - freq_divider;
-            
-            if (freq_cnt >= freq_check) then
-               freq_cnt <= freq_cnt - freq_check;
-               wavetable_ptr <= wavetable_ptr + 1;
-            end if;
-            
-            -- sweep
-            sweep_next <= freq_divider srl to_integer(unsigned(Channel_Number_of_sweep_shift));
-            
-            if (has_sweep = true) then
-               if (new_cycles_valid = '0' and soundcycles_sweep >= 32768) then -- 128 Hz
-                  soundcycles_sweep <= soundcycles_sweep - 32768;
+            if (ch_on = '1') then
+               -- cpu cycle trigger
+               if (new_cycles_valid = '1') then
+                  soundcycles_freq     <= soundcycles_freq     + 1;
+                  soundcycles_sweep    <= soundcycles_sweep    + 1;
+                  soundcycles_envelope <= soundcycles_envelope + 1;
+                  soundcycles_length   <= soundcycles_length   + 1;
+               end if;
+               
+               -- freq / wavetable
+               if (new_cycles_valid = '0' and soundcycles_freq >= 4) then
+                  freq_cnt <= freq_cnt + 1;
+                  soundcycles_freq <= soundcycles_freq - 4;
+               end if;
+               
+               freq_check <= 2048 - freq_divider;
+               
+               if (freq_cnt >= freq_check) then
+                  freq_cnt <= freq_cnt - freq_check;
+                  wavetable_ptr <= wavetable_ptr + 1;
+               end if;
+               
+               -- sweep
+               sweep_next <= freq_divider srl to_integer(unsigned(Channel_Number_of_sweep_shift));
+               
+               if (has_sweep = true) then
+                  if (new_cycles_valid = '0' and soundcycles_sweep >= 32768) then -- 128 Hz
+                     soundcycles_sweep <= soundcycles_sweep - 32768;
+                     if (Channel_Sweep_Time /= "000") then
+                        sweepcnt <= sweepcnt + 1;
+                     end if;
+                  end if;
+                  
                   if (Channel_Sweep_Time /= "000") then
-                     sweepcnt <= sweepcnt + 1;
+                     if (sweepcnt >= unsigned(Channel_Sweep_Time)) then
+                        sweepcnt <= (others => '0');
+                        if (Channel_Sweep_Frequency_Direction = "0") then -- increase
+                           freq_divider <= freq_divider + sweep_next;
+                           if (freq_divider + sweep_next >= 2048) then
+                              ch_on <= '0';
+                           end if;
+                        else
+                           freq_divider <= freq_divider - sweep_next;
+                           if (sweep_next > freq_divider) then
+                              ch_on <= '0';
+                           end if;
+                        end if;
+                     end if;
+                  end if;
+                  
+               end if;
+               
+               
+               -- envelope
+               if (new_cycles_valid = '0' and soundcycles_envelope >= 65536) then -- 64 Hz
+                  soundcycles_envelope <= soundcycles_envelope - 65536;
+                  if (Channel_Envelope_Step_Time /= "000") then
+                     envelope_cnt <= envelope_cnt + 1;
                   end if;
                end if;
                
-               if (Channel_Sweep_Time /= "000") then
-                  if (sweepcnt >= unsigned(Channel_Sweep_Time)) then
-                     sweepcnt <= (others => '0');
-                     if (Channel_Sweep_Frequency_Direction = "0") then -- increase
-                        freq_divider <= freq_divider + sweep_next;
-                        if (freq_divider + sweep_next >= 2048) then
-                           ch_on <= '0';
-                        end if;
+               if (Channel_Envelope_Step_Time /= "000") then
+                  if (envelope_cnt >= unsigned(Channel_Envelope_Step_Time)) then
+                     envelope_cnt <= (others => '0');
+                     if (envelope_add < 15) then
+                        envelope_add <= envelope_add + 1;
+                     end if;
+                  end if;
+                  
+                  if (Channel_Envelope_Direction = "0") then -- decrease
+                     if (unsigned(Channel_Initial_Volume_of_envelope) >= envelope_add) then
+                        volume <= to_integer(unsigned(Channel_Initial_Volume_of_envelope)) - to_integer(envelope_add);
                      else
-                        freq_divider <= freq_divider - sweep_next;
-                        if (sweep_next > freq_divider) then
-                           ch_on <= '0';
-                        end if;
+                        volume <= 0;
+                     end if;
+                  else
+                     if (unsigned(Channel_Initial_Volume_of_envelope) + envelope_add <= 15) then
+                        volume <= to_integer(unsigned(Channel_Initial_Volume_of_envelope)) + to_integer(envelope_add);
+                     else
+                        volume <= 15;
+                     end if;
+                  end if;
+               end if;
+            
+               -- length
+               if (new_cycles_valid = '0' and soundcycles_length >= 16384) then -- 256 Hz
+                  soundcycles_length <= soundcycles_length - 16384;
+                  if (length_left > 0 and length_on = '1') then
+                     length_left <= length_left - 1;
+                     if (length_left = 1) then
+                        ch_on <= '0';
                      end if;
                   end if;
                end if;
                
-            end if;
-            
-            
-            -- envelope
-            if (new_cycles_valid = '0' and soundcycles_envelope >= 65536) then -- 64 Hz
-               soundcycles_envelope <= soundcycles_envelope - 65536;
-               if (Channel_Envelope_Step_Time /= "000") then
-                  envelope_cnt <= envelope_cnt + 1;
-               end if;
-            end if;
-            
-            if (Channel_Envelope_Step_Time /= "000") then
-               if (envelope_cnt >= unsigned(Channel_Envelope_Step_Time)) then
-                  envelope_cnt <= (others => '0');
-                  if (envelope_add < 15) then
-                     envelope_add <= envelope_add + 1;
-                  end if;
-               end if;
+               -- duty
+               case to_integer(unsigned(Channel_Wave_Pattern_Duty)) is
+                  when 0 => wavetable <= "00000001";
+                  when 1 => wavetable <= "10000001";
+                  when 2 => wavetable <= "10000111";
+                  when 3 => wavetable <= "01111110";
+                  when others => null;
+               end case;
                
-               if (Channel_Envelope_Direction = "0") then -- decrease
-                  if (unsigned(Channel_Initial_Volume_of_envelope) >= envelope_add) then
-                     volume <= to_integer(unsigned(Channel_Initial_Volume_of_envelope)) - to_integer(envelope_add);
-                  else
-                     volume <= 0;
-                  end if;
-               else
-                  if (unsigned(Channel_Initial_Volume_of_envelope) + envelope_add <= 15) then
-                     volume <= to_integer(unsigned(Channel_Initial_Volume_of_envelope)) + to_integer(envelope_add);
-                  else
-                     volume <= 15;
-                  end if;
-               end if;
-            end if;
-         
-            -- length
-            if (new_cycles_valid = '0' and soundcycles_length >= 16384) then -- 256 Hz
-               soundcycles_length <= soundcycles_length - 16384;
-               if (length_left > 0 and length_on = '1') then
-                  length_left <= length_left - 1;
-                  if (length_left = 1) then
-                     ch_on <= '0';
-                  end if;
-               end if;
-            end if;
+               wave_on <= wavetable(to_integer(wavetable_ptr));
             
-            -- duty
-            case to_integer(unsigned(Channel_Wave_Pattern_Duty)) is
-               when 0 => wavetable <= "00000001";
-               when 1 => wavetable <= "10000001";
-               when 2 => wavetable <= "10000111";
-               when 3 => wavetable <= "01111110";
-               when others => null;
-            end case;
-            
-            wave_on <= wavetable(to_integer(wavetable_ptr));
-            
-            -- sound out
-            if (ch_on = '1') then
+               -- sound out
                if (wave_on = '1') then
                   sound_out <= to_signed(1 * volume, 16);
                else
