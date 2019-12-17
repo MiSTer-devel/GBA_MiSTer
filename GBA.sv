@@ -168,7 +168,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 `include "build_id.v"
 parameter CONF_STR = {
     "GBA;;",
-    "FS,GBA;",
+    "FS,GBAGB GBC;",
     "-;",
     //"C,Cheats;",
     //"H1O6,Cheats Enabled,Yes,No;",
