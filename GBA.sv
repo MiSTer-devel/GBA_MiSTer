@@ -174,7 +174,7 @@ parameter CONF_STR = {
     //"H1O6,Cheats Enabled,Yes,No;",
     //"-;",
     "D0RC,Reload Backup RAM;",
-    "D2D0RD,Save Backup RAM;",
+    "D0RD,Save Backup RAM;",
     "D0ON,Autosave,Off,On;",
     "D0-;",
     "O1,Aspect Ratio,3:2,16:9;",
@@ -185,7 +185,7 @@ parameter CONF_STR = {
     "-;",
     "OEF,Storage,Auto,SDRAM,DDR3;",
     "O5,Pause,Off,On;",
-    "H3OG,Turbo,Off,On;",
+    "H2OG,Turbo,Off,On;",
     "R0,Reset;",
     "J1,A,B,L,R,Select,Start,FastForward;",
     "jn,A,B,L,R,Select,Start,X;",
@@ -194,7 +194,7 @@ parameter CONF_STR = {
 
 wire  [1:0] buttons;
 wire [31:0] status;
-wire [15:0] status_menumask = {force_turbo, bk_autosave, ~gg_available, ~bk_ena};
+wire [15:0] status_menumask = {force_turbo, ~gg_available, ~bk_ena};
 wire        forced_scandoubler;
 reg  [31:0] sd_lba;
 reg         sd_rd = 0;
@@ -311,9 +311,12 @@ end
 wire        save_eeprom, save_sram, save_flash;
 wire [31:0] cpu_addr, cpu_frombus;
 
-wire        fast_forward = joy[10] & ~force_turbo;
-wire        pause = force_pause | status[5];
-wire        cpu_turbo = ((status[16] & ~fast_forward) | force_turbo) & ~pause;
+reg fast_forward, pause, cpu_turbo;
+always @(posedge clk_sys) begin
+	fast_forward <= joy[10] & ~force_turbo;
+	pause <= force_pause | status[5];
+	cpu_turbo <= ((status[16] & ~fast_forward) | force_turbo) & ~pause;
+end
 
 gba_top
 #(
@@ -779,18 +782,18 @@ video_mixer #(.LINE_LENGTH(520), .GAMMA(1)) video_mixer
 
 
 /////////////////////////  STATE SAVE/LOAD  /////////////////////////////
-reg bk_ena = 0;
-reg bk_pending = 0;
-reg bk_loading = 0;
-
-wire bk_autosave = status[23];
 wire bk_load     = status[12];
-wire bk_save     = status[13] | (OSD_STATUS & bk_autosave);
+wire bk_save     = status[13];
+wire bk_autosave = status[23];
+wire bk_write    = (save_eeprom|save_sram|save_flash) && bus_req;
 
-wire bk_save_write = (save_eeprom|save_sram|save_flash) && bus_req;
+reg  bk_ena      = 0;
+reg  bk_pending  = 0;
+reg  bk_loading  = 0;
+
 
 always @(posedge clk_sys) begin
-	if (bk_save_write) bk_pending <= 1;
+	if (bk_write)      bk_pending <= 1;
 	else if (bk_state) bk_pending <= 0;
 end
 
@@ -816,15 +819,17 @@ always @(posedge clk_sys) begin
 	bk_ena <= |save_sz;
 end
 
-reg  bk_state = 0;
+reg  bk_state  = 0;
+wire bk_save_a = OSD_STATUS & bk_autosave;
 
 always @(posedge clk_sys) begin
-	reg old_load = 0, old_save = 0, old_ack;
+	reg old_load = 0, old_save = 0, old_save_a = 0, old_ack;
 	reg [1:0] state;
 
-	old_load <= bk_load & bk_ena;
-	old_save <= bk_save & bk_ena;
-	old_ack  <= sd_ack;
+	old_load   <= bk_load;
+	old_save   <= bk_save;
+	old_save_a <= bk_save_a;
+	old_ack    <= sd_ack;
 
 	if(~old_ack & sd_ack) {sd_rd, sd_wr} <= 0;
 
@@ -833,7 +838,7 @@ always @(posedge clk_sys) begin
 		state <= 0;
 		sd_lba <= 0;
 		bk_loading <= 0;
-		if((~old_load & bk_load) | (~old_save & bk_save & bk_pending) | (cart_download & img_mounted)) begin
+		if(bk_ena & ((~old_load & bk_load) | (~old_save & bk_save) | (~old_save_a & bk_save_a & bk_pending) | (cart_download & img_mounted))) begin
 			bk_state <= 1;
 			bk_loading <= bk_load | img_mounted;
 		end
