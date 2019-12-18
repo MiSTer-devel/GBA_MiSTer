@@ -20,6 +20,7 @@ entity gba_top is
       -- settings                 
       GBA_on             : in     std_logic;  -- switching from off to on = reset
       GBA_lockspeed      : in     std_logic;  -- 1 = 100% speed, 0 = max speed
+      GBA_cputurbo       : in     std_logic;  -- 1 = cpu free running, all other 16 mhz
       GBA_flash_1m       : in     std_logic;  -- 1 when string "FLASH1M_V" is anywhere in gamepak
       CyclePrecalc       : in     std_logic_vector(15 downto 0); -- 100 seems to be ok to keep fullspeed for all games
       MaxPakAddr         : in     std_logic_vector(24 downto 0); -- max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
@@ -71,6 +72,8 @@ entity gba_top is
       GBA_BusReadData    : out    std_logic_vector(31 downto 0);
       GBA_Bus_written    : in     std_logic;
       -- display data
+      pixel_out_x        : out   integer range 0 to 239;
+      pixel_out_y        : out   integer range 0 to 159;
       pixel_out_addr     : out   integer range 0 to 38399;       -- address for framebuffer 
       pixel_out_data     : out   std_logic_vector(14 downto 0);  -- RGB data for framebuffer 
       pixel_out_we       : out   std_logic;                      -- new pixel for framebuffer 
@@ -168,8 +171,10 @@ architecture arch of gba_top is
    signal PC_in_BIOS : std_logic;
    signal lastread   : std_logic_vector(31 downto 0);
    
-   signal new_cycles       : unsigned(7 downto 0);
-   signal new_cycles_valid : std_logic;
+   signal new_cycles           : unsigned(7 downto 0);
+   signal new_cycles_valid     : std_logic;      
+   signal new_cycles_cpu       : unsigned(7 downto 0);
+   signal new_cycles_valid_cpu : std_logic;   
    
    signal hblank_trigger : std_logic;
    signal vblank_trigger : std_logic;
@@ -217,11 +222,12 @@ architecture arch of gba_top is
    signal IRP_Joypad  : std_logic;
    signal IRP_Gamepak : std_logic;
    
-   signal cycles_ahead  : integer range 0 to 131071 := 0;
-   signal cycles_16_100 : integer range 0 to (SPEEDDIV - 1) := 0;
-   signal new_missing   : std_logic := '0';
-   signal CyclesVsync   : unsigned(31 downto 0) := (others => '0');
-   signal bench_slow    : integer range 0 to 1685375 := 0;
+   signal cycles_ahead    : integer range 0 to 131071 := 0;
+   signal cycles_16_100   : integer range 0 to (SPEEDDIV - 1) := 0;
+   signal new_missing     : std_logic := '0';
+   signal new_exact_cycle : std_logic := '0';
+   signal CyclesVsync     : unsigned(31 downto 0) := (others => '0');
+   signal bench_slow      : integer range 0 to 1685375 := 0;
    
 begin 
 
@@ -456,6 +462,8 @@ begin
 
       gb_bus               => gb_bus,
 
+      pixel_out_x          => pixel_out_x,
+      pixel_out_y          => pixel_out_y,
       pixel_out_addr       => pixel_out_addr,
       pixel_out_data       => pixel_out_data,
       pixel_out_we         => pixel_out_we,  
@@ -551,8 +559,8 @@ begin
       PC_in_BIOS       => PC_in_BIOS,
       lastread         => lastread,
       
-      new_cycles_out   => new_cycles,
-      new_cycles_valid => new_cycles_valid,
+      new_cycles_out   => new_cycles_cpu,
+      new_cycles_valid => new_cycles_valid_cpu,
       
       dma_new_cycles   => dma_new_cycles,  
       dma_first_cycles => dma_first_cycles,
@@ -572,6 +580,9 @@ begin
       
       cyclenr          => open --cyclenr
    );
+   
+   new_cycles       <= new_cycles_cpu       when GBA_cputurbo = '0' else x"01";
+   new_cycles_valid <= new_cycles_valid_cpu when GBA_cputurbo = '0' else new_exact_cycle;
    
    iREG_IRP_IE  : entity work.eProcReg_gba generic map (work.pReg_gba_system.IRP_IE ) port map  (clk100, gb_bus, REG_IRP_IE , REG_IRP_IE );
    iREG_IRP_IF  : entity work.eProcReg_gba generic map (work.pReg_gba_system.IRP_IF ) port map  (clk100, gb_bus, IRPFLags   , REG_IRP_IF , IF_written);                                                                                                                   
@@ -635,7 +646,8 @@ begin
    begin
       if rising_edge(clk100) then
          
-         new_missing <= '0';
+         new_missing     <= '0';
+         new_exact_cycle <= '0';
          
          new_cycles_ahead := cycles_ahead;
          if (new_cycles_valid = '1') then
@@ -645,7 +657,8 @@ begin
          if (cycles_16_100 < (SPEEDDIV - 1)) then
             cycles_16_100 <= cycles_16_100 + 1;
          else
-            cycles_16_100 <= 0;
+            cycles_16_100   <= 0;
+            new_exact_cycle <= '1';
             if (new_cycles_ahead > 0) then
                new_cycles_ahead := new_cycles_ahead - 1;
             else
@@ -659,7 +672,7 @@ begin
          end if;
          
          gba_step <= '0';
-         if (GBA_lockspeed = '0' or cycles_ahead < unsigned(CyclePrecalc)) then
+         if (GBA_lockspeed = '0' or GBA_cputurbo = '1' or cycles_ahead < unsigned(CyclePrecalc)) then
             gba_step <= '1';
          end if;
       
