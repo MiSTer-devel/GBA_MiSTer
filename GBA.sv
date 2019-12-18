@@ -163,7 +163,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3
 // 01234567890123456789012345678901
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXX XX         X
+// XXXXXXXXXXXXXXXXX      X
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -185,6 +185,7 @@ parameter CONF_STR = {
     "-;",
     "OEF,Storage,Auto,SDRAM,DDR3;",
     "O5,Pause,Off,On;",
+    "H3OG,Turbo,Off,On;",
     "R0,Reset;",
     "J1,A,B,L,R,Select,Start,FastForward;",
     "jn,A,B,L,R,Select,Start,X;",
@@ -193,7 +194,7 @@ parameter CONF_STR = {
 
 wire  [1:0] buttons;
 wire [31:0] status;
-wire [15:0] status_menumask = {bk_autosave, ~gg_available, ~bk_ena};
+wire [15:0] status_menumask = {force_turbo, bk_autosave, ~gg_available, ~bk_ena};
 wire        forced_scandoubler;
 reg  [31:0] sd_lba;
 reg         sd_rd = 0;
@@ -267,6 +268,7 @@ end
 
 reg [26:0] last_addr;
 reg        flash_1m;
+reg  [1:0] cart_type;
 always @(posedge clk_sys) begin
 	reg [63:0] str;
 	reg old_download;
@@ -274,7 +276,10 @@ always @(posedge clk_sys) begin
 	old_download <= cart_download;
 	if (old_download & ~cart_download) last_addr <= ioctl_addr;
 	
-	if(~old_download & cart_download) flash_1m <= 0;
+	if(~old_download & cart_download) begin
+		flash_1m <= 0;
+		cart_type <= ioctl_index[7:6];
+	end
 
 	if(cart_download & ioctl_wr) begin
 		if({str, ioctl_dout[7:0]} == "FLASH1M_V") flash_1m <= 1;
@@ -283,6 +288,8 @@ always @(posedge clk_sys) begin
 		str <= {str[47:0], ioctl_dout[7:0], ioctl_dout[15:8]};
 	end
 end
+
+wire force_turbo = |cart_type;
 
 reg [11:0] bios_wraddr;
 reg [31:0] bios_wrdata;
@@ -301,9 +308,12 @@ end
 
 ////////////////////////////  SYSTEM  ///////////////////////////////////
 
-wire save_eeprom, save_sram, save_flash;
+wire        save_eeprom, save_sram, save_flash;
 wire [31:0] cpu_addr, cpu_frombus;
-wire fast_forward = joy[10];
+
+wire        fast_forward = joy[10] & ~force_turbo;
+wire        pause = force_pause | status[5];
+wire        cpu_turbo = ((status[16] & ~fast_forward) | force_turbo) & ~pause;
 
 gba_top
 #(
@@ -319,8 +329,9 @@ gba
 	.clk100(clk_sys),
 	.GBA_on(~reset),                  // switching from off to on = reset
 	.GBA_lockspeed(~fast_forward),    // 1 = 100% speed, 0 = max speed
+	.GBA_cputurbo(cpu_turbo),
 	.GBA_flash_1m(flash_1m),          // 1 when string "FLASH1M_V" is anywhere in gamepak
-	.CyclePrecalc(force_pause | status[5] ? 16'd0 : 16'd100), // 100 seems to be ok to keep fullspeed for all games
+	.CyclePrecalc(pause ? 16'd0 : 16'd100), // 100 seems to be ok to keep fullspeed for all games
 	.MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
 	.CyclesMissing(),                 // debug only for speed measurement, keep open
 	.CyclesVsyncSpeed(),              // debug only for speed measurement, keep open
