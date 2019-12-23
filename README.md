@@ -23,9 +23,7 @@ PLEASE do not report errors without testing with the original BIOS
 
 - Fear Factor Unleashed: hang after ~4 seconds
 
-- Madden06/06: crash at coin toss
-
-- Iridium II: hangs at first boss -> maybe due to bad rom?
+- Madden06/07: crash at coin toss
 
 - Sennen Kazoku: hang on first screen
 - Starsky & Hutch: crash going ingame
