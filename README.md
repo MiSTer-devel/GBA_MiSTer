@@ -16,7 +16,6 @@ PLEASE do not report errors without testing with the original BIOS
 
 # Games with crashes/hang
 - Banjo-Kazooie hangs after start. Workaround: instantly save ingame, reset the game and reload the save
-- Bomberman Max 2 - Blue EU: black screen after intro, US Version is working!
 
 - Colin McRae Rally 2.0 hangs when going into race
 
