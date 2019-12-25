@@ -163,7 +163,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3
 // 01234567890123456789012345678901
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXX      X
+// XXXXXXXXXXXXXXXXXX     X
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -182,6 +182,7 @@ parameter CONF_STR = {
     "OB,Sync core to video,Off,On;",
     "O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
     "O78,Stereo Mix,None,25%,50%,100%;", 
+    "OH,Fast-Forward,Hold,Toggle;",
     "-;",
     "OEF,Storage,Auto,SDRAM,DDR3;",
     "O5,Pause,Off,On;",
@@ -311,9 +312,15 @@ end
 wire        save_eeprom, save_sram, save_flash;
 wire [31:0] cpu_addr, cpu_frombus;
 
-reg fast_forward, pause, cpu_turbo;
+reg fast_forward, pause, cpu_turbo, toggle, old_ff_button;
 always @(posedge clk_sys) begin
-	fast_forward <= joy[10] & ~force_turbo;
+	old_ff_button <= joy[10];
+	// button acts as toggle
+	if (status[17]) begin
+		if (joy[10] && ~old_ff_button) toggle <= ~toggle;
+		fast_forward <= toggle & ~force_turbo;
+	// hold button
+	end else fast_forward <= joy[10] & ~force_turbo;
 	pause <= force_pause | status[5];
 	cpu_turbo <= ((status[16] & ~fast_forward) | force_turbo) & ~pause;
 end
