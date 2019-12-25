@@ -312,8 +312,33 @@ wire        save_eeprom, save_sram, save_flash;
 wire [31:0] cpu_addr, cpu_frombus;
 
 reg fast_forward, pause, cpu_turbo;
-always @(posedge clk_sys) begin
-	fast_forward <= joy[10] & ~force_turbo;
+reg ff_latch;
+
+always @(posedge clk_sys) begin : ffwd
+	reg last_ffw;
+	reg ff_was_held;
+	longint ff_count;
+
+	last_ffw <= joy[10];
+
+	if (joy[10])
+		ff_count <= ff_count + 1;
+
+	if (~last_ffw & joy[10]) begin
+		ff_latch <= 0;
+		ff_count <= 0;
+	end
+
+	if ((last_ffw & ~joy[10])) begin // 100mhz clock, 0.2 seconds
+		ff_was_held <= 0;
+
+		if (ff_count < 10000000 && ~ff_was_held) begin
+			ff_was_held <= 1;
+			ff_latch <= 1;
+		end
+	end
+
+	fast_forward <= (joy[10] | ff_latch) & ~force_turbo;
 	pause <= force_pause | status[5];
 	cpu_turbo <= ((status[16] & ~fast_forward) | force_turbo) & ~pause;
 end
