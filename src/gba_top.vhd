@@ -45,6 +45,14 @@ entity gba_top is
       bus_out_rnw        : out    std_logic;                     -- read = 1, write = 0
       bus_out_ena        : out    std_logic;                     -- one cycle high for each action
       bus_out_done       : in     std_logic;                     -- should be one cycle high when write is done or read value is valid
+      -- savestate           
+      SAVE_out_Din       : out    std_logic_vector(31 downto 0); -- data read from savestate
+      SAVE_out_Dout      : in     std_logic_vector(31 downto 0); -- data written to savestate
+      SAVE_out_Adr       : out    std_logic_vector(25 downto 0); -- all addresses are DWORD addresses!
+      SAVE_out_rnw       : out    std_logic;                     -- read = 1, write = 0
+      SAVE_out_ena       : out    std_logic;                     -- one cycle high for each action
+      SAVE_out_active    : out    std_logic;                     -- is high when access goes to savestate
+      SAVE_out_done      : in     std_logic;                     -- should be one cycle high when write is done or read value is valid
       -- Write to BIOS
       bios_wraddr        : in     std_logic_vector(11 downto 0) := (others => '0');
       bios_wrdata        : in     std_logic_vector(31 downto 0) := (others => '0');
@@ -113,14 +121,6 @@ architecture arch of gba_top is
    signal SAVE_BusACC          : std_logic_vector(1 downto 0);
    signal SAVE_BusWriteData    : std_logic_vector(31 downto 0);
    signal SAVE_Bus_ena         : std_logic := '0';
-                               
-   signal SAVE_bus_out_Din     : std_logic_vector(31 downto 0) := (others => '0');
-   signal SAVE_bus_out_Dout    : std_logic_vector(31 downto 0);
-   signal SAVE_bus_out_Adr     : std_logic_vector(25 downto 0) := (others => '0');
-   signal SAVE_bus_out_rnw     : std_logic := '0';
-   signal SAVE_bus_out_ena     : std_logic := '0';
-   signal SAVE_bus_active      : std_logic := '0';
-   signal SAVE_bus_out_done    : std_logic;
    
    signal savestate_bus        : proc_bus_gb_type;
    signal reset                : std_logic;
@@ -131,13 +131,6 @@ architecture arch of gba_top is
    signal cpu_jump             : std_logic;
    
    -- wiring  
-   signal MemMux_bus_out_Din   : std_logic_vector(31 downto 0) := (others => '0');
-   signal MemMux_bus_out_Dout  : std_logic_vector(31 downto 0);
-   signal MemMux_bus_out_Adr   : std_logic_vector(25 downto 0) := (others => '0');
-   signal MemMux_bus_out_rnw   : std_logic := '0';
-   signal MemMux_bus_out_ena   : std_logic := '0';
-   signal MemMux_bus_out_done  : std_logic;
-   
    signal cpu_bus_Adr          : std_logic_vector(31 downto 0);
    signal cpu_bus_rnw          : std_logic;
    signal cpu_bus_ena          : std_logic;
@@ -304,11 +297,6 @@ begin
    mem_bus_ena  <=  debug_bus_ena         when debug_bus_active = '1' else cpu_bus_ena  when cpu_bus_ena = '1' else dma_bus_ena; 
    mem_bus_acc  <=  debug_bus_acc         when debug_bus_active = '1' else cpu_bus_acc  when cpu_bus_ena = '1' else dma_bus_acc;
    mem_bus_dout <=  debug_bus_dout        when debug_bus_active = '1' else cpu_bus_dout when cpu_bus_ena = '1' else dma_bus_dout;
-   
-   bus_out_Din  <= MemMux_bus_out_Din when SAVE_bus_active = '0' else SAVE_bus_out_Din;
-   bus_out_Adr  <= MemMux_bus_out_Adr when SAVE_bus_active = '0' else SAVE_bus_out_Adr;
-   bus_out_rnw  <= MemMux_bus_out_rnw when SAVE_bus_active = '0' else SAVE_bus_out_rnw;
-   bus_out_ena  <= MemMux_bus_out_ena when SAVE_bus_active = '0' else SAVE_bus_out_ena;
                                                                          
    ------------- debug bus
    process (clk100)
@@ -384,13 +372,13 @@ begin
       SAVE_BusReadData    => mem_bus_din, 
       SAVE_BusReadDone    => mem_bus_done, 
                                           
-      bus_out_Din         => SAVE_bus_out_Din, 
-      bus_out_Dout        => bus_out_Dout,
-      bus_out_Adr         => SAVE_bus_out_Adr, 
-      bus_out_rnw         => SAVE_bus_out_rnw, 
-      bus_out_ena         => SAVE_bus_out_ena, 
-      bus_out_active      => SAVE_bus_active,
-      bus_out_done        => bus_out_done
+      bus_out_Din         => SAVE_out_Din,   
+      bus_out_Dout        => SAVE_out_Dout,  
+      bus_out_Adr         => SAVE_out_Adr,   
+      bus_out_rnw         => SAVE_out_rnw,   
+      bus_out_ena         => SAVE_out_ena,   
+      bus_out_active      => SAVE_out_active,
+      bus_out_done        => SAVE_out_done  
    );
    
    process (clk100)
@@ -429,11 +417,11 @@ begin
       sdram_read_data      => sdram_read_data,   
       sdram_second_dword   => sdram_second_dword,
       
-      bus_out_Din          => MemMux_bus_out_Din, 
+      bus_out_Din          => bus_out_Din,  
       bus_out_Dout         => bus_out_Dout,
-      bus_out_Adr          => MemMux_bus_out_Adr, 
-      bus_out_rnw          => MemMux_bus_out_rnw, 
-      bus_out_ena          => MemMux_bus_out_ena, 
+      bus_out_Adr          => bus_out_Adr,  
+      bus_out_rnw          => bus_out_rnw,  
+      bus_out_ena          => bus_out_ena,  
       bus_out_done         => bus_out_done,
       
       gb_bus_out           => gb_bus,

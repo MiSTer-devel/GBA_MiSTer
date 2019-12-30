@@ -130,6 +130,12 @@ architecture arch of gba_savestates is
    
    signal gb_on_1  : std_logic := '0';
    
+   signal save_1 : std_logic := '0';
+   signal load_1 : std_logic := '0';
+   
+   signal save_buffer  : std_logic := '0';
+   signal load_buffer  : std_logic := '0';
+   
    signal registerram_addr_r    : integer range 0 to 255 := 0;
    signal registerram_addr_w    : integer range 0 to 255 := 0;
    signal registerram_DataOut   : std_logic_vector(31 downto 0) := (others => '0');
@@ -192,6 +198,16 @@ begin
          gb_on_1 <= gb_on;
          
          registerram_readvalid <= registerram_readen;
+         
+         save_1 <= save; 
+         if (save = '1' and save_1 = '0') then
+            save_buffer <= '1';
+         end if;
+         
+         load_1 <= load;
+         if (load = '1' and load_1 = '0') then
+            load_buffer <= '1';
+         end if;
    
          case state is
          
@@ -203,10 +219,12 @@ begin
                   registerram_DataIn   <= gb_bus.Din;
                   registerram_addr_w   <= to_integer(unsigned(gb_bus.adr(9 downto 2)));
                   registerram_we       <= gb_bus.bEna;
-               elsif (save = '1') then
+               elsif (save_buffer = '1') then
                   state                <= SAVE_WAITJUMP;
-               elsif (load = '1') then
+                  save_buffer          <= '0';
+               elsif (load_buffer = '1') then
                   state                <= LOAD_WAITSETTLE;
+                  load_buffer          <= '0';
                   waitcount            <= 0;
                   sleep_savestate      <= '1';
                end if;
@@ -262,7 +280,7 @@ begin
                if (internal_bus_out.done = '1') then
                   state       <= SAVEINTERNALS_WRITE;
                   if (is_simu = '0') then
-                     bus_out_Din <= internal_bus_out.Dout;
+                     bus_out_Din <= not internal_bus_out.Dout;
                   else
                      for i in 0 to 31 loop
                         if (internal_bus_out.Dout(i) = '0') then bus_out_Din(i) <= '1'; else bus_out_Din(i) <= '0'; end if;

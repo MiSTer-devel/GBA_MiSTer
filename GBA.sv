@@ -381,6 +381,14 @@ gba
 	.bus_out_rnw(bus_rd),             // read = 1, write = 0
 	.bus_out_ena(bus_req),            // one cycle high for each action
 	.bus_out_done(bus_ack),           // should be one cycle high when write is done or read value is valid
+           
+   //.SAVE_out_Din(),     // data read from savestate
+   .SAVE_out_Dout('0),  // data written to savestate
+   //.SAVE_out_Adr(),     // all addresses are DWORD addresses!
+   //.SAVE_out_rnw(),     // read = 1, write = 0
+   //.SAVE_out_ena(),     // one cycle high for each action
+   //.SAVE_out_active(),  // is high when access goes to savestate
+   .SAVE_out_done('0),  // should be one cycle high when write is done or read value is valid
 
 	.save_eeprom(save_eeprom),
 	.save_sram(save_sram),
