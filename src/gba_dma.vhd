@@ -9,6 +9,11 @@ entity gba_dma is
    port 
    (
       clk100              : in    std_logic;  
+      reset               : in    std_logic;
+      
+      savestate_bus       : inout proc_bus_gb_type;
+      loading_savestate   : in    std_logic;
+      
       gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
       
       IRP_DMA             : out   std_logic_vector(3 downto 0);
@@ -34,7 +39,9 @@ entity gba_dma is
       dma_bus_acc         : out    std_logic_vector(1 downto 0);
       dma_bus_dout        : out    std_logic_vector(31 downto 0);
       dma_bus_din         : in     std_logic_vector(31 downto 0);
-      dma_bus_done        : in     std_logic
+      dma_bus_done        : in     std_logic;
+      
+      debug_dma           : out   std_logic_vector(31 downto 0)
    );
 end entity;
 
@@ -78,6 +85,7 @@ architecture arch of gba_dma is
    signal last_dma_valid2  : std_logic;
    signal last_dma_valid3  : std_logic;
    
+   signal single_is_idle   : std_logic_vector(3 downto 0);
            
 begin 
 
@@ -100,36 +108,43 @@ begin
    )                                  
    port map
    (
-      clk100           => clk100,          
-      gb_bus           => gb_bus,
+      clk100            => clk100,     
+      reset             => reset,
+                        
+      savestate_bus     => savestate_bus,
+      loading_savestate => loading_savestate,
       
-      IRP_DMA          => IRP_DMA(0),
-                      
-      dma_on           => single_dma_on(0),
-      allow_on         => single_allow_on(0),
-                      
-      sound_dma_req    => '0', 
-      hblank_trigger   => hblank_trigger,
-      vblank_trigger   => vblank_trigger,
+      gb_bus            => gb_bus,
+                        
+      IRP_DMA           => IRP_DMA(0),
+                        
+      dma_on            => single_dma_on(0),
+      allow_on          => single_allow_on(0),
+                        
+      sound_dma_req     => '0', 
+      hblank_trigger    => hblank_trigger,
+      vblank_trigger    => vblank_trigger,
+                        
+      dma_new_cycles    => single_new_cycles(0), 
+      dma_first_cycles  => single_first_cycles(0),
+      dma_dword_cycles  => single_dword_cycles(0),
+      dma_cycles_adrup  => single_cycles_adrup(3 downto 0),
+                        
+      dma_eepromcount   => open,
+                        
+      last_dma_out      => last_dma0,
+      last_dma_valid    => last_dma_valid0,
+      last_dma_in       => last_dma_value,
+                        
+      dma_bus_Adr       => Array_Adr(0),
+      dma_bus_rnw       => Array_rnw(0), 
+      dma_bus_ena       => Array_ena(0), 
+      dma_bus_acc       => Array_acc(0), 
+      dma_bus_dout      => Array_Dout(0), 
+      dma_bus_din       => dma_bus_din,
+      dma_bus_done      => Array_done(0),
       
-      dma_new_cycles   => single_new_cycles(0), 
-      dma_first_cycles => single_first_cycles(0),
-      dma_dword_cycles => single_dword_cycles(0),
-      dma_cycles_adrup => single_cycles_adrup(3 downto 0),
-      
-      dma_eepromcount  => open,
-      
-      last_dma_out     => last_dma0,
-      last_dma_valid   => last_dma_valid0,
-      last_dma_in      => last_dma_value,
-      
-      dma_bus_Adr      => Array_Adr(0),
-      dma_bus_rnw      => Array_rnw(0), 
-      dma_bus_ena      => Array_ena(0), 
-      dma_bus_acc      => Array_acc(0), 
-      dma_bus_dout     => Array_Dout(0), 
-      dma_bus_din      => dma_bus_din,
-      dma_bus_done     => Array_done(0)
+      is_idle           => single_is_idle(0)
    );
    
    igba_dma_module1 : entity work.gba_dma_module
@@ -151,36 +166,43 @@ begin
    )                                 
    port map
    (
-      clk100           => clk100,          
-      gb_bus           => gb_bus,
+      clk100            => clk100,
+      reset             => reset,
+                         
+      savestate_bus     => savestate_bus,
+      loading_savestate => loading_savestate,
       
-      IRP_DMA          => IRP_DMA(1),
-                       
-      dma_on           => single_dma_on(1),
-      allow_on         => single_allow_on(1),
-                       
-      sound_dma_req    => sound_dma_req(0), 
-      hblank_trigger   => hblank_trigger,
-      vblank_trigger   => vblank_trigger,
+      gb_bus            => gb_bus,
+                        
+      IRP_DMA           => IRP_DMA(1),
+                        
+      dma_on            => single_dma_on(1),
+      allow_on          => single_allow_on(1),
+                        
+      sound_dma_req     => sound_dma_req(0), 
+      hblank_trigger    => hblank_trigger,
+      vblank_trigger    => vblank_trigger,
+                        
+      dma_new_cycles    => single_new_cycles(1), 
+      dma_first_cycles  => single_first_cycles(1),
+      dma_dword_cycles  => single_dword_cycles(1),
+      dma_cycles_adrup  => single_cycles_adrup(7 downto 4),
+                        
+      dma_eepromcount   => open,
+                        
+      last_dma_out      => last_dma1,
+      last_dma_valid    => last_dma_valid1,
+      last_dma_in       => last_dma_value,
+                        
+      dma_bus_Adr       => Array_Adr(1),
+      dma_bus_rnw       => Array_rnw(1), 
+      dma_bus_ena       => Array_ena(1), 
+      dma_bus_acc       => Array_acc(1), 
+      dma_bus_dout      => Array_Dout(1), 
+      dma_bus_din       => dma_bus_din,
+      dma_bus_done      => Array_done(1),
       
-      dma_new_cycles   => single_new_cycles(1), 
-      dma_first_cycles => single_first_cycles(1),
-      dma_dword_cycles => single_dword_cycles(1),
-      dma_cycles_adrup => single_cycles_adrup(7 downto 4),
-      
-      dma_eepromcount  => open,
-      
-      last_dma_out     => last_dma1,
-      last_dma_valid   => last_dma_valid1,
-      last_dma_in      => last_dma_value,
-      
-      dma_bus_Adr      => Array_Adr(1),
-      dma_bus_rnw      => Array_rnw(1), 
-      dma_bus_ena      => Array_ena(1), 
-      dma_bus_acc      => Array_acc(1), 
-      dma_bus_dout     => Array_Dout(1), 
-      dma_bus_din      => dma_bus_din,
-      dma_bus_done     => Array_done(1)
+      is_idle           => single_is_idle(1)
    );
    
    igba_dma_module2 : entity work.gba_dma_module
@@ -202,36 +224,43 @@ begin
    )                                  
    port map
    (
-      clk100           => clk100,          
-      gb_bus           => gb_bus,
-                       
-      IRP_DMA          => IRP_DMA(2),
-                       
-      dma_on           => single_dma_on(2),
-      allow_on         => single_allow_on(2),
-                       
-      sound_dma_req    => sound_dma_req(1), 
-      hblank_trigger   => hblank_trigger,
-      vblank_trigger   => vblank_trigger,
+      clk100            => clk100, 
+      reset             => reset,
+                        
+      savestate_bus     => savestate_bus,
+      loading_savestate => loading_savestate,
       
-      dma_new_cycles   => single_new_cycles(2), 
-      dma_first_cycles => single_first_cycles(2),
-      dma_dword_cycles => single_dword_cycles(2),
-      dma_cycles_adrup => single_cycles_adrup(11 downto 8),
+      gb_bus            => gb_bus,
+                        
+      IRP_DMA           => IRP_DMA(2),
+                        
+      dma_on            => single_dma_on(2),
+      allow_on          => single_allow_on(2),
+                        
+      sound_dma_req     => sound_dma_req(1), 
+      hblank_trigger    => hblank_trigger,
+      vblank_trigger    => vblank_trigger,
+         
+      dma_new_cycles    => single_new_cycles(2), 
+      dma_first_cycles  => single_first_cycles(2),
+      dma_dword_cycles  => single_dword_cycles(2),
+      dma_cycles_adrup  => single_cycles_adrup(11 downto 8),
+         
+      dma_eepromcount   => open,
+         
+      last_dma_out      => last_dma2,
+      last_dma_valid    => last_dma_valid2,
+      last_dma_in       => last_dma_value,
+         
+      dma_bus_Adr       => Array_Adr(2),
+      dma_bus_rnw       => Array_rnw(2), 
+      dma_bus_ena       => Array_ena(2), 
+      dma_bus_acc       => Array_acc(2), 
+      dma_bus_dout      => Array_Dout(2), 
+      dma_bus_din       => dma_bus_din,
+      dma_bus_done      => Array_done(2),
       
-      dma_eepromcount  => open,
-      
-      last_dma_out     => last_dma2,
-      last_dma_valid   => last_dma_valid2,
-      last_dma_in      => last_dma_value,
-      
-      dma_bus_Adr      => Array_Adr(2),
-      dma_bus_rnw      => Array_rnw(2), 
-      dma_bus_ena      => Array_ena(2), 
-      dma_bus_acc      => Array_acc(2), 
-      dma_bus_dout     => Array_Dout(2), 
-      dma_bus_din      => dma_bus_din,
-      dma_bus_done     => Array_done(2)
+      is_idle           => single_is_idle(2)
    );
    
    igba_dma_module3 : entity work.gba_dma_module
@@ -253,36 +282,43 @@ begin
    )                                  
    port map
    (
-      clk100           => clk100,          
-      gb_bus           => gb_bus,
+      clk100            => clk100,   
+      reset             => reset,
+                        
+      savestate_bus     => savestate_bus, 
+      loading_savestate => loading_savestate,      
       
-      IRP_DMA          => IRP_DMA(3),
-                       
-      dma_on           => single_dma_on(3),
-      allow_on         => single_allow_on(3),
-                       
-      sound_dma_req    => '0', 
-      hblank_trigger   => hblank_trigger,
-      vblank_trigger   => vblank_trigger,
+      gb_bus            => gb_bus,
+         
+      IRP_DMA           => IRP_DMA(3),
+                        
+      dma_on            => single_dma_on(3),
+      allow_on          => single_allow_on(3),
+                        
+      sound_dma_req     => '0', 
+      hblank_trigger    => hblank_trigger,
+      vblank_trigger    => vblank_trigger,
+         
+      dma_new_cycles    => single_new_cycles(3), 
+      dma_first_cycles  => single_first_cycles(3),
+      dma_dword_cycles  => single_dword_cycles(3),
+      dma_cycles_adrup  => single_cycles_adrup(15 downto 12),
+         
+      dma_eepromcount   => dma_eepromcount,
+         
+      last_dma_out      => last_dma3,
+      last_dma_valid    => last_dma_valid3,
+      last_dma_in       => last_dma_value,
+         
+      dma_bus_Adr       => Array_Adr(3),
+      dma_bus_rnw       => Array_rnw(3), 
+      dma_bus_ena       => Array_ena(3), 
+      dma_bus_acc       => Array_acc(3), 
+      dma_bus_dout      => Array_Dout(3), 
+      dma_bus_din       => dma_bus_din,
+      dma_bus_done      => Array_done(3),
       
-      dma_new_cycles   => single_new_cycles(3), 
-      dma_first_cycles => single_first_cycles(3),
-      dma_dword_cycles => single_dword_cycles(3),
-      dma_cycles_adrup => single_cycles_adrup(15 downto 12),
-      
-      dma_eepromcount  => dma_eepromcount,
-      
-      last_dma_out     => last_dma3,
-      last_dma_valid   => last_dma_valid3,
-      last_dma_in      => last_dma_value,
-      
-      dma_bus_Adr      => Array_Adr(3),
-      dma_bus_rnw      => Array_rnw(3), 
-      dma_bus_ena      => Array_ena(3), 
-      dma_bus_acc      => Array_acc(3), 
-      dma_bus_dout     => Array_Dout(3), 
-      dma_bus_din      => dma_bus_din,
-      dma_bus_done     => Array_done(3)
+      is_idle           => single_is_idle(3)
    );
    
    
@@ -327,17 +363,43 @@ begin
          -- currently implementing this speedup cannot work, as the dma module is turned off the cycle after dma_bus_done
          -- so we don't know here if it will require more
          
-         if (dma_idle = '1') then
-               if (single_dma_on(0) = '1') then dma_switch <= 0; dma_idle <= '0';
-            elsif (single_dma_on(1) = '1') then dma_switch <= 1; dma_idle <= '0';
-            elsif (single_dma_on(2) = '1') then dma_switch <= 2; dma_idle <= '0';
-            elsif (single_dma_on(3) = '1') then dma_switch <= 3; dma_idle <= '0'; end if;
-         elsif (dma_bus_done = '1' and dma_bus_rnw = '0') then 
-            dma_idle <= '1';
+         if (reset = '1') then
+         
+            dma_idle   <= '1';
+            dma_switch <= 0;
+        
+         else
+         
+            if (dma_idle = '1') then
+                  if (single_dma_on(0) = '1') then dma_switch <= 0; dma_idle <= '0';
+               elsif (single_dma_on(1) = '1') then dma_switch <= 1; dma_idle <= '0';
+               elsif (single_dma_on(2) = '1') then dma_switch <= 2; dma_idle <= '0';
+               elsif (single_dma_on(3) = '1') then dma_switch <= 3; dma_idle <= '0'; end if;
+            elsif (dma_bus_done = '1' and dma_bus_rnw = '0') then 
+               dma_idle <= '1';
+            end if;
+            
          end if;
 
       end if;
    end process;
+   
+   debug_dma(0) <= dma_idle;
+   debug_dma(2 downto 1) <= std_logic_vector(to_unsigned(dma_switch, 2));
+   debug_dma(3) <= single_dma_on(0);
+   debug_dma(4) <= single_dma_on(1);
+   debug_dma(5) <= single_dma_on(2);
+   debug_dma(6) <= single_dma_on(3);
+   debug_dma(7) <= '0';
+   debug_dma(8) <= single_allow_on(0);
+   debug_dma(9) <= single_allow_on(1);
+   debug_dma(10) <= single_allow_on(2);
+   debug_dma(11) <= single_allow_on(3);
+   debug_dma(12) <= single_is_idle(0);
+   debug_dma(13) <= single_is_idle(1);
+   debug_dma(14) <= single_is_idle(2);
+   debug_dma(15) <= single_is_idle(3);
+   debug_dma(31 downto 16) <= (others => '0');
     
 end architecture;
 

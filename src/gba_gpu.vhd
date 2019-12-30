@@ -15,7 +15,10 @@ entity gba_gpu is
    port 
    (
       clk100               : in    std_logic;  
-      gb_on                : in  std_logic;
+      gb_on                : in    std_logic;
+      reset                : in    std_logic;
+      
+      savestate_bus        : inout proc_bus_gb_type;
                            
       gb_bus               : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
                            
@@ -83,6 +86,9 @@ begin
    (
       clk100                       => clk100,
       gb_on                        => gb_on,
+      reset                        => reset,
+      
+      savestate_bus                => savestate_bus,
             
       gb_bus                       => gb_bus,
             

@@ -5,6 +5,8 @@ use IEEE.numeric_std.all;
 use work.pProc_bus_gba.all;
 use work.pReg_gba_display.all;
 
+use work.pReg_savestates.all;
+
 entity gba_gpu_timing is
    generic
    (
@@ -14,6 +16,9 @@ entity gba_gpu_timing is
    (
       clk100                       : in  std_logic;  
       gb_on                        : in  std_logic;
+      reset                        : in  std_logic;
+      
+      savestate_bus                : inout proc_bus_gb_type;
       
       gb_bus                       : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
                                    
@@ -57,7 +62,21 @@ architecture arch of gba_gpu_timing is
    signal linecounter : unsigned(7 downto 0)  := (others => '0');
    signal cycles      : unsigned(11 downto 0) := (others => '0');
    
+   -- savestate
+   signal SAVESTATE_GPU      : std_logic_vector(24 downto 0);
+   signal SAVESTATE_GPU_BACK : std_logic_vector(24 downto 0);
+   
 begin 
+   
+   SAVESTATE_GPU_BACK(11 downto  0) <= std_logic_vector(cycles);
+   SAVESTATE_GPU_BACK(19 downto 12) <= std_logic_vector(linecounter);
+   SAVESTATE_GPU_BACK(21 downto 20) <= std_logic_vector(to_unsigned(tGPUState'POS(gpustate), 2));
+   SAVESTATE_GPU_BACK(22 downto 22) <= REG_DISPSTAT_V_Counter_flag;
+   SAVESTATE_GPU_BACK(23 downto 23) <= REG_DISPSTAT_H_Blank_flag;  
+   SAVESTATE_GPU_BACK(24 downto 24) <= REG_DISPSTAT_V_Blank_flag;  
+   
+   iSAVESTATE_GPU : entity work.eProcReg_gba generic map (REG_SAVESTATE_GPU) port map (clk100, savestate_bus, SAVESTATE_GPU_BACK , SAVESTATE_GPU);
+   
    
    iREG_DISPSTAT_V_Blank_flag         : entity work.eProcReg_gba generic map (DISPSTAT_V_Blank_flag        ) port map  (clk100, gb_bus, REG_DISPSTAT_V_Blank_flag  ); 
    iREG_DISPSTAT_H_Blank_flag         : entity work.eProcReg_gba generic map (DISPSTAT_H_Blank_flag        ) port map  (clk100, gb_bus, REG_DISPSTAT_H_Blank_flag  ); 
@@ -95,11 +114,17 @@ begin
          hblank_trigger    <= '0';
          vblank_trigger    <= '0';
          
-         if (gb_on = '0' and is_simu = '0') then
-            gpustate    <= VISIBLE;
-            cycles      <= (others => '0');
-            linecounter <= (others => '0');
-         else
+         if (reset = '1') then
+         
+            gpustate    <= tGPUState'VAL(to_integer(unsigned(SAVESTATE_GPU(21 downto 20))));
+            cycles      <= unsigned(SAVESTATE_GPU(11 downto 0));
+            linecounter <= unsigned(SAVESTATE_GPU(19 downto 12));
+            
+            REG_DISPSTAT_V_Counter_flag <= SAVESTATE_GPU(22 downto 22);
+            REG_DISPSTAT_H_Blank_flag   <= SAVESTATE_GPU(23 downto 23);
+            REG_DISPSTAT_V_Blank_flag   <= SAVESTATE_GPU(24 downto 24);
+            
+         elsif (gb_on = '1') then
          
             -- really required?
             -- if (forcedblank && !new_forcedblank) then

@@ -4,6 +4,7 @@ use IEEE.numeric_std.all;
 use STD.textio.all;
 
 use work.pProc_bus_gba.all;
+use work.pReg_savestates.all;
 
 entity gba_cpu is
    generic
@@ -14,6 +15,9 @@ entity gba_cpu is
    (
       clk100           : in    std_logic;  
       gb_on            : in    std_logic;
+      reset            : in    std_logic;
+      
+      savestate_bus    : inout proc_bus_gb_type;
       
       gb_bus_Adr       : out   std_logic_vector(31 downto 0);
       gb_bus_rnw       : out   std_logic;
@@ -34,6 +38,7 @@ entity gba_cpu is
       CPU_bus_idle     : out   std_logic;
       PC_in_BIOS       : out   std_logic;
       lastread         : out   std_logic_vector(31 downto 0);
+      jump_out         : out   std_logic;
       
       new_cycles_out   : buffer unsigned(7 downto 0) := (others => '0');
       new_cycles_valid : buffer std_logic := '0';
@@ -57,7 +62,10 @@ entity gba_cpu is
       
       cyclenr          : buffer integer := 0;
       cyclecount       : buffer integer := 0;
-      cyclesum         : buffer integer := 0
+      cyclesum         : buffer integer := 0;
+      
+      debug_cpu_pc     : out   std_logic_vector(31 downto 0);
+      debug_cpu_mixed  : out   std_logic_vector(31 downto 0)
    );
 end entity;
 
@@ -77,53 +85,53 @@ architecture arch of gba_cpu is
    constant CPUMODE_UNDEFINED  : std_logic_vector(3 downto 0) := x"B";
    constant CPUMODE_SYSTEM     : std_logic_vector(3 downto 0) := x"F";
    
-   signal thumbmode        : std_logic;
-   signal halt             : std_logic;
+   signal thumbmode        : std_logic := '0';
+   signal halt             : std_logic := '0';
          
-   signal IRQ_disable      : std_logic;
-   signal FIQ_disable      : std_logic;
+   signal IRQ_disable      : std_logic := '1';
+   signal FIQ_disable      : std_logic := '1';
    
-   signal Flag_Zero        : std_logic;
-   signal Flag_Carry       : std_logic;
-   signal Flag_Negative    : std_logic;
-   signal Flag_V_Overflow  : std_logic;
+   signal Flag_Zero        : std_logic := '0';
+   signal Flag_Carry       : std_logic := '0';
+   signal Flag_Negative    : std_logic := '0';
+   signal Flag_V_Overflow  : std_logic := '0';
    
-   signal cpu_mode         : std_logic_vector(3 downto 0);
+   signal cpu_mode         : std_logic_vector(3 downto 0) := CPUMODE_SUPERVISOR;
    signal cpu_mode_old     : std_logic_vector(3 downto 0) := (others => '0');
 
    type t_regs is array(0 to 17) of unsigned(31 downto 0);
-   signal regs : t_regs;
+   signal regs : t_regs := (others => (others => '0'));
    signal regs_plus_12 : unsigned(31 downto 0);
 
    signal PC               : unsigned(31 downto 0) := (others => '0');
 
-   signal regs_0_8  : unsigned(31 downto 0);
-   signal regs_0_9  : unsigned(31 downto 0);
-   signal regs_0_10 : unsigned(31 downto 0);
-   signal regs_0_11 : unsigned(31 downto 0);
-   signal regs_0_12 : unsigned(31 downto 0);
-   signal regs_0_13 : unsigned(31 downto 0);
-   signal regs_0_14 : unsigned(31 downto 0);
-   signal regs_1_8  : unsigned(31 downto 0);
-   signal regs_1_9  : unsigned(31 downto 0);
-   signal regs_1_10 : unsigned(31 downto 0);
-   signal regs_1_11 : unsigned(31 downto 0);
-   signal regs_1_12 : unsigned(31 downto 0);
-   signal regs_1_13 : unsigned(31 downto 0);
-   signal regs_1_14 : unsigned(31 downto 0);
-   signal regs_1_17 : unsigned(31 downto 0);
-   signal regs_2_13 : unsigned(31 downto 0);
-   signal regs_2_14 : unsigned(31 downto 0);
-   signal regs_2_17 : unsigned(31 downto 0);
-   signal regs_3_13 : unsigned(31 downto 0);
-   signal regs_3_14 : unsigned(31 downto 0);
-   signal regs_3_17 : unsigned(31 downto 0);
-   signal regs_4_13 : unsigned(31 downto 0);
-   signal regs_4_14 : unsigned(31 downto 0);
-   signal regs_4_17 : unsigned(31 downto 0);
-   signal regs_5_13 : unsigned(31 downto 0);
-   signal regs_5_14 : unsigned(31 downto 0);
-   signal regs_5_17 : unsigned(31 downto 0);
+   signal regs_0_8  : unsigned(31 downto 0) := (others => '0');
+   signal regs_0_9  : unsigned(31 downto 0) := (others => '0');
+   signal regs_0_10 : unsigned(31 downto 0) := (others => '0');
+   signal regs_0_11 : unsigned(31 downto 0) := (others => '0');
+   signal regs_0_12 : unsigned(31 downto 0) := (others => '0');
+   signal regs_0_13 : unsigned(31 downto 0) := (others => '0');
+   signal regs_0_14 : unsigned(31 downto 0) := (others => '0');
+   signal regs_1_8  : unsigned(31 downto 0) := (others => '0');
+   signal regs_1_9  : unsigned(31 downto 0) := (others => '0');
+   signal regs_1_10 : unsigned(31 downto 0) := (others => '0');
+   signal regs_1_11 : unsigned(31 downto 0) := (others => '0');
+   signal regs_1_12 : unsigned(31 downto 0) := (others => '0');
+   signal regs_1_13 : unsigned(31 downto 0) := (others => '0');
+   signal regs_1_14 : unsigned(31 downto 0) := (others => '0');
+   signal regs_1_17 : unsigned(31 downto 0) := (others => '0');
+   signal regs_2_13 : unsigned(31 downto 0) := (others => '0');
+   signal regs_2_14 : unsigned(31 downto 0) := (others => '0');
+   signal regs_2_17 : unsigned(31 downto 0) := (others => '0');
+   signal regs_3_13 : unsigned(31 downto 0) := (others => '0');
+   signal regs_3_14 : unsigned(31 downto 0) := (others => '0');
+   signal regs_3_17 : unsigned(31 downto 0) := (others => '0');
+   signal regs_4_13 : unsigned(31 downto 0) := (others => '0');
+   signal regs_4_14 : unsigned(31 downto 0) := (others => '0');
+   signal regs_4_17 : unsigned(31 downto 0) := (others => '0');
+   signal regs_5_13 : unsigned(31 downto 0) := (others => '0');
+   signal regs_5_14 : unsigned(31 downto 0) := (others => '0');
+   signal regs_5_17 : unsigned(31 downto 0) := (others => '0');
        
    -- ####################################
    -- internal calculation signals
@@ -188,16 +196,16 @@ architecture arch of gba_cpu is
    
    -- ############# Fetch ##############
    
-   signal wait_fetch         : std_logic;   
-   signal skip_pending_fetch : std_logic;   
-   signal fetch_ack          : std_logic;   
-   signal fetch_available    : std_logic; 
+   signal wait_fetch         : std_logic := '0';   
+   signal skip_pending_fetch : std_logic := '0';   
+   signal fetch_ack          : std_logic := '0';   
+   signal fetch_available    : std_logic := '0'; 
    signal fetch_data         : std_logic_vector(31 downto 0) := (others => '0');  
    
    -- ############# Decode ##############
    
-   signal decode_request   : std_logic;
-   signal decode_ack       : std_logic;
+   signal decode_request   : std_logic := '0';
+   signal decode_ack       : std_logic := '0';
    signal decode_data      : std_logic_vector(31 downto 0) := (others => '0');
    signal decode_PC        : unsigned(31 downto 0) := (others => '0');
    signal decode_condition : std_logic_vector(3 downto 0);
@@ -215,7 +223,7 @@ architecture arch of gba_cpu is
    signal execute_request : std_logic;
    signal execute_start   : std_logic := '0';
    signal calc_done       : std_logic := '0';
-   signal executebus      : std_logic;
+   signal executebus      : std_logic := '0';
    signal execute_PC      : unsigned(31 downto 0) := (others => '0');
    signal execute_PCprev  : unsigned(31 downto 0) := (others => '0');
    
@@ -500,8 +508,125 @@ architecture arch of gba_cpu is
    signal msr_value            : unsigned(31 downto 0); 
    signal msr_writebackvalue   : unsigned(31 downto 0); 
    
+   -- savestates
+   signal SAVESTATE_PC : std_logic_vector(31 downto 0) := (others => '0');
+   
+   type t_regs_slv is array(0 to 17) of std_logic_vector(31 downto 0);
+   signal SAVESTATE_REGS : t_regs_slv := (others => (others => '0'));
+   
+   signal SAVESTATE_REGS_0_8  : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_0_9  : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_0_10 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_0_11 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_0_12 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_0_13 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_0_14 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_1_8  : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_1_9  : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_1_10 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_1_11 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_1_12 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_1_13 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_1_14 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_1_17 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_2_13 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_2_14 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_2_17 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_3_13 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_3_14 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_3_17 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_4_13 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_4_14 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_4_17 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_5_13 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_5_14 : std_logic_vector(31 downto 0) := (others => '0');
+   signal SAVESTATE_REGS_5_17 : std_logic_vector(31 downto 0) := (others => '0');
+   
+   signal SAVESTATE_HALT            : std_logic;
+   signal SAVESTATE_Flag_Zero       : std_logic;
+   signal SAVESTATE_Flag_Carry      : std_logic;
+   signal SAVESTATE_Flag_Negative   : std_logic;
+   signal SAVESTATE_Flag_V_Overflow : std_logic;
+   signal SAVESTATE_thumbmode       : std_logic;
+   signal SAVESTATE_cpu_mode        : std_logic_vector(3 downto 0);
+   signal SAVESTATE_IRQ_disable     : std_logic;
+   signal SAVESTATE_FIQ_disable     : std_logic;
+   
+   signal SAVESTATE_mixed_in        : std_logic_vector(11 downto 0);
+   signal SAVESTATE_mixed_out       : std_logic_vector(11 downto 0);
      
 begin  
+
+   debug_cpu_pc <= std_logic_vector(PC);
+   
+   debug_cpu_mixed(0) <= halt;           
+   debug_cpu_mixed(1) <= Flag_Zero;     
+   debug_cpu_mixed(2) <= Flag_Carry;     
+   debug_cpu_mixed(3) <= Flag_Negative;  
+   debug_cpu_mixed(4) <= Flag_V_Overflow;
+   debug_cpu_mixed(5) <= thumbmode;      
+   debug_cpu_mixed(9 downto 6) <= cpu_mode;       
+   debug_cpu_mixed(10) <= IRQ_disable;    
+   debug_cpu_mixed(11) <= FIQ_disable; 
+   debug_cpu_mixed(31 downto 12) <= (others => '0');
+   
+   -- savestates
+   iSAVESTATE_PC : entity work.eProcReg_gba generic map (REG_SAVESTATE_PC ) port map (clk100, savestate_bus, std_logic_vector(new_pc) , SAVESTATE_PC);
+   gSAVESTATE_REGS : for i in 0 to 17 generate
+   begin
+      iSAVESTATE_REGS : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS, i) port map (clk100, savestate_bus, std_logic_vector(regs(i)) , SAVESTATE_REGS(i));
+   end generate;
+   iSAVESTATE_REGS_0_8  : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_0_8 ) port map (clk100, savestate_bus, std_logic_vector(regs_0_8 ) , SAVESTATE_REGS_0_8 );
+   iSAVESTATE_REGS_0_9  : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_0_9 ) port map (clk100, savestate_bus, std_logic_vector(regs_0_9 ) , SAVESTATE_REGS_0_9 );
+   iSAVESTATE_REGS_0_10 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_0_10) port map (clk100, savestate_bus, std_logic_vector(regs_0_10) , SAVESTATE_REGS_0_10);
+   iSAVESTATE_REGS_0_11 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_0_11) port map (clk100, savestate_bus, std_logic_vector(regs_0_11) , SAVESTATE_REGS_0_11);
+   iSAVESTATE_REGS_0_12 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_0_12) port map (clk100, savestate_bus, std_logic_vector(regs_0_12) , SAVESTATE_REGS_0_12);
+   iSAVESTATE_REGS_0_13 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_0_13) port map (clk100, savestate_bus, std_logic_vector(regs_0_13) , SAVESTATE_REGS_0_13);
+   iSAVESTATE_REGS_0_14 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_0_14) port map (clk100, savestate_bus, std_logic_vector(regs_0_14) , SAVESTATE_REGS_0_14);
+   iSAVESTATE_REGS_1_8  : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_1_8 ) port map (clk100, savestate_bus, std_logic_vector(regs_1_8 ) , SAVESTATE_REGS_1_8 );
+   iSAVESTATE_REGS_1_9  : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_1_9 ) port map (clk100, savestate_bus, std_logic_vector(regs_1_9 ) , SAVESTATE_REGS_1_9 );
+   iSAVESTATE_REGS_1_10 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_1_10) port map (clk100, savestate_bus, std_logic_vector(regs_1_10) , SAVESTATE_REGS_1_10);
+   iSAVESTATE_REGS_1_11 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_1_11) port map (clk100, savestate_bus, std_logic_vector(regs_1_11) , SAVESTATE_REGS_1_11);
+   iSAVESTATE_REGS_1_12 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_1_12) port map (clk100, savestate_bus, std_logic_vector(regs_1_12) , SAVESTATE_REGS_1_12);
+   iSAVESTATE_REGS_1_13 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_1_13) port map (clk100, savestate_bus, std_logic_vector(regs_1_13) , SAVESTATE_REGS_1_13);
+   iSAVESTATE_REGS_1_14 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_1_14) port map (clk100, savestate_bus, std_logic_vector(regs_1_14) , SAVESTATE_REGS_1_14);
+   iSAVESTATE_REGS_1_17 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_1_17) port map (clk100, savestate_bus, std_logic_vector(regs_1_17) , SAVESTATE_REGS_1_17);
+   iSAVESTATE_REGS_2_13 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_2_13) port map (clk100, savestate_bus, std_logic_vector(regs_2_13) , SAVESTATE_REGS_2_13);
+   iSAVESTATE_REGS_2_14 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_2_14) port map (clk100, savestate_bus, std_logic_vector(regs_2_14) , SAVESTATE_REGS_2_14);
+   iSAVESTATE_REGS_2_17 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_2_17) port map (clk100, savestate_bus, std_logic_vector(regs_2_17) , SAVESTATE_REGS_2_17);
+   iSAVESTATE_REGS_3_13 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_3_13) port map (clk100, savestate_bus, std_logic_vector(regs_3_13) , SAVESTATE_REGS_3_13);
+   iSAVESTATE_REGS_3_14 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_3_14) port map (clk100, savestate_bus, std_logic_vector(regs_3_14) , SAVESTATE_REGS_3_14);
+   iSAVESTATE_REGS_3_17 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_3_17) port map (clk100, savestate_bus, std_logic_vector(regs_3_17) , SAVESTATE_REGS_3_17);
+   iSAVESTATE_REGS_4_13 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_4_13) port map (clk100, savestate_bus, std_logic_vector(regs_4_13) , SAVESTATE_REGS_4_13);
+   iSAVESTATE_REGS_4_14 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_4_14) port map (clk100, savestate_bus, std_logic_vector(regs_4_14) , SAVESTATE_REGS_4_14);
+   iSAVESTATE_REGS_4_17 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_4_17) port map (clk100, savestate_bus, std_logic_vector(regs_4_17) , SAVESTATE_REGS_4_17);
+   iSAVESTATE_REGS_5_13 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_5_13) port map (clk100, savestate_bus, std_logic_vector(regs_5_13) , SAVESTATE_REGS_5_13);
+   iSAVESTATE_REGS_5_14 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_5_14) port map (clk100, savestate_bus, std_logic_vector(regs_5_14) , SAVESTATE_REGS_5_14);
+   iSAVESTATE_REGS_5_17 : entity work.eProcReg_gba generic map (REG_SAVESTATE_REGS_5_17) port map (clk100, savestate_bus, std_logic_vector(regs_5_17) , SAVESTATE_REGS_5_17);
+   
+   iSAVESTATE_CPUMIXED  : entity work.eProcReg_gba generic map (REG_SAVESTATE_CPUMIXED)  port map (clk100, savestate_bus, SAVESTATE_mixed_out , SAVESTATE_mixed_in);
+   
+   SAVESTATE_mixed_out(0) <= halt;           
+   SAVESTATE_mixed_out(1) <= Flag_Zero;     
+   SAVESTATE_mixed_out(2) <= Flag_Carry;     
+   SAVESTATE_mixed_out(3) <= Flag_Negative;  
+   SAVESTATE_mixed_out(4) <= Flag_V_Overflow;
+   SAVESTATE_mixed_out(5) <= thumbmode;      
+   SAVESTATE_mixed_out(9 downto 6) <= cpu_mode;       
+   SAVESTATE_mixed_out(10) <= IRQ_disable;    
+   SAVESTATE_mixed_out(11) <= FIQ_disable; 
+
+   SAVESTATE_HALT            <= SAVESTATE_mixed_in(0);
+   SAVESTATE_Flag_Zero       <= SAVESTATE_mixed_in(1);
+   SAVESTATE_Flag_Carry      <= SAVESTATE_mixed_in(2);
+   SAVESTATE_Flag_Negative   <= SAVESTATE_mixed_in(3);
+   SAVESTATE_Flag_V_Overflow <= SAVESTATE_mixed_in(4);
+   SAVESTATE_thumbmode       <= SAVESTATE_mixed_in(5);
+   SAVESTATE_cpu_mode        <= SAVESTATE_mixed_in(9 downto 6);
+   SAVESTATE_IRQ_disable     <= SAVESTATE_mixed_in(10);
+   SAVESTATE_FIQ_disable     <= SAVESTATE_mixed_in(11);
+   
+   -- savestates
    
    gb_bus_Adr <= bus_fetch_Adr  when fetch_ack = '1' else bus_execute_Adr;
    gb_bus_rnw <= bus_fetch_rnw  when fetch_ack = '1' else bus_execute_rnw;
@@ -509,6 +634,7 @@ begin
    gb_bus_acc <= bus_fetch_acc  when fetch_ack = '1' else bus_execute_acc;
    
    PC_in_BIOS <= '1' when bus_fetch_Adr(27 downto 24) = x"0" else '0';
+   jump_out   <= jump;
 
    process (clk100) 
       variable execute_skip : std_logic;
@@ -527,43 +653,45 @@ begin
             CPU_bus_idle <= '0';
          end if;
             
-         if (gb_on = '0') then -- reset
+         if (reset = '1') then -- reset
             
             -- ############# arm
             
-            regs <= (others => (others => '0'));
+            for i in 0 to 17 loop 
+               regs(i) <= unsigned(SAVESTATE_REGS(i));
+            end loop;
             
-            regs_0_8  <= (others => '0');
-            regs_0_9  <= (others => '0');
-            regs_0_10 <= (others => '0');
-            regs_0_11 <= (others => '0');
-            regs_0_12 <= (others => '0');
-            regs_0_13 <= (others => '0');
-            regs_0_14 <= (others => '0');
-            regs_1_8  <= (others => '0');
-            regs_1_9  <= (others => '0');
-            regs_1_10 <= (others => '0');
-            regs_1_11 <= (others => '0');
-            regs_1_12 <= (others => '0');
-            regs_1_13 <= (others => '0');
-            regs_1_14 <= (others => '0');
-            regs_1_17 <= (others => '0');
-            regs_2_13 <= (others => '0');
-            regs_2_14 <= (others => '0');
-            regs_2_17 <= (others => '0');
-            regs_3_13 <= (others => '0');
-            regs_3_14 <= (others => '0');
-            regs_3_17 <= (others => '0');
-            regs_4_13 <= (others => '0');
-            regs_4_14 <= (others => '0');
-            regs_4_17 <= (others => '0');
-            regs_5_13 <= (others => '0');
-            regs_5_14 <= (others => '0');
-            regs_5_17 <= (others => '0');
+            regs_0_8  <= unsigned(SAVESTATE_REGS_0_8 );
+            regs_0_9  <= unsigned(SAVESTATE_REGS_0_9 );
+            regs_0_10 <= unsigned(SAVESTATE_REGS_0_10);
+            regs_0_11 <= unsigned(SAVESTATE_REGS_0_11);
+            regs_0_12 <= unsigned(SAVESTATE_REGS_0_12);
+            regs_0_13 <= unsigned(SAVESTATE_REGS_0_13);
+            regs_0_14 <= unsigned(SAVESTATE_REGS_0_14);
+            regs_1_8  <= unsigned(SAVESTATE_REGS_1_8 );
+            regs_1_9  <= unsigned(SAVESTATE_REGS_1_9 );
+            regs_1_10 <= unsigned(SAVESTATE_REGS_1_10);
+            regs_1_11 <= unsigned(SAVESTATE_REGS_1_11);
+            regs_1_12 <= unsigned(SAVESTATE_REGS_1_12);
+            regs_1_13 <= unsigned(SAVESTATE_REGS_1_13);
+            regs_1_14 <= unsigned(SAVESTATE_REGS_1_14);
+            regs_1_17 <= unsigned(SAVESTATE_REGS_1_17);
+            regs_2_13 <= unsigned(SAVESTATE_REGS_2_13);
+            regs_2_14 <= unsigned(SAVESTATE_REGS_2_14);
+            regs_2_17 <= unsigned(SAVESTATE_REGS_2_17);
+            regs_3_13 <= unsigned(SAVESTATE_REGS_3_13);
+            regs_3_14 <= unsigned(SAVESTATE_REGS_3_14);
+            regs_3_17 <= unsigned(SAVESTATE_REGS_3_17);
+            regs_4_13 <= unsigned(SAVESTATE_REGS_4_13);
+            regs_4_14 <= unsigned(SAVESTATE_REGS_4_14);
+            regs_4_17 <= unsigned(SAVESTATE_REGS_4_17);
+            regs_5_13 <= unsigned(SAVESTATE_REGS_5_13);
+            regs_5_14 <= unsigned(SAVESTATE_REGS_5_14);
+            regs_5_17 <= unsigned(SAVESTATE_REGS_5_17);
             
-            PC <= (others => '0');
+            PC <= unsigned(SAVESTATE_PC);
 
-            halt <= '0';
+            halt <= SAVESTATE_HALT;
             
             -- ################ internal
                
@@ -583,18 +711,18 @@ begin
             
                lastread           <= x"DEADDEAD"; -- for testing purpose only
             
-               --if (do_step = '1') then 
-               --   if (halt_cnt < 5) then
-               --      halt_cnt <= halt_cnt + 1;
-               --   else
-               --      halt_cnt <= 0;
-               --      new_cycles_valid <= '1';
-               --      new_cycles_out   <= to_unsigned(6, 8);
-               --   end if;
-               --end if;
+               if (do_step = '1') then 
+                  if (halt_cnt < 5) then
+                     halt_cnt <= halt_cnt + 1;
+                  else
+                     halt_cnt <= 0;
+                     new_cycles_valid <= '1';
+                     new_cycles_out   <= to_unsigned(6, 8);
+                  end if;
+               end if;
             end if;
             
-         else
+         elsif (gb_on = '1') then
          
             -- ############################
             -- Fetch
@@ -1886,18 +2014,18 @@ begin
          prefetch_addcycles <= 0;
          prefetch_subcycles <= 0;
    
-         if (gb_on = '0') then -- reset
-            Flag_Zero       <= '0';
-            Flag_Carry      <= '0';
-            Flag_Negative   <= '0';
-            Flag_V_Overflow <= '0';
-            thumbmode       <= '0';       
-            cpu_mode        <= CPUMODE_SUPERVISOR;
-            IRQ_disable     <= '1';
-            FIQ_disable     <= '1';
+         if (reset = '1') then -- reset
+            Flag_Zero       <= SAVESTATE_Flag_Zero;      
+            Flag_Carry      <= SAVESTATE_Flag_Carry;     
+            Flag_Negative   <= SAVESTATE_Flag_Negative;  
+            Flag_V_Overflow <= SAVESTATE_Flag_V_Overflow;
+            thumbmode       <= SAVESTATE_thumbmode;      
+            cpu_mode        <= SAVESTATE_cpu_mode;       
+            IRQ_disable     <= SAVESTATE_IRQ_disable;    
+            FIQ_disable     <= SAVESTATE_FIQ_disable;    
             
             executebus      <= '0';
-         else
+         elsif (gb_on = '1') then
       
             calc_done     <= '0';
             jump          <= '0';

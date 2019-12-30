@@ -346,11 +346,12 @@ end
 gba_top
 #(
    // assume: cart may have either flash or eeprom, not both! (need to verify)
-	.Softmap_GBA_FLASH_ADDR  (0),           // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
-	.Softmap_GBA_EEPROM_ADDR (0),           //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
-	.Softmap_GBA_WRam_ADDR   (131072),      //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
-	.Softmap_GBA_Gamerom_ADDR(65536+131072), //   32MB of ROM
-	.turbosound('1)								  // sound buffer to play sound in turbo mode without sound pitched up
+	.Softmap_GBA_FLASH_ADDR  (0),                   // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
+	.Softmap_GBA_EEPROM_ADDR (0),                   //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
+	.Softmap_GBA_WRam_ADDR   (131072),              //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
+	.Softmap_GBA_Gamerom_ADDR(65536+131072+262144), //   32MB of ROM
+   .Softmap_SaveState_ADDR(65536+131072),          // 262144 (32bit) -- ~1Mbyte Data for SaveState
+	.turbosound('1)								         // sound buffer to play sound in turbo mode without sound pitched up
 )
 gba
 (
@@ -365,7 +366,9 @@ gba
 	.CyclesVsyncSpeed(),              // debug only for speed measurement, keep open
 	.SramFlashEnable(~sram_quirk),
 	.memory_remap(memory_remap_quirk),
-
+   .save_state('0),
+   .load_state('0),
+   
 	.sdram_read_ena(sdram_req),       // triggered once for read request 
 	.sdram_read_done(sdram_ack),      // must be triggered once when sdram_read_data is valid after last read
 	.sdram_read_addr(sdram_addr),     // all addresses are DWORD addresses!

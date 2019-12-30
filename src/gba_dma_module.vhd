@@ -5,6 +5,8 @@ use IEEE.numeric_std.all;
 use work.pRegmap_gba.all;
 use work.pProc_bus_gba.all;
 
+use work.pReg_savestates.all;
+
 entity gba_dma_module is
    generic
    (
@@ -25,6 +27,11 @@ entity gba_dma_module is
    port 
    (
       clk100              : in    std_logic;  
+      reset               : in    std_logic;
+      
+      savestate_bus       : inout proc_bus_gb_type;
+      loading_savestate   : in    std_logic;
+      
       gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
       
       IRP_DMA             : out   std_logic := '0';
@@ -53,7 +60,9 @@ entity gba_dma_module is
       dma_bus_acc         : out   std_logic_vector(1 downto 0) := (others => '0'); 
       dma_bus_dout        : out   std_logic_vector(31 downto 0) := (others => '0'); 
       dma_bus_din         : in    std_logic_vector(31 downto 0);
-      dma_bus_done        : in    std_logic
+      dma_bus_done        : in    std_logic;
+      
+      is_idle             : out   std_logic
    );
 end entity;
 
@@ -77,6 +86,7 @@ architecture arch of gba_dma_module is
    signal running : std_logic := '0';
    signal waiting : std_logic := '0';
    signal first   : std_logic := '0';
+   signal dmaon   : std_logic := '0';
    
    signal dest_Addr_Control  : integer range 0 to 3;
    signal source_Adr_Control : integer range 0 to 3;
@@ -98,6 +108,13 @@ architecture arch of gba_dma_module is
    );
    signal state : tstate := IDLE;
 
+   -- savestate
+   signal SAVESTATE_DMASOURCE     : std_logic_vector(27 downto 0);
+   signal SAVESTATE_DMATARGET     : std_logic_vector(27 downto 0);
+   signal SAVESTATE_DMAMIXED      : std_logic_vector(30 downto 0);
+   signal SAVESTATE_DMAMIXED_BACK : std_logic_vector(30 downto 0); 
+   
+   
 begin 
 
    gDRQ : if has_DRQ = true generate
@@ -118,13 +135,35 @@ begin
    
    dma_eepromcount <= fullcount;
    
+   -- save state
+   iSAVESTATE_DMASOURCE : entity work.eProcReg_gba generic map (REG_SAVESTATE_DMASOURCE, index) port map (clk100, savestate_bus, std_logic_vector(addr_source) , SAVESTATE_DMASOURCE);
+   iSAVESTATE_DMATARGET : entity work.eProcReg_gba generic map (REG_SAVESTATE_DMATARGET, index) port map (clk100, savestate_bus, std_logic_vector(addr_target) , SAVESTATE_DMATARGET);
+   iSAVESTATE_DMAMIXED  : entity work.eProcReg_gba generic map (REG_SAVESTATE_DMAMIXED , index) port map (clk100, savestate_bus,       SAVESTATE_DMAMIXED_BACK , SAVESTATE_DMAMIXED );
+   
+   SAVESTATE_DMAMIXED_BACK(16 downto 0)  <= std_logic_vector(count);
+   SAVESTATE_DMAMIXED_BACK(17 downto 17) <= Enable;            
+   SAVESTATE_DMAMIXED_BACK(18)           <= running;           
+   SAVESTATE_DMAMIXED_BACK(19)           <= waiting;           
+   SAVESTATE_DMAMIXED_BACK(20)           <= first;             
+   SAVESTATE_DMAMIXED_BACK(22 downto 21) <= std_logic_vector(to_unsigned(dest_Addr_Control, 2)); 
+   SAVESTATE_DMAMIXED_BACK(24 downto 23) <= std_logic_vector(to_unsigned(source_Adr_Control, 2));
+   SAVESTATE_DMAMIXED_BACK(26 downto 25) <= std_logic_vector(to_unsigned(Start_Timing, 2));      
+   SAVESTATE_DMAMIXED_BACK(27)           <= Repeat;           
+   SAVESTATE_DMAMIXED_BACK(28)           <= Transfer_Type_DW; 
+   SAVESTATE_DMAMIXED_BACK(29)           <= iRQ_on;            
+   SAVESTATE_DMAMIXED_BACK(30)           <= dmaon;            
+   
+   is_idle <= '1' when state = IDLE else '0';
+   
+   dma_on <= dmaon;
+   
    process (clk100)
    begin
       if rising_edge(clk100) then
       
          IRP_DMA       <= '0';
          
-         dma_bus_ena <= '0';
+         dma_bus_ena   <= '0';
          
          last_dma_valid   <= '0';
          
@@ -132,208 +171,229 @@ begin
          dma_first_cycles <= '0';
          dma_dword_cycles <= '0';
          dma_cycles_adrup <= (others => '0');
-      
-         -- dma init
-         if (CNT_H_DMA_Enable_written= '1') then
          
-            Enable <= CNT_H_DMA_Enable;
+         if (reset = '1') then
+            addr_source        <= unsigned(SAVESTATE_DMASOURCE);
+            addr_target        <= unsigned(SAVESTATE_DMATARGET);
+            count              <= unsigned(SAVESTATE_DMAMIXED(16 downto 0));
             
-            if (CNT_H_DMA_Enable = "0") then
-               running <= '0';
-               waiting <= '0';
-               dma_on  <= '0';
-            end if;
+            Enable             <= SAVESTATE_DMAMIXED(17 downto 17);
+            running            <= SAVESTATE_DMAMIXED(18);
+            waiting            <= SAVESTATE_DMAMIXED(19);
+            first              <= SAVESTATE_DMAMIXED(20);
+            dest_Addr_Control  <= to_integer(unsigned(SAVESTATE_DMAMIXED(22 downto 21)));
+            source_Adr_Control <= to_integer(unsigned(SAVESTATE_DMAMIXED(24 downto 23)));
+            Start_Timing       <= to_integer(unsigned(SAVESTATE_DMAMIXED(26 downto 25)));
+            Repeat             <= SAVESTATE_DMAMIXED(27);
+            Transfer_Type_DW   <= SAVESTATE_DMAMIXED(28);
+            iRQ_on             <= SAVESTATE_DMAMIXED(29);
+            dmaon              <= SAVESTATE_DMAMIXED(30);
          
-            if (Enable = "0" and CNT_H_DMA_Enable = "1") then
+            state              <= IDLE;
+         
+         else
+      
+            -- dma init
+            if (CNT_H_DMA_Enable_written= '1' and loading_savestate = '0') then
+            
+               Enable <= CNT_H_DMA_Enable;
                
-               -- drq not implemented! Reg_CNT_H_Game_Pak_DRQ
-               
-               dest_Addr_Control  <= to_integer(unsigned(CNT_H_Dest_Addr_Control));
-               source_Adr_Control <= to_integer(unsigned(CNT_H_Source_Adr_Control));
-               Start_Timing       <= to_integer(unsigned(CNT_H_DMA_Start_Timing));
-               Repeat             <= CNT_H_DMA_Repeat(CNT_H_DMA_Repeat'left);
-               Transfer_Type_DW   <= CNT_H_DMA_Transfer_Type(CNT_H_DMA_Transfer_Type'left);
-               iRQ_on             <= CNT_H_IRQ_on(CNT_H_IRQ_on'left);
-
-               addr_source <= unsigned(SAD(27 downto 0));
-               addr_target <= unsigned(DAD(27 downto 0));
-
-               case (index) is
-                  when 0 => addr_source(27) <= '0'; addr_target(27) <= '0';
-                  when 1 =>                         addr_target(27) <= '0';
-                  when 2 =>                         addr_target(27) <= '0';
-                  when 3 => null;
-               end case;
-                  
-               if (index = 3) then
-                  if (CNT_L(15 downto 0) = (15 downto 0 => '0')) then
-                     count <= '1' & x"0000";
-                  else
-                     count <= '0' & unsigned(CNT_L(15 downto 0));
-                  end if;  
-               else
-                  if (CNT_L(13 downto 0) = (13 downto 0 => '0')) then
-                     count <= '0' & x"4000";
-                  else
-                     count <= "000" & unsigned(CNT_L(13 downto 0));
-                  end if;  
+               if (CNT_H_DMA_Enable = "0") then
+                  running <= '0';
+                  waiting <= '0';
+                  dmaon   <= '0';
                end if;
-
-               waiting <= '1';
-               
-               if (CNT_H_DMA_Start_Timing = "11" and (index = 1 or index = 2)) then
-                  count             <= to_unsigned(4, 17);
-                  dest_Addr_Control <= 3;
-               end if;
-         
-            end if;
-         
-         end if;
-        
-         -- dma checkrun
-         if (Enable = "1") then 
-            if (waiting = '1') then
-               if (Start_Timing = 0 or 
-               (Start_Timing = 1 and vblank_trigger = '1') or 
-               (Start_Timing = 2 and hblank_trigger = '1') or 
-               (Start_Timing = 3 and sound_dma_req = '1')) then
-                  dma_on     <= '1';
-                  running    <= '1';
-                  waiting    <= '0';
-                  first      <= '1';
-                  fullcount  <= count;
-               end if ;
-            end if;
-            --if (DMAs[index].dMA_Start_Timing = 3 and index = 3) -- video dma not implemented"
-   
-   
-            -- dma work
-            if (running = '1') then
-               
-               case state is
-               
-                  when IDLE =>
-                     if (allow_on = '1') then
-                        state <= READING;
-                        dma_bus_rnw <= '1';
-                        dma_bus_ena <= '1';
-                        if (Transfer_Type_DW = '1') then
-                           dma_bus_Adr <= std_logic_vector(addr_source(27 downto 2)) & "00";
-                           dma_bus_acc <= ACCESS_32BIT;
-                        else
-                           dma_bus_Adr <= std_logic_vector(addr_source(27 downto 1)) & "0";
-                           dma_bus_acc <= ACCESS_16BIT;
-                        end if;  
-                        -- timing
-                        count <= count - 1;
-                        first <= '0';
-                        dma_new_cycles   <= '1';
-                        dma_first_cycles <= first;
-                        dma_dword_cycles <= Transfer_Type_DW;
-                        dma_cycles_adrup <= std_logic_vector(addr_source(27 downto 24));   
-                     end if;
+            
+               if (Enable = "0" and CNT_H_DMA_Enable = "1") then
                   
-                  when READING =>
-                     if (dma_bus_done = '1') then
-                        state <= WRITING;
-                        dma_bus_rnw  <= '0';
-                        dma_bus_ena  <= '1';
-                        dma_bus_Adr  <= std_logic_vector(addr_target);
-                        
-                        if (addr_source >= 16#2000000#) then
-                           dma_bus_dout   <= dma_bus_din;
-                           last_dma_valid <= '1';
-                           if (Transfer_Type_DW = '1') then                           
-                              last_dma_out   <= dma_bus_din;
-                           else
-                              last_dma_out   <= dma_bus_din(15 downto 0) & dma_bus_din(15 downto 0);
-                           end if;
-                        else
-                           dma_bus_dout <= last_dma_in;
-                        end if;
-                        
-                        -- next settings
-                        if (Transfer_Type_DW = '1') then
-                           if (source_Adr_Control = 0 or source_Adr_Control = 3) then 
-                              addr_source <= addr_source + 4; 
-                           elsif (source_Adr_Control = 1) then
-                              addr_source <= addr_source - 4;
-                           end if;
-
-                           if (dest_Addr_Control = 0 or (dest_Addr_Control = 3 and Start_Timing /= 3)) then
-                              addr_target <= addr_target + 4;
-                           elsif (dest_Addr_Control = 1) then
-                              addr_target <= addr_target - 4;
-                           end if;
-                        else
-                           if (source_Adr_Control = 0 or source_Adr_Control = 3) then 
-                              addr_source <= addr_source + 2; 
-                           elsif (source_Adr_Control = 1) then
-                              addr_source <= addr_source - 2;
-                           end if;
-
-                           if (dest_Addr_Control = 0 or (dest_Addr_Control = 3 and Start_Timing /= 3)) then
-                              addr_target <= addr_target + 2;
-                           elsif (dest_Addr_Control = 1) then
-                              addr_target <= addr_target - 2;
-                           end if;
-                        end if;
-                        -- timing
-                        dma_new_cycles   <= '1';
-                        dma_first_cycles <= first;
-                        dma_dword_cycles <= Transfer_Type_DW;
-                        dma_cycles_adrup <= std_logic_vector(addr_target(27 downto 24));
-                     end if;
+                  -- drq not implemented! Reg_CNT_H_Game_Pak_DRQ
+                  
+                  dest_Addr_Control  <= to_integer(unsigned(CNT_H_Dest_Addr_Control));
+                  source_Adr_Control <= to_integer(unsigned(CNT_H_Source_Adr_Control));
+                  Start_Timing       <= to_integer(unsigned(CNT_H_DMA_Start_Timing));
+                  Repeat             <= CNT_H_DMA_Repeat(CNT_H_DMA_Repeat'left);
+                  Transfer_Type_DW   <= CNT_H_DMA_Transfer_Type(CNT_H_DMA_Transfer_Type'left);
+                  iRQ_on             <= CNT_H_IRQ_on(CNT_H_IRQ_on'left);
+   
+                  addr_source <= unsigned(SAD(27 downto 0));
+                  addr_target <= unsigned(DAD(27 downto 0));
+   
+                  case (index) is
+                     when 0 => addr_source(27) <= '0'; addr_target(27) <= '0';
+                     when 1 =>                         addr_target(27) <= '0';
+                     when 2 =>                         addr_target(27) <= '0';
+                     when 3 => null;
+                  end case;
                      
+                  if (index = 3) then
+                     if (CNT_L(15 downto 0) = (15 downto 0 => '0')) then
+                        count <= '1' & x"0000";
+                     else
+                        count <= '0' & unsigned(CNT_L(15 downto 0));
+                     end if;  
+                  else
+                     if (CNT_L(13 downto 0) = (13 downto 0 => '0')) then
+                        count <= '0' & x"4000";
+                     else
+                        count <= "000" & unsigned(CNT_L(13 downto 0));
+                     end if;  
+                  end if;
+   
+                  waiting <= '1';
                   
-                  when WRITING =>
-                     if (dma_bus_done = '1') then
-                        state <= IDLE;
-                        if (count = 0) then
-                           running <= '0';
-                           dma_on  <= '0';
-
-                           IRP_DMA <= iRQ_on;
-
-                           if (Repeat = '1' and Start_Timing /= 0) then
-                              waiting <= '1';
-                              if (Start_Timing = 3 and (index = 1 or index = 2)) then
-                                  count <= to_unsigned(4, 17);
+                  if (CNT_H_DMA_Start_Timing = "11" and (index = 1 or index = 2)) then
+                     count             <= to_unsigned(4, 17);
+                     dest_Addr_Control <= 3;
+                  end if;
+            
+               end if;
+            
+            end if;
+         
+            -- dma checkrun
+            if (Enable = "1") then 
+               if (waiting = '1') then
+                  if (Start_Timing = 0 or 
+                  (Start_Timing = 1 and vblank_trigger = '1') or 
+                  (Start_Timing = 2 and hblank_trigger = '1') or 
+                  (Start_Timing = 3 and sound_dma_req = '1')) then
+                     dmaon      <= '1';
+                     running    <= '1';
+                     waiting    <= '0';
+                     first      <= '1';
+                     fullcount  <= count;
+                  end if ;
+               end if;
+               --if (DMAs[index].dMA_Start_Timing = 3 and index = 3) -- video dma not implemented"
+      
+      
+               -- dma work
+               if (running = '1') then
+                  
+                  case state is
+                  
+                     when IDLE =>
+                        if (allow_on = '1') then
+                           state <= READING;
+                           dma_bus_rnw <= '1';
+                           dma_bus_ena <= '1';
+                           if (Transfer_Type_DW = '1') then
+                              dma_bus_Adr <= std_logic_vector(addr_source(27 downto 2)) & "00";
+                              dma_bus_acc <= ACCESS_32BIT;
+                           else
+                              dma_bus_Adr <= std_logic_vector(addr_source(27 downto 1)) & "0";
+                              dma_bus_acc <= ACCESS_16BIT;
+                           end if;  
+                           -- timing
+                           count <= count - 1;
+                           first <= '0';
+                           dma_new_cycles   <= '1';
+                           dma_first_cycles <= first;
+                           dma_dword_cycles <= Transfer_Type_DW;
+                           dma_cycles_adrup <= std_logic_vector(addr_source(27 downto 24));   
+                        end if;
+                     
+                     when READING =>
+                        if (dma_bus_done = '1') then
+                           state <= WRITING;
+                           dma_bus_rnw  <= '0';
+                           dma_bus_ena  <= '1';
+                           dma_bus_Adr  <= std_logic_vector(addr_target);
+                           
+                           if (addr_source >= 16#2000000#) then
+                              dma_bus_dout   <= dma_bus_din;
+                              last_dma_valid <= '1';
+                              if (Transfer_Type_DW = '1') then                           
+                                 last_dma_out   <= dma_bus_din;
                               else
-                                 
-                                 if (index = 3) then
-                                    if (CNT_L(15 downto 0) = (15 downto 0 => '0')) then
-                                       count <= '1' & x"0000";
-                                    else
-                                       count <= '0' & unsigned(CNT_L(15 downto 0));
-                                    end if;  
-                                 else
-                                    if (CNT_L(13 downto 0) = (13 downto 0 => '0')) then
-                                       count <= '0' & x"4000";
-                                    else
-                                       count <= "000" & unsigned(CNT_L(13 downto 0));
-                                    end if;  
-                                 end if;
-                                 
-                                 if (dest_Addr_Control = 3) then
-                                    addr_target <= unsigned(DAD(27 downto 0));
-                                    if (index < 3) then
-                                       addr_target(27) <= '0';
-                                    end if;
-                                 end if;
+                                 last_dma_out   <= dma_bus_din(15 downto 0) & dma_bus_din(15 downto 0);
                               end if;
                            else
-                              Enable <= "0";
+                              dma_bus_dout <= last_dma_in;
+                           end if;
+                           
+                           -- next settings
+                           if (Transfer_Type_DW = '1') then
+                              if (source_Adr_Control = 0 or source_Adr_Control = 3) then 
+                                 addr_source <= addr_source + 4; 
+                              elsif (source_Adr_Control = 1) then
+                                 addr_source <= addr_source - 4;
+                              end if;
+   
+                              if (dest_Addr_Control = 0 or (dest_Addr_Control = 3 and Start_Timing /= 3)) then
+                                 addr_target <= addr_target + 4;
+                              elsif (dest_Addr_Control = 1) then
+                                 addr_target <= addr_target - 4;
+                              end if;
+                           else
+                              if (source_Adr_Control = 0 or source_Adr_Control = 3) then 
+                                 addr_source <= addr_source + 2; 
+                              elsif (source_Adr_Control = 1) then
+                                 addr_source <= addr_source - 2;
+                              end if;
+   
+                              if (dest_Addr_Control = 0 or (dest_Addr_Control = 3 and Start_Timing /= 3)) then
+                                 addr_target <= addr_target + 2;
+                              elsif (dest_Addr_Control = 1) then
+                                 addr_target <= addr_target - 2;
+                              end if;
+                           end if;
+                           -- timing
+                           dma_new_cycles   <= '1';
+                           dma_first_cycles <= first;
+                           dma_dword_cycles <= Transfer_Type_DW;
+                           dma_cycles_adrup <= std_logic_vector(addr_target(27 downto 24));
+                        end if;
+                        
+                     
+                     when WRITING =>
+                        if (dma_bus_done = '1') then
+                           state <= IDLE;
+                           if (count = 0) then
+                              running <= '0';
+                              dmaon   <= '0';
+   
+                              IRP_DMA <= iRQ_on;
+   
+                              if (Repeat = '1' and Start_Timing /= 0) then
+                                 waiting <= '1';
+                                 if (Start_Timing = 3 and (index = 1 or index = 2)) then
+                                    count <= to_unsigned(4, 17);
+                                 else
+                                    
+                                    if (index = 3) then
+                                       if (CNT_L(15 downto 0) = (15 downto 0 => '0')) then
+                                          count <= '1' & x"0000";
+                                       else
+                                          count <= '0' & unsigned(CNT_L(15 downto 0));
+                                       end if;  
+                                    else
+                                       if (CNT_L(13 downto 0) = (13 downto 0 => '0')) then
+                                          count <= '0' & x"4000";
+                                       else
+                                          count <= "000" & unsigned(CNT_L(13 downto 0));
+                                       end if;  
+                                    end if;
+                                    
+                                    if (dest_Addr_Control = 3) then
+                                       addr_target <= unsigned(DAD(27 downto 0));
+                                       if (index < 3) then
+                                          addr_target(27) <= '0';
+                                       end if;
+                                    end if;
+                                 end if;
+                              else
+                                 Enable <= "0";
+                              end if;
                            end if;
                         end if;
-                     end if;
                      
+                  end case;
                   
-                  
-               end case;
                
-            
+               end if;
             end if;
+            
          end if;
       
       end if;

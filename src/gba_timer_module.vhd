@@ -4,6 +4,7 @@ use IEEE.numeric_std.all;
 
 use work.pRegmap_gba.all;
 use work.pProc_bus_gba.all;
+use work.pReg_savestates.all;
 
 entity gba_timer_module is
    generic
@@ -19,7 +20,12 @@ entity gba_timer_module is
    port 
    (
       clk100              : in    std_logic; 
-      gb_on               : in    std_logic;      
+      gb_on               : in    std_logic;
+      reset               : in    std_logic;      
+      
+      savestate_bus       : inout proc_bus_gb_type;
+      loading_savestate   : in    std_logic;
+      
       gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
       
       new_cycles          : in    unsigned(7 downto 0);
@@ -50,7 +56,20 @@ architecture arch of gba_timer_module is
    signal timer_on         : std_logic := '0';
    signal timer_on_next    : std_logic := '0';
    
+   -- savestate
+   signal SAVESTATE_TIMER      : std_logic_vector(29 downto 0);
+   signal SAVESTATE_TIMER_BACK : std_logic_vector(29 downto 0);
+   
+   
 begin 
+
+   SAVESTATE_TIMER_BACK(0)            <= timer_on;       
+   SAVESTATE_TIMER_BACK(1)            <= timer_on_next;  
+   SAVESTATE_TIMER_BACK(18 downto 2)  <= std_logic_vector(counter);        
+   SAVESTATE_TIMER_BACK(29 downto 19) <= std_logic_vector(prescalecounter);
+
+   iSAVESTATE_TIMER : entity work.eProcReg_gba generic map (REG_SAVESTATE_TIMER, index) port map (clk100, savestate_bus, SAVESTATE_TIMER_BACK, SAVESTATE_TIMER);
+
 
    iL_Counter_Reload   : entity work.eProcReg_gba generic map ( Reg_L                  ) port map  (clk100, gb_bus, counter_readback   , L_Counter_Reload  );  
    iH_Prescaler        : entity work.eProcReg_gba generic map ( Reg_H_Prescaler        ) port map  (clk100, gb_bus, H_Prescaler        , H_Prescaler       );  
@@ -67,17 +86,17 @@ begin
          tick      <= '0';
          IRP_Timer <= '0';
 
-         if (gb_on = '0' and is_simu = '0') then -- reset
+         if (reset = '1') then
       
-            timer_on         <= '0';
-            counter          <= (others => '0');
-            prescalecounter  <= (others => '0');
-            counter_readback <= (others => '0');
+            timer_on         <= SAVESTATE_TIMER(0);
+            timer_on_next    <= SAVESTATE_TIMER(1);
+            counter          <= unsigned(SAVESTATE_TIMER(18 downto 2));
+            prescalecounter  <= unsigned(SAVESTATE_TIMER(29 downto 19));
       
-         else
+         elsif (gb_on = '1') then
          
             -- set_settings
-            if (H_Timer_Start_Stop_written = '1') then
+            if (H_Timer_Start_Stop_written = '1' and loading_savestate = '0') then
                if (H_Timer_Start_Stop = "1" and timer_on = '0') then
                   counter         <= '0' & unsigned(L_Counter_Reload);
                   prescalecounter <= (others => '0');

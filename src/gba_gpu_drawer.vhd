@@ -1204,7 +1204,7 @@ begin
 
          case (drawstate) is
             when IDLE =>
-               if (drawline_1 = '1') then
+               if (drawline_1 = '1' and linesDrawn < 160) then
                   linesDrawn <= linesDrawn + 1;
                   if (nextLineDrawn = '0') then
                      drawstate       <= WAITDRAW;

@@ -5,6 +5,7 @@ use IEEE.numeric_std.all;
 library MEM;
 
 use work.pProc_bus_gba.all;
+use work.pReg_savestates.all;
 
 entity gba_memorymux is
    generic
@@ -19,6 +20,9 @@ entity gba_memorymux is
    (
       clk100               : in     std_logic; 
       gb_on                : in     std_logic;
+      reset                : in     std_logic;
+      
+      savestate_bus        : inout  proc_bus_gb_type;
       
       sdram_read_ena       : out    std_logic := '0';
       sdram_read_done      : in     std_logic := '0';
@@ -88,7 +92,9 @@ entity gba_memorymux is
       PALETTE_OAM_addr     : out    integer range 0 to 128;
       PALETTE_OAM_datain   : out    std_logic_vector(31 downto 0);
       PALETTE_OAM_dataout  : in     std_logic_vector(31 downto 0);
-      PALETTE_OAM_we       : out    std_logic_vector(3 downto 0)
+      PALETTE_OAM_we       : out    std_logic_vector(3 downto 0);
+      
+      debug_mem            : out   std_logic_vector(31 downto 0)  
    );
 end entity;
 
@@ -212,6 +218,13 @@ architecture arch of gba_memorymux is
    signal flash_savecount : integer range 0 to 131072;
    signal flash_savedata  : std_logic_vector(7 downto 0);
    
+   -- savestate
+   signal SAVESTATE_EEPROM  : std_logic_vector(31 downto 0);
+   signal SAVESTATE_FLASH   : std_logic_vector(16 downto 0);
+   
+   signal SAVESTATE_EEPROM_BACK : std_logic_vector(31 downto 0);
+   signal SAVESTATE_FLASH_BACK  : std_logic_vector(16 downto 0);
+   
 begin 
 
    igba_bios : entity work.gba_bios
@@ -286,10 +299,28 @@ begin
       mem_read_data2    => sdram_second_dword
    );
   
-   
-   
    flashDeviceID       <= x"13" when flash_1m = '1' else x"1B"; -- 0x09; for 1m?
    flashManufacturerID <= x"62" when flash_1m = '1' else x"32"; -- 0xc2; for 1m?
+   
+   -- savestate
+   iSAVESTATE_EEPROM : entity work.eProcReg_gba generic map (REG_SAVESTATE_EEPROM) port map (clk100, savestate_bus, SAVESTATE_EEPROM_BACK, SAVESTATE_EEPROM);
+   iSAVESTATE_FLASH  : entity work.eProcReg_gba generic map (REG_SAVESTATE_FLASH ) port map (clk100, savestate_bus, SAVESTATE_FLASH_BACK , SAVESTATE_FLASH );
+   
+   SAVESTATE_EEPROM_BACK(7 downto 0)   <= eepromBuffer; 
+   SAVESTATE_EEPROM_BACK(15 downto 8)  <= std_logic_vector(eepromBits);   
+   SAVESTATE_EEPROM_BACK(21 downto 16) <= std_logic_vector(eepromByte);   
+   SAVESTATE_EEPROM_BACK(31 downto 22) <= std_logic_vector(eepromAddress);
+   
+   SAVESTATE_FLASH_BACK(2 downto 0)   <= std_logic_vector(to_unsigned(eeprombitpos, 3));
+   SAVESTATE_FLASH_BACK(3)            <= flashbank;      
+   SAVESTATE_FLASH_BACK(4)            <= flashNotSRam;   
+   SAVESTATE_FLASH_BACK(5)            <= flashSRamdecide;
+   SAVESTATE_FLASH_BACK(8  downto 6)  <= std_logic_vector(to_unsigned(tEEPROMSTATE'POS(eepromMode), 3));
+   SAVESTATE_FLASH_BACK(12 downto 9)  <= std_logic_vector(to_unsigned(tFLASHSTATE'POS(flashState), 4));
+   SAVESTATE_FLASH_BACK(16 downto 13) <= std_logic_vector(to_unsigned(tFLASHSTATE'POS(flashReadState), 4));
+   
+   debug_mem(7 downto 0)  <= std_logic_vector(to_unsigned(tState'POS(state), 8));
+   debug_mem(31 downto 8) <= (others => '0');
    
    process (clk100)
       variable palette_we : std_logic_vector(3 downto 0);
@@ -297,19 +328,23 @@ begin
    begin
       if rising_edge(clk100) then
       
-         if (gb_on = '0' and gb_on_1 = '1') then
-            eepromMode      <= EEPROM_IDLE;
-            eepromBuffer    <= (others => '0');
-            eepromBits      <= (others => '0');
-            eepromByte      <= (others => '0');
-            eepromAddress   <= (others => '0');
-            eeprombitpos    <= 0;
-            flashState      <= FLASH_READ_ARRAY;
-            flashReadState  <= FLASH_READ_ARRAY;
-            flashbank       <= '0';
-            flashNotSRam    <= '0';
-            flashSRamdecide <= '0';
+         if (reset = '1') then  
+            eepromBuffer    <= SAVESTATE_EEPROM(7 downto 0);
+            eepromBits      <= unsigned(SAVESTATE_EEPROM(15 downto 8));
+            eepromByte      <= unsigned(SAVESTATE_EEPROM(21 downto 16));
+            eepromAddress   <= unsigned(SAVESTATE_EEPROM(31 downto 22));
+            eeprombitpos    <= to_integer(unsigned(SAVESTATE_FLASH(2 downto 0)));
+
+            flashbank       <= SAVESTATE_FLASH(3);
+            flashNotSRam    <= SAVESTATE_FLASH(4);
+            flashSRamdecide <= SAVESTATE_FLASH(5);
+            
+            eepromMode      <= tEEPROMSTATE'VAL(to_integer(unsigned(SAVESTATE_FLASH(8 downto 6))));
+            flashState      <= tFLASHSTATE'VAL(to_integer(unsigned(SAVESTATE_FLASH(12 downto 9))));
+            flashReadState  <= tFLASHSTATE'VAL(to_integer(unsigned(SAVESTATE_FLASH(16 downto 13))));
+            
             sdram_addr_buf  <= (others => '1');
+            state           <= IDLE;
          end if;
       
          -- mini cache

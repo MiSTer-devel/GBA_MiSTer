@@ -12,20 +12,25 @@ entity gba_timer is
    );
    port 
    (
-      clk100           : in    std_logic;  
-      gb_on            : in    std_logic;
-      gb_bus           : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
-      new_cycles       : in    unsigned(7 downto 0);
-      new_cycles_valid : in    std_logic;
-      IRP_Timer        : out   std_logic_vector(3 downto 0);
+      clk100            : in    std_logic;  
+      gb_on             : in    std_logic;
+      reset             : in    std_logic;
+                        
+      savestate_bus     : inout proc_bus_gb_type;
+      loading_savestate : in    std_logic;
       
-      timer0_tick      : out   std_logic;
-      timer1_tick      : out   std_logic;
-
-      debugout0        : out   std_logic_vector(31 downto 0);
-      debugout1        : out   std_logic_vector(31 downto 0);
-      debugout2        : out   std_logic_vector(31 downto 0);
-      debugout3        : out   std_logic_vector(31 downto 0)
+      gb_bus            : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
+      new_cycles        : in    unsigned(7 downto 0);
+      new_cycles_valid  : in    std_logic;
+      IRP_Timer         : out   std_logic_vector(3 downto 0);
+                        
+      timer0_tick       : out   std_logic;
+      timer1_tick       : out   std_logic;
+                        
+      debugout0         : out   std_logic_vector(31 downto 0);
+      debugout1         : out   std_logic_vector(31 downto 0);
+      debugout2         : out   std_logic_vector(31 downto 0);
+      debugout3         : out   std_logic_vector(31 downto 0)
    );
 end entity;
 
@@ -51,18 +56,23 @@ begin
    )                                  
    port map
    (
-      clk100           => clk100,   
-      gb_on            => gb_on,      
-      gb_bus           => gb_bus,
+      clk100            => clk100,   
+      gb_on             => gb_on,  
+      reset             => reset,
+                        
+      savestate_bus     => savestate_bus,
+      loading_savestate => loading_savestate,
       
-      new_cycles       => new_cycles,      
-      new_cycles_valid => new_cycles_valid,
-      countup_in       => '0',
-      
-      tick             => timerticks(0),
-      IRP_Timer        => IRP_Timer(0),
-      
-      debugout         => debugout0
+      gb_bus            => gb_bus,
+                        
+      new_cycles        => new_cycles,      
+      new_cycles_valid  => new_cycles_valid,
+      countup_in        => '0',
+                        
+      tick              => timerticks(0),
+      IRP_Timer         => IRP_Timer(0),
+                        
+      debugout          => debugout0
    );
    
    igba_timer_module1 : entity work.gba_timer_module
@@ -78,18 +88,23 @@ begin
    )                                  
    port map
    (
-      clk100           => clk100,   
-      gb_on            => gb_on,       
-      gb_bus           => gb_bus,
+      clk100            => clk100,   
+      gb_on             => gb_on,
+      reset             => reset,
+                        
+      savestate_bus     => savestate_bus,
+      loading_savestate => loading_savestate,
       
-      new_cycles       => new_cycles,      
-      new_cycles_valid => new_cycles_valid,
-      countup_in       => timerticks(0),
-      
-      tick             => timerticks(1),
-      IRP_Timer        => IRP_Timer(1),
-      
-      debugout         => debugout1      
+      gb_bus            => gb_bus,
+                        
+      new_cycles        => new_cycles,      
+      new_cycles_valid  => new_cycles_valid,
+      countup_in        => timerticks(0),
+                        
+      tick              => timerticks(1),
+      IRP_Timer         => IRP_Timer(1),
+                        
+      debugout          => debugout1      
    );
    
    igba_timer_module2 : entity work.gba_timer_module
@@ -105,18 +120,23 @@ begin
    )                                  
    port map
    (
-      clk100           => clk100,
-      gb_on            => gb_on,       
-      gb_bus           => gb_bus,
+      clk100            => clk100,
+      gb_on             => gb_on,  
+      reset             => reset,
+                        
+      savestate_bus     => savestate_bus,
+      loading_savestate => loading_savestate,
       
-      new_cycles       => new_cycles,      
-      new_cycles_valid => new_cycles_valid,
-      countup_in       => timerticks(1),
-      
-      tick             => timerticks(2),
-      IRP_Timer        => IRP_Timer(2),
-      
-      debugout         => debugout2      
+      gb_bus            => gb_bus,
+                        
+      new_cycles        => new_cycles,      
+      new_cycles_valid  => new_cycles_valid,
+      countup_in        => timerticks(1),
+                        
+      tick              => timerticks(2),
+      IRP_Timer         => IRP_Timer(2),
+                        
+      debugout          => debugout2      
    );
    
    igba_timer_module3 : entity work.gba_timer_module
@@ -132,18 +152,23 @@ begin
    )                                  
    port map
    (
-      clk100           => clk100,   
-      gb_on            => gb_on,       
-      gb_bus           => gb_bus,
+      clk100            => clk100,   
+      gb_on             => gb_on, 
+      reset             => reset,
+                        
+      savestate_bus     => savestate_bus,
+      loading_savestate => loading_savestate,
       
-      new_cycles       => new_cycles,      
-      new_cycles_valid => new_cycles_valid,
-      countup_in       => timerticks(2),
-      
-      tick             => timerticks(3),
-      IRP_Timer        => IRP_Timer(3),
-      
-      debugout         => debugout3      
+      gb_bus            => gb_bus,
+                        
+      new_cycles        => new_cycles,      
+      new_cycles_valid  => new_cycles_valid,
+      countup_in        => timerticks(2),
+                        
+      tick              => timerticks(3),
+      IRP_Timer         => IRP_Timer(3),
+                        
+      debugout          => debugout3      
    );
     
 
