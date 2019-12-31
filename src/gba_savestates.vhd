@@ -59,6 +59,7 @@ end entity;
 architecture arch of gba_savestates is
 
    constant SETTLECOUNT    : integer := 1000000;
+   constant HEADERCOUNT    : integer := 2;
    constant INTERNALSCOUNT : integer := 67;
    constant REGISTERCOUNT  : integer := 256;
    
@@ -112,6 +113,9 @@ architecture arch of gba_savestates is
       SAVEMEMORY_NEXT,
       SAVEMEMORY_READ,
       SAVEMEMORY_WRITE,
+      SAVESIZE,
+      SAVEAMOUNT,
+      LOAD_HEADERAMOUNTCHECK,
       LOAD_WAITSETTLE,
       LOADINTERNALS_READ,
       LOADINTERNALS_WRITE,
@@ -144,6 +148,8 @@ architecture arch of gba_savestates is
    
    signal registerram_readen    : std_logic;
    signal registerram_readvalid : std_logic;
+   
+   signal header_amount         : unsigned(31 downto 0) := (others => '0');
 
 begin 
 
@@ -208,6 +214,10 @@ begin
          if (load = '1' and load_1 = '0') then
             load_buffer <= '1';
          end if;
+         
+         if (gb_on = '0') then 
+            header_amount <= (others => '0');
+         end if;
    
          case state is
          
@@ -223,10 +233,12 @@ begin
                   state                <= SAVE_WAITJUMP;
                   save_buffer          <= '0';
                elsif (load_buffer = '1') then
-                  state                <= LOAD_WAITSETTLE;
+                  state                <= LOAD_HEADERAMOUNTCHECK;
                   load_buffer          <= '0';
-                  waitcount            <= 0;
-                  sleep_savestate      <= '1';
+                  bus_out_Adr          <= std_logic_vector(to_unsigned(Softmap_SaveState_ADDR, 26));
+                  bus_out_rnw          <= '1';
+                  bus_out_ena          <= '1';
+                  bus_out_active       <= '1';
                end if;
                
             -- #################
@@ -266,7 +278,7 @@ begin
                else
                   state                <= SAVEINTERNALS_READ;
                   SAVE_BusRnW          <= '1';
-                  bus_out_Adr          <= std_logic_vector(to_unsigned(Softmap_SaveState_ADDR, 26));
+                  bus_out_Adr          <= std_logic_vector(to_unsigned(Softmap_SaveState_ADDR + HEADERCOUNT, 26));
                   bus_out_rnw          <= '0';
                   internal_bus_out.adr <= (others => '0');
                   internal_bus_out.rnw <= '1';
@@ -337,9 +349,12 @@ begin
                   SAVE_BusAddr <= savetypes(savetype_counter).addr;
                   SAVE_Bus_ena <= '1';
                else
-                  state            <= IDLE;
-                  saving_savestate <= '0';
-                  sleep_savestate  <= '0';
+                  state          <= SAVESIZE;
+                  bus_out_Adr    <= std_logic_vector(to_unsigned(Softmap_SaveState_ADDR + 1, 26));
+                  bus_out_Din    <= (31 downto 26 => '0') & bus_out_Adr;
+                  bus_out_ena    <= '1';
+                  bus_out_active <= '1';
+                  header_amount  <= header_amount + 1;
                end if;
             
             when SAVEMEMORY_READ =>
@@ -364,10 +379,42 @@ begin
                      state            <= SAVEMEMORY_NEXT;
                   end if;
                end if;
+               
+            when SAVESIZE =>
+               if (bus_out_done = '1') then
+                  state          <= SAVEAMOUNT;
+                  bus_out_Adr    <= std_logic_vector(to_unsigned(Softmap_SaveState_ADDR, 26));
+                  bus_out_Din    <= std_logic_vector(header_amount);
+                  bus_out_ena    <= '1';
+                  bus_out_active <= '1';
+               end if;
+            
+            when SAVEAMOUNT =>
+               if (bus_out_done = '1') then
+                  state            <= IDLE;
+                  saving_savestate <= '0';
+                  sleep_savestate  <= '0';
+                  bus_out_active   <= '0';
+               end if;
+            
             
             -- #################
             -- LOAD
             -- #################
+            
+            when LOAD_HEADERAMOUNTCHECK =>
+               if (bus_out_done = '1') then
+                  bus_out_active       <= '0';
+                  if (bus_out_Dout /= x"00000000") then
+                     state            <= LOAD_WAITSETTLE;
+                     waitcount        <= 0;
+                     sleep_savestate  <= '1';
+                     header_amount    <= unsigned(bus_out_Dout);
+                  else
+                     state <= IDLE;
+                  end if;
+               end if;
+            
             
             when LOAD_WAITSETTLE =>
                if (waitcount < SETTLECOUNT) then
@@ -375,7 +422,7 @@ begin
                else
                   state                <= LOADINTERNALS_READ;
                   SAVE_BusRnW          <= '0';
-                  bus_out_Adr          <= std_logic_vector(to_unsigned(Softmap_SaveState_ADDR, 26));
+                  bus_out_Adr          <= std_logic_vector(to_unsigned(Softmap_SaveState_ADDR + HEADERCOUNT, 26));
                   bus_out_rnw          <= '1';
                   bus_out_ena          <= '1';
                   bus_out_active       <= '1';
