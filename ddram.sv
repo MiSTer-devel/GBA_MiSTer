@@ -52,7 +52,15 @@ module ddram
 	input  [15:0] ch3_din,
 	input         ch3_req,
 	input         ch3_rnw,
-	output        ch3_ready
+	output        ch3_ready,
+
+	// save state
+	input  [27:1] ch4_addr,
+	output [31:0] ch4_dout,
+	input  [31:0] ch4_din,
+	input         ch4_req,
+	input         ch4_rnw,
+	output        ch4_ready
 );
 
 assign DDRAM_BURSTCNT = ram_burst;
@@ -63,31 +71,33 @@ assign DDRAM_DIN      = ram_data;
 assign DDRAM_WE       = ram_write;
 
 reg  [7:0] ram_burst;
-reg [63:0] ram_q[3:1];
+reg [63:0] ram_q[4:1];
 reg [63:0] ram_data;
 reg [27:1] ram_address;
 reg        ram_read = 0;
 reg        ram_write = 0;
 reg  [7:0] ram_be;
 
-reg  [3:1] ready;
+reg  [4:1] ready;
 
 assign ch1_dout  = ch1_addr[2] ? {ram_q[1][31:0], ram_q[1][63:32]} : ram_q[1];
 assign ch2_dout  = ch2_addr[2] ? ram_q[2][63:32] : ram_q[2][31:0];
 assign ch3_dout  = {ram_q[3][39:32], ram_q[3][7:0]};
+assign ch4_dout  = ch4_addr[2] ? ram_q[4][63:32] : ram_q[4][31:0];
 assign ch1_ready = ready[1];
 assign ch2_ready = ready[2];
 assign ch3_ready = ready[3];
+assign ch4_ready = ready[4];
 
 always @(posedge DDRAM_CLK) begin
 	reg [63:0] next_q[2:1];
 	reg [27:1] cache_addr[2:1];
 	reg  [1:0] state  = 0;
 	reg  [2:1] cached = 0;
-	reg  [1:0] ch = 0; 
-	reg  [3:1] ch_rq;
+	reg  [2:0] ch = 0; 
+	reg  [4:1] ch_rq;
 
-	ch_rq <= ch_rq | {ch3_req, ch2_req, ch1_req};
+	ch_rq <= ch_rq | {ch4_req, ch3_req, ch2_req, ch1_req};
 	ready <= 0;
 
 	if(!DDRAM_BUSY) begin
@@ -174,6 +184,22 @@ always @(posedge DDRAM_CLK) begin
 						ram_write     <= 1;
 						cached[2]     <= 0;
 						ready[3]      <= 1;
+					end
+					else begin
+						ram_read      <= 1;
+						state         <= 1;
+					end
+				end
+			   else if(ch_rq[4]) begin
+					ch_rq[4]         <= 0;
+					ch               <= 4;
+					ram_data         <= {ch4_din, ch4_din};
+					ram_be           <= ch4_addr[2] ? 8'hF0 : 8'h0F;
+					ram_address      <= ch4_addr;
+					ram_burst        <= 1;
+					if(~ch4_rnw) begin
+						ram_write     <= 1;
+						ready[4]      <= 1;
 					end
 					else begin
 						ram_read      <= 1;

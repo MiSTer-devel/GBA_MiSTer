@@ -163,7 +163,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3
 // 01234567890123456789012345678901
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXX      X
+// XXXXXXXXXXXXXXXXXXX    X
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -177,6 +177,9 @@ parameter CONF_STR = {
     "D0RD,Save Backup RAM;",
     "D0ON,Autosave,Off,On;",
     "D0-;",
+    "RH,Save state;",
+    "RI,Restore state;",
+	 "-;",
     "O1,Aspect Ratio,3:2,16:9;",
     "O9A,Desaturate,Off,Level 1,Level 2,Level 3;",
     "OB,Sync core to video,Off,On;",
@@ -349,8 +352,8 @@ gba_top
 	.Softmap_GBA_FLASH_ADDR  (0),                   // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
 	.Softmap_GBA_EEPROM_ADDR (0),                   //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
 	.Softmap_GBA_WRam_ADDR   (131072),              //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
-	.Softmap_GBA_Gamerom_ADDR(65536+131072+262144), //   32MB of ROM
-   .Softmap_SaveState_ADDR(65536+131072),          // 262144 (32bit) -- ~1Mbyte Data for SaveState
+	.Softmap_GBA_Gamerom_ADDR(65536+131072),        //   32MB of ROM
+   .Softmap_SaveState_ADDR  (16777216),            // 262144 (32bit) -- ~1Mbyte Data for SaveState (separate memory)
 	.turbosound('1)								         // sound buffer to play sound in turbo mode without sound pitched up
 )
 gba
@@ -366,9 +369,9 @@ gba
 	.CyclesVsyncSpeed(),              // debug only for speed measurement, keep open
 	.SramFlashEnable(~sram_quirk),
 	.memory_remap(memory_remap_quirk),
-   .save_state('0),
-   .load_state('0),
-   
+   .save_state(status[17]),
+   .load_state(status[18]),
+
 	.sdram_read_ena(sdram_req),       // triggered once for read request 
 	.sdram_read_done(sdram_ack),      // must be triggered once when sdram_read_data is valid after last read
 	.sdram_read_addr(sdram_addr),     // all addresses are DWORD addresses!
@@ -381,14 +384,13 @@ gba
 	.bus_out_rnw(bus_rd),             // read = 1, write = 0
 	.bus_out_ena(bus_req),            // one cycle high for each action
 	.bus_out_done(bus_ack),           // should be one cycle high when write is done or read value is valid
-           
-   //.SAVE_out_Din(),     // data read from savestate
-   .SAVE_out_Dout('0),  // data written to savestate
-   //.SAVE_out_Adr(),     // all addresses are DWORD addresses!
-   //.SAVE_out_rnw(),     // read = 1, write = 0
-   //.SAVE_out_ena(),     // one cycle high for each action
-   //.SAVE_out_active(),  // is high when access goes to savestate
-   .SAVE_out_done('0),  // should be one cycle high when write is done or read value is valid
+
+   .SAVE_out_Din(ss_din),            // data read from savestate
+   .SAVE_out_Dout(ss_dout),          // data written to savestate
+   .SAVE_out_Adr(ss_addr),           // all addresses are DWORD addresses!
+   .SAVE_out_rnw(ss_rnw),            // read = 1, write = 0
+   .SAVE_out_ena(ss_req),            // one cycle high for each action
+   .SAVE_out_done(ss_ack),           // should be one cycle high when write is done or read value is valid
 
 	.save_eeprom(save_eeprom),
 	.save_sram(save_sram),
@@ -435,6 +437,7 @@ always @(posedge clk_sys) begin
       memory_remap_quirk <= 0;
    end
 
+	// TODO: better to use game ID (fixed 6 bytes after name of game) - less data to check.
 	if(ioctl_wr & cart_download) begin
 		if(ioctl_addr[26:4] == 'hA) begin
 			if(ioctl_addr[3:0] <  12) cart_id[{4'd10 - ioctl_addr[3:0], 3'd0} +:16] <= {ioctl_dout[7:0],ioctl_dout[15:8]};
@@ -575,6 +578,10 @@ wire [31:0] ddr_sdram_dout1, ddr_sdram_dout2, ddr_bus_dout;
 wire [15:0] ddr_bram_din;
 wire        ddr_sdram_ack, ddr_bus_ack, ddr_bram_ack;
 
+wire [31:0] ss_dout, ss_din;
+wire [27:2] ss_addr;
+wire        ss_rnw, ss_req, ss_ack;
+
 assign DDRAM_CLK = clk_sys;
 ddram ddram
 (
@@ -599,7 +606,14 @@ ddram ddram
 	.ch3_dout(ddr_bram_din),
 	.ch3_req(bram_req & ~sdram_en),
 	.ch3_rnw(~bk_loading),
-	.ch3_ready(ddr_bram_ack)
+	.ch3_ready(ddr_bram_ack),
+	
+	.ch4_addr({ss_addr, 1'b0}),
+	.ch4_din(ss_din),
+	.ch4_dout(ss_dout),
+	.ch4_req(ss_req),
+	.ch4_rnw(ss_rnw),
+	.ch4_ready(ss_ack)
 );
 
 wire [15:0] bram_dout;
