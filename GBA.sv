@@ -353,8 +353,8 @@ gba_top
 	.Softmap_GBA_EEPROM_ADDR (0),                   //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
 	.Softmap_GBA_WRam_ADDR   (131072),              //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
 	.Softmap_GBA_Gamerom_ADDR(65536+131072),        //   32MB of ROM
-   .Softmap_SaveState_ADDR  (16777216),            // 262144 (32bit) -- ~1Mbyte Data for SaveState (separate memory)
-	.turbosound('1)								         // sound buffer to play sound in turbo mode without sound pitched up
+	.Softmap_SaveState_ADDR  (0),                   // 262144 (32bit) -- ~1Mbyte Data for SaveState (separate memory)
+	.turbosound('1)                                 // sound buffer to play sound in turbo mode without sound pitched up
 )
 gba
 (
@@ -579,7 +579,7 @@ wire [15:0] ddr_bram_din;
 wire        ddr_sdram_ack, ddr_bus_ack, ddr_bram_ack;
 
 wire [31:0] ss_dout, ss_din;
-wire [27:2] ss_addr;
+wire [24:2] ss_addr;
 wire        ss_rnw, ss_req, ss_ack;
 
 assign DDRAM_CLK = clk_sys;

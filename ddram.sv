@@ -55,7 +55,7 @@ module ddram
 	output        ch3_ready,
 
 	// save state
-	input  [27:1] ch4_addr,
+	input  [24:1] ch4_addr,
 	output [31:0] ch4_dout,
 	input  [31:0] ch4_din,
 	input         ch4_req,
@@ -195,7 +195,7 @@ always @(posedge DDRAM_CLK) begin
 					ch               <= 4;
 					ram_data         <= {ch4_din, ch4_din};
 					ram_be           <= ch4_addr[2] ? 8'hF0 : 8'h0F;
-					ram_address      <= ch4_addr;
+					ram_address      <= {3'b111,ch4_addr};
 					ram_burst        <= 1;
 					if(~ch4_rnw) begin
 						ram_write     <= 1;
