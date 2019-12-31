@@ -331,18 +331,25 @@ begin
          
          secondprio_var := enables_cycle2 and (not firstprio_var);
          
-         if (secondprio_var(BG0) = '1' and secondprio_var(OBJ) = '1') then if (unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG0) then secondprio_var(OBJ) := '0'; else secondprio_var(BG0) := '0'; end if; end if;
-         if (secondprio_var(BG1) = '1' and secondprio_var(OBJ) = '1') then if (unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG1) then secondprio_var(OBJ) := '0'; else secondprio_var(BG1) := '0'; end if; end if;
-         if (secondprio_var(BG2) = '1' and secondprio_var(OBJ) = '1') then if (unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG2) then secondprio_var(OBJ) := '0'; else secondprio_var(BG2) := '0'; end if; end if;
-         if (secondprio_var(BG3) = '1' and secondprio_var(OBJ) = '1') then if (unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG3) then secondprio_var(OBJ) := '0'; else secondprio_var(BG3) := '0'; end if; end if;
-         
-         if (secondprio_var(BG0) = '1' and secondprio_var(BG1) = '1') then if (Prio_BG0 > Prio_BG1) then secondprio_var(BG0) := '0'; else secondprio_var(BG1) := '0'; end if; end if;
-         if (secondprio_var(BG0) = '1' and secondprio_var(BG2) = '1') then if (Prio_BG0 > Prio_BG2) then secondprio_var(BG0) := '0'; else secondprio_var(BG2) := '0'; end if; end if;
-         if (secondprio_var(BG0) = '1' and secondprio_var(BG3) = '1') then if (Prio_BG0 > Prio_BG3) then secondprio_var(BG0) := '0'; else secondprio_var(BG3) := '0'; end if; end if;
-         if (secondprio_var(BG1) = '1' and secondprio_var(BG2) = '1') then if (Prio_BG1 > Prio_BG2) then secondprio_var(BG1) := '0'; else secondprio_var(BG2) := '0'; end if; end if;
-         if (secondprio_var(BG1) = '1' and secondprio_var(BG3) = '1') then if (Prio_BG1 > Prio_BG3) then secondprio_var(BG1) := '0'; else secondprio_var(BG3) := '0'; end if; end if;
-         if (secondprio_var(BG2) = '1' and secondprio_var(BG3) = '1') then if (Prio_BG2 > Prio_BG3) then secondprio_var(BG2) := '0'; else secondprio_var(BG3) := '0'; end if; end if;
-            
+         if (secondprio_var(BG0) = '1' and secondprio_var(OBJ) = '1' and unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG0) then secondprio_var(OBJ) := '0'; end if;
+         if (secondprio_var(BG1) = '1' and secondprio_var(OBJ) = '1' and unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG1) then secondprio_var(OBJ) := '0'; end if;
+         if (secondprio_var(BG2) = '1' and secondprio_var(OBJ) = '1' and unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG2) then secondprio_var(OBJ) := '0'; end if;
+         if (secondprio_var(BG3) = '1' and secondprio_var(OBJ) = '1' and unsigned(pixeldata_obj_cycle2(OBJPRIOH downto OBJPRIOL)) > Prio_BG3) then secondprio_var(OBJ) := '0'; end if;
+
+         if (secondprio_var(BG0) = '1' and secondprio_var(BG1) = '1' and Prio_BG0 > Prio_BG1) then secondprio_var(BG0) := '0'; end if;
+         if (secondprio_var(BG0) = '1' and secondprio_var(BG2) = '1' and Prio_BG0 > Prio_BG2) then secondprio_var(BG0) := '0'; end if;
+         if (secondprio_var(BG0) = '1' and secondprio_var(BG3) = '1' and Prio_BG0 > Prio_BG3) then secondprio_var(BG0) := '0'; end if;
+         if (secondprio_var(BG1) = '1' and secondprio_var(BG2) = '1' and Prio_BG1 > Prio_BG2) then secondprio_var(BG1) := '0'; end if;
+         if (secondprio_var(BG1) = '1' and secondprio_var(BG3) = '1' and Prio_BG1 > Prio_BG3) then secondprio_var(BG1) := '0'; end if;
+         if (secondprio_var(BG2) = '1' and secondprio_var(BG3) = '1' and Prio_BG2 > Prio_BG3) then secondprio_var(BG2) := '0'; end if;
+
+         if    (secondprio_var(OBJ) = '1') then secondprio_var := "010000";
+         elsif (secondprio_var(BG0) = '1') then secondprio_var := "000001";
+         elsif (secondprio_var(BG1) = '1') then secondprio_var := "000010";
+         elsif (secondprio_var(BG2) = '1') then secondprio_var := "000100";
+         elsif (secondprio_var(BG3) = '1') then secondprio_var := "001000";
+         else                                   secondprio_var := "100000"; end if;
+
          secondprio_cycle3 <= secondprio_var and second_target;
          
          -- special effect data
