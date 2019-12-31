@@ -292,10 +292,10 @@ begin
                if (internal_bus_out.done = '1') then
                   state       <= SAVEINTERNALS_WRITE;
                   if (is_simu = '0') then
-                     bus_out_Din <= not internal_bus_out.Dout;
+                     bus_out_Din <= internal_bus_out.Dout;
                   else
                      for i in 0 to 31 loop
-                        if (internal_bus_out.Dout(i) = '0') then bus_out_Din(i) <= '1'; else bus_out_Din(i) <= '0'; end if;
+                        if (internal_bus_out.Dout(i) = '0') then bus_out_Din(i) <= '0'; else bus_out_Din(i) <= '1'; end if;
                      end loop;
                   end if;
                   bus_out_ena    <= '1';
