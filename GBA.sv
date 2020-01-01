@@ -163,16 +163,13 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3
 // 01234567890123456789012345678901
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXX    X
+// XXXXXX XXXXXXXXXXXX    X
 
 `include "build_id.v"
 parameter CONF_STR = {
 	"GBA;;",
 	"FS,GBA;",
 	"-;",
-	//"C,Cheats;",
-	//"H1O6,Cheats Enabled,Yes,No;",
-	//"-;",
 	"D0RC,Reload Backup RAM;",
 	"D0RD,Save Backup RAM;",
 	"D0ON,Autosave,Off,On;",
@@ -207,7 +204,7 @@ parameter CONF_STR = {
 
 wire  [1:0] buttons;
 wire [31:0] status;
-wire [15:0] status_menumask = {cart_loaded, |cart_type, force_turbo, ~gg_available, ~bk_ena};
+wire [15:0] status_menumask = {cart_loaded, |cart_type, force_turbo, 1'b0, ~bk_ena};
 wire        forced_scandoubler;
 reg  [31:0] sd_lba;
 reg         sd_rd = 0;
@@ -365,7 +362,6 @@ end
 ////////////////////////////  SYSTEM  ///////////////////////////////////
 
 wire        save_eeprom, save_sram, save_flash;
-wire [31:0] cpu_addr, cpu_frombus;
 
 reg fast_forward, pause, cpu_turbo;
 reg ff_latch;
@@ -454,10 +450,6 @@ gba
 	.bios_wrdata(bios_wrdata),
 	.bios_wr(bios_wr),
 
-	.cpu_addr(cpu_addr),
-	.cpu_din(genie_ovr ? genie_data : cpu_frombus),
-	.cpu_frombus(cpu_frombus),
-
 	.KeyA(joy[4]),
 	.KeyB(joy[5]),
 	.KeySelect(joy[8]),
@@ -520,53 +512,6 @@ always @(posedge clk_sys) begin
 		end
 	end
 end
-
-////////////////////////////  CODES  ///////////////////////////////////
-
-wire        gg_available;
-wire        genie_ovr;
-wire [31:0] genie_data;
-
-/*
-// Code layout:
-// {clock bit, code flags,     32'b address, 32'b compare, 32'b replace}
-//  128        127:96          95:64         63:32         31:0
-// Integer values are in BIG endian byte order, so it up to the loader
-// or generator of the code to re-arrange them correctly.
-
-reg [128:0] gg_code;
-always_ff @(posedge clk_sys) begin
-	gg_code[128] <= 0;
-
-	if (code_download & ioctl_wr) begin
-		case (ioctl_addr[3:0])
-			0:  gg_code[111:96]  <= ioctl_dout; // Flags Bottom Word
-			2:  gg_code[127:112] <= ioctl_dout; // Flags Top Word
-			4:  gg_code[79:64]   <= ioctl_dout; // Address Bottom Word
-			6:  gg_code[95:80]   <= ioctl_dout; // Address Top Word
-			8:  gg_code[47:32]   <= ioctl_dout; // Compare Bottom Word
-			10: gg_code[63:48]   <= ioctl_dout; // Compare top Word
-			12: gg_code[15:0]    <= ioctl_dout; // Replace Bottom Word
-			14: begin
-				gg_code[31:16]    <= ioctl_dout; // Replace Top Word
-				gg_code[128]      <= 1;          // Clock it in
-			end
-		endcase
-	end
-end
-
-CODES #(.ADDR_WIDTH(32), .DATA_WIDTH(32)) codes (
-	.clk(clk_sys),
-	.reset(code_download && ioctl_wr && !ioctl_addr),
-	.enable(~status[6]),
-	.addr_in(cpu_addr),
-	.data_in(cpu_frombus),
-	.code(gg_code),
-	.available(gg_available),
-	.genie_ovr(genie_ovr),
-	.genie_data(genie_data)
-);
-*/
 
 ////////////////////////////  MEMORY  ///////////////////////////////////
 

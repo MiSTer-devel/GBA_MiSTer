@@ -58,10 +58,6 @@ entity gba_top is
       bios_wraddr        : in     std_logic_vector(11 downto 0) := (others => '0');
       bios_wrdata        : in     std_logic_vector(31 downto 0) := (others => '0');
       bios_wr            : in     std_logic := '0';
-      -- Bus for MiTM
-      cpu_addr           : out    std_logic_vector(31 downto 0);
-      cpu_din            : in     std_logic_vector(31 downto 0); -- cpu_din => cpu_frombus if no MiTM used.
-      cpu_frombus        : out    std_logic_vector(31 downto 0);
       -- save memory used
       save_eeprom        : out    std_logic;
       save_sram          : out    std_logic;
@@ -332,9 +328,7 @@ begin
    dma_bus_din  <= mem_bus_din;
    dma_bus_done <= mem_bus_done;
    
-   cpu_addr     <= cpu_bus_Adr;
-   cpu_bus_din  <= cpu_din;
-   cpu_frombus  <= mem_bus_din;
+   cpu_bus_din  <= mem_bus_din;
    cpu_bus_done <= mem_bus_done;
    
    igba_savestates : entity work.gba_savestates
