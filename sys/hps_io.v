@@ -57,6 +57,9 @@ module hps_io #(parameter STRLEN=0, PS2DIV=0, WIDE=0, VDNUM=1, PS2WE=0)
 	input             status_set,
 	input      [15:0] status_menumask,
 
+	input             info_req,
+	input       [7:0] info,
+
 	//toggle to force notify of video mode change
 	input             new_vmode,
 
@@ -217,13 +220,18 @@ always@(posedge clk_sys) begin
 	reg [63:0] status_req;
 	reg        old_status_set = 0;
 	reg  [7:0] cd_req = 0;
-	reg        old_cd = 0; 
+	reg        old_cd = 0;
+	reg        old_info = 0;
+	reg  [7:0] info_n = 0;
 
 	old_status_set <= status_set;
 	if(~old_status_set & status_set) begin
 		stflg <= stflg + 1'd1;
 		status_req <= status_in;
 	end
+
+	old_info <= info_req;
+	if(~old_info & info_req) info_n <= info;
 
 	old_cd <= cd_in[48];
 	if(old_cd ^ cd_in[48]) cd_req <= cd_req + 1'd1; 
@@ -270,7 +278,8 @@ always@(posedge clk_sys) begin
 					'h2B: io_dout <= 1;
 					'h2F: io_dout <= 1;
 					'h32: io_dout <= gamma_bus[21];
-					'h34: io_dout <= cd_req; 
+					'h34: io_dout <= cd_req;
+					'h36: begin io_dout <= info_n; info_n <= 0; end
 				endcase
 
 				sd_buff_addr <= 0;
