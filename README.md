@@ -49,6 +49,17 @@ PLEASE do not report errors without testing with the original BIOS
 - CPU Turbomode - give games additional CPU power
 - Flickerblend - turn on for games like F-Zero, Mario Kart or NES Classics to prevent flickering effects
 
+# Savestates
+Core provides 4 slots to save the state. The first slot gets saved to disk and automatically loaded (but not applied)
+upon next load of game. Rest 3 slots are residing only in memory for temporary use.
+First slot save/restore is available from OSD as well. 
+
+
+Hot keys for save states:
+- Alt-F1..F4 - save the state
+- F1...F4 - restore
+
+
 # Not included
 - Multiplayer features like Serial
 - Tilt/Gyro/Rumble/Sun sensor)
