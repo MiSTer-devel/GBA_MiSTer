@@ -21,7 +21,9 @@ entity gba_gpu is
       savestate_bus        : inout proc_bus_gb_type;
                            
       gb_bus               : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
-                           
+                  
+      interframe_blend     : in    std_logic;
+                  
       pixel_out_x          : out   integer range 0 to 239;
       pixel_out_y          : out   integer range 0 to 159;
       pixel_out_addr       : out   integer range 0 to 38399;
@@ -118,6 +120,8 @@ begin
       clk100                 => clk100,
       
       gb_bus                 => gb_bus,
+      
+      interframe_blend       => interframe_blend,
       
       pixel_out_x            => pixel_out_x,
       pixel_out_y            => pixel_out_y,

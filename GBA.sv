@@ -188,6 +188,7 @@ parameter CONF_STR = {
 	"-;",
 	"OEF,Storage,Auto,SDRAM,DDR3;",
 	"O5,Pause,Off,On;",
+   "OJ,Flickerblend,Off,On;",
 	"H2OG,Turbo,Off,On;",
 	"R0,Reset;",
 	"J1,A,B,L,R,Select,Start,FastForward;",
@@ -423,6 +424,7 @@ gba
 	.memory_remap(memory_remap_quirk),
    .save_state(ss_save),
    .load_state(ss_load),
+   .interframe_blend(status[19]),
 
 	.sdram_read_ena(sdram_req),       // triggered once for read request 
 	.sdram_read_done(sdram_ack),      // must be triggered once when sdram_read_data is valid after last read

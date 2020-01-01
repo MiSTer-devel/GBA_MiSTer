@@ -32,6 +32,7 @@ entity gba_top is
       memory_remap       : in     std_logic;
       save_state         : in     std_logic;
       load_state         : in     std_logic;
+      interframe_blend   : in     std_logic;
       -- sdram interface
       sdram_read_ena     : out    std_logic;                     -- triggered once for read request 
       sdram_read_done    : in     std_logic := '0';              -- must be triggered once when sdram_read_data is valid after last read
@@ -562,6 +563,8 @@ begin
       savestate_bus        => savestate_bus,
 
       gb_bus               => gb_bus,
+
+      interframe_blend     => interframe_blend,
 
       pixel_out_x          => pixel_out_x,
       pixel_out_y          => pixel_out_y,

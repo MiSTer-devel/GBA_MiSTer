@@ -18,6 +18,8 @@ entity gba_gpu_drawer is
       
       gb_bus               : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');                  
         
+      interframe_blend     : in    std_logic;
+        
       pixel_out_x          : out   integer range 0 to 239;
       pixel_out_y          : out   integer range 0 to 159;
       pixel_out_addr       : out   integer range 0 to 38399;
@@ -347,9 +349,17 @@ architecture arch of gba_gpu_drawer is
    signal merge_pixel_we         : std_logic := '0';
    signal objwindow_merge_in     : std_logic := '0';
                                  
-   signal pixelout_addr          : integer range 0 to 38399;
+   signal pixel_out_x_1          : integer range 0 to 239;
+   signal pixel_out_y_1          : integer range 0 to 159;                   
+   signal pixelout_addr_1        : integer range 0 to 38399;
    signal merge_pixel_we_1       : std_logic := '0';
    signal merge_pixeldata_out_1  : std_logic_vector(15 downto 0);
+   
+   signal pixel_out_x_2          : integer range 0 to 239;
+   signal pixel_out_y_2          : integer range 0 to 159; 
+   signal pixelout_addr_2        : integer range 0 to 38399;
+   signal merge_pixel_we_2       : std_logic := '0';
+   signal merge_pixeldata_out_2  : std_logic_vector(15 downto 0);
                                  
    signal lineUpToDate           : std_logic_vector(0 to 159) := (others => '0');
    signal linesDrawn             : integer range 0 to 160 := 0;
@@ -381,7 +391,12 @@ architecture arch of gba_gpu_drawer is
    signal mosaic_ref2_y : signed(27 downto 0) := (others => '0'); 
    signal mosaic_ref3_x : signed(27 downto 0) := (others => '0'); 
    signal mosaic_ref3_y : signed(27 downto 0) := (others => '0'); 
-    
+   
+   -- framesmoothing buffer
+   type tPixelArray is array(0 to (240 * 160) - 1) of std_logic_vector(14 downto 0);
+   signal PixelArraySmooth : tPixelArray := (others => (others => '0'));
+   
+   signal pixel_smooth : std_logic_vector(14 downto 0);
    
 begin 
    
@@ -1247,24 +1262,47 @@ begin
          merge_enable_1 <= merge_enable;
          
          objwindow_merge_in <= linebuffer_objwindow(linebuffer_addr);
-      
-         pixel_out_x           <= merge_pixel_x;
-         pixel_out_y           <= merge_pixel_y;
-         pixelout_addr         <= merge_pixel_x + merge_pixel_y * 240;
+               
+         -- cycle 1
+         pixel_out_x_1         <= merge_pixel_x;
+         pixel_out_y_1         <= merge_pixel_y;
+         pixelout_addr_1       <= merge_pixel_x + merge_pixel_y * 240;
          merge_pixel_we_1      <= merge_pixel_we;
-         
          if (Forced_Blank = "1") then
             merge_pixeldata_out_1 <= x"7FFF";
          else
             merge_pixeldata_out_1 <= '0' & merge_pixeldata_out(4 downto 0) & merge_pixeldata_out(9 downto 5) & merge_pixeldata_out(14 downto 10);
          end if;
+         
+         -- cycle 2
+         if (merge_pixel_we_1 = '1') then
+            PixelArraySmooth(pixelout_addr_1) <= merge_pixeldata_out_1(14 downto 0);
+         end if;
+         pixel_smooth <= PixelArraySmooth(pixelout_addr_1);
+         
+         pixel_out_x_2         <= pixel_out_x_1;
+         pixel_out_y_2         <= pixel_out_y_1;
+         pixelout_addr_2       <= pixelout_addr_1;      
+         merge_pixel_we_2      <= merge_pixel_we_1;     
+         merge_pixeldata_out_2 <= merge_pixeldata_out_1;
+         
+         -- cycle 3
+         pixel_out_x    <= pixel_out_x_2;         
+         pixel_out_y    <= pixel_out_y_2;
+         pixel_out_addr <= pixelout_addr_2;
+         pixel_out_we   <= merge_pixel_we_2;
+         if (Forced_Blank = "1") then
+            pixel_out_data <= "111" & x"FFF";
+         elsif (interframe_blend = '1') then
+            pixel_out_data(14 downto 10) <= std_logic_vector(to_unsigned((to_integer(unsigned(merge_pixeldata_out_2(14 downto 10))) + to_integer(unsigned(pixel_smooth(14 downto 10)))) / 2, 5));
+            pixel_out_data( 9 downto  5) <= std_logic_vector(to_unsigned((to_integer(unsigned(merge_pixeldata_out_2(9 downto 5)))   + to_integer(unsigned(pixel_smooth(9 downto 5))))   / 2, 5));
+            pixel_out_data( 4 downto  0) <= std_logic_vector(to_unsigned((to_integer(unsigned(merge_pixeldata_out_2(4 downto 0)))   + to_integer(unsigned(pixel_smooth(4 downto 0))))   / 2, 5));
+         else
+            pixel_out_data <= merge_pixeldata_out_2(14 downto 0);
+         end if;
       
       end if;
    end process;
-   
-   pixel_out_addr <= pixelout_addr;
-   pixel_out_data <= merge_pixeldata_out_1(14 downto 0);
-   pixel_out_we   <= merge_pixel_we_1;
    
    enables_wnd0   <= REG_WININ_Window_0_Special_Effect & REG_WININ_Window_0_OBJ_Enable & REG_WININ_Window_0_BG3_Enable & REG_WININ_Window_0_BG2_Enable & REG_WININ_Window_0_BG1_Enable & REG_WININ_Window_0_BG0_Enable;
    enables_wnd1   <= REG_WININ_Window_1_Special_Effect & REG_WININ_Window_1_OBJ_Enable & REG_WININ_Window_1_BG3_Enable & REG_WININ_Window_1_BG2_Enable & REG_WININ_Window_1_BG1_Enable & REG_WININ_Window_1_BG0_Enable;
