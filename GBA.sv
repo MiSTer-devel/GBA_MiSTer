@@ -167,37 +167,46 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 
 `include "build_id.v"
 parameter CONF_STR = {
-    "GBA;;",
-    "FS,GBA;",
-    "-;",
-    //"C,Cheats;",
-    //"H1O6,Cheats Enabled,Yes,No;",
-    //"-;",
-    "D0RC,Reload Backup RAM;",
-    "D0RD,Save Backup RAM;",
-    "D0ON,Autosave,Off,On;",
-    "D0-;",
-    "RH,Save state;",
-    "RI,Restore state;",
-	 "-;",
-    "O1,Aspect Ratio,3:2,16:9;",
-    "O9A,Desaturate,Off,Level 1,Level 2,Level 3;",
-    "OB,Sync core to video,Off,On;",
-    "O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
-    "O78,Stereo Mix,None,25%,50%,100%;", 
-    "-;",
-    "OEF,Storage,Auto,SDRAM,DDR3;",
-    "O5,Pause,Off,On;",
-    "H2OG,Turbo,Off,On;",
-    "R0,Reset;",
-    "J1,A,B,L,R,Select,Start,FastForward;",
-    "jn,A,B,L,R,Select,Start,X;",
-    "V,v",`BUILD_DATE
+	"GBA;;",
+	"FS,GBA;",
+	"-;",
+	//"C,Cheats;",
+	//"H1O6,Cheats Enabled,Yes,No;",
+	//"-;",
+	"D0RC,Reload Backup RAM;",
+	"D0RD,Save Backup RAM;",
+	"D0ON,Autosave,Off,On;",
+	"D0-;",
+	"h4H3RH,Save state (Alt-F1);",
+	"h4H3RI,Restore state (F1);",
+	"h4H3-;",
+	"O1,Aspect Ratio,3:2,16:9;",
+	"O9A,Desaturate,Off,Level 1,Level 2,Level 3;",
+	"OB,Sync core to video,Off,On;",
+	"O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
+	"O78,Stereo Mix,None,25%,50%,100%;", 
+	"-;",
+	"OEF,Storage,Auto,SDRAM,DDR3;",
+	"O5,Pause,Off,On;",
+	"H2OG,Turbo,Off,On;",
+	"R0,Reset;",
+	"J1,A,B,L,R,Select,Start,FastForward;",
+	"jn,A,B,L,R,Select,Start,X;",
+	"I,",
+	"Save to state 1,",
+	"Restore state 1,",
+	"Save to state 2,",
+	"Restore state 2,",
+	"Save to state 3,",
+	"Restore state 3,",
+	"Save to state 4,",
+	"Restore state 4;",
+	"V,v",`BUILD_DATE
 };
 
 wire  [1:0] buttons;
 wire [31:0] status;
-wire [15:0] status_menumask = {force_turbo, ~gg_available, ~bk_ena};
+wire [15:0] status_menumask = {cart_loaded, |cart_type, force_turbo, ~gg_available, ~bk_ena};
 wire        forced_scandoubler;
 reg  [31:0] sd_lba;
 reg         sd_rd = 0;
@@ -215,11 +224,12 @@ wire [26:0] ioctl_addr;
 wire [15:0] ioctl_dout;
 wire        ioctl_wr;
 wire  [7:0] ioctl_index;
-
-wire [11:0] joy;
-wire [21:0] gamma_bus;
 reg         ioctl_wait = 0;
 
+wire [11:0] joy;
+wire [10:0] ps2_key;
+
+wire [21:0] gamma_bus;
 wire [15:0] sdram_sz;
 
 hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
@@ -232,9 +242,12 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.forced_scandoubler(forced_scandoubler),
 
 	.joystick_0(joy),
+	.ps2_key(ps2_key),
 
 	.status(status),
 	.status_menumask(status_menumask),
+	.info_req(ss_info_req),
+	.info(ss_info),
 
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_dout),
@@ -272,6 +285,7 @@ end
 reg [26:0] last_addr;
 reg        flash_1m;
 reg  [1:0] cart_type;
+reg        cart_loaded = 0;
 always @(posedge clk_sys) begin
 	reg [63:0] str;
 	reg old_download;
@@ -282,6 +296,7 @@ always @(posedge clk_sys) begin
 	if(~old_download & cart_download) begin
 		flash_1m <= 0;
 		cart_type <= ioctl_index[7:6];
+		cart_loaded <= 1;
 	end
 
 	if(cart_download & ioctl_wr) begin
@@ -306,6 +321,43 @@ always @(posedge clk_sys) begin
 			bios_wraddr <= ioctl_addr[13:2];
 			bios_wr <= 1;
 		end
+	end
+end
+
+///////////////////////////  SAVESTATE  /////////////////////////////////
+
+wire       pressed = ps2_key[9];
+wire [7:0] code    = ps2_key[7:0];
+
+reg [1:0] ss_base = 0;
+reg [7:0] ss_info;
+reg ss_save, ss_load, ss_info_req;
+always @(posedge clk_sys) begin
+	reg old_state;
+	reg alt = 0;
+	reg [1:0] old_st;
+
+	old_state <= ps2_key[10];
+
+	if(cart_loaded & !cart_type) begin
+		if(old_state != ps2_key[10]) begin
+			case(code)
+				'h11: alt <= pressed;
+				'h05: begin ss_save <= pressed & alt; ss_load <= pressed & ~alt; ss_base <= 0; end // F1
+				'h06: begin ss_save <= pressed & alt; ss_load <= pressed & ~alt; ss_base <= 1; end // F2
+				'h04: begin ss_save <= pressed & alt; ss_load <= pressed & ~alt; ss_base <= 2; end // F3
+				'h0C: begin ss_save <= pressed & alt; ss_load <= pressed & ~alt; ss_base <= 3; end // F4
+			endcase
+		end
+		
+		old_st <= status[18:17];
+		if(old_st[0] ^ status[17]) ss_save <= status[17];
+		if(old_st[1] ^ status[18]) ss_load <= status[18];
+
+		if(status[18:17]) ss_base <= 0;
+
+		ss_info <= 7'd1 + {ss_base, ss_load};
+		ss_info_req <= (ss_load | ss_save);
 	end
 end
 
@@ -369,8 +421,8 @@ gba
 	.CyclesVsyncSpeed(),              // debug only for speed measurement, keep open
 	.SramFlashEnable(~sram_quirk),
 	.memory_remap(memory_remap_quirk),
-   .save_state(status[17]),
-   .load_state(status[18]),
+   .save_state(ss_save),
+   .load_state(ss_load),
 
 	.sdram_read_ena(sdram_req),       // triggered once for read request 
 	.sdram_read_done(sdram_ack),      // must be triggered once when sdram_read_data is valid after last read
@@ -579,7 +631,7 @@ wire [15:0] ddr_bram_din;
 wire        ddr_sdram_ack, ddr_bus_ack, ddr_bram_ack;
 
 wire [31:0] ss_dout, ss_din;
-wire [24:2] ss_addr;
+wire [19:2] ss_addr;
 wire        ss_rnw, ss_req, ss_ack;
 
 assign DDRAM_CLK = clk_sys;
@@ -608,7 +660,7 @@ ddram ddram
 	.ch3_rnw(~bk_loading),
 	.ch3_ready(ddr_bram_ack),
 	
-	.ch4_addr({ss_addr, 1'b0}),
+	.ch4_addr({ss_base, ss_addr, 1'b0}),
 	.ch4_din(ss_din),
 	.ch4_dout(ss_dout),
 	.ch4_req(ss_req),
