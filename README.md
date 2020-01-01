@@ -44,7 +44,10 @@ PLEASE do not report errors without testing with the original BIOS
 - all videomodes including affine and special effects
 - all soundchannels
 - saving as in GBA
-- turbomode
+- Savestates
+- FastForward - speed up game by factor 2-4
+- CPU Turbomode - give games additional CPU power
+- Flickerblend - turn on for games like F-Zero, Mario Kart or NES Classics to prevent flickering effects
 
 # Not included
 - Multiplayer features like Serial
