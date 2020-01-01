@@ -51,22 +51,22 @@ package pReg_savestates is
    constant REG_SAVESTATE_IRQ_disable     : regmap_type := ( 46,   10,     10,        1,        1,   readwrite);
    constant REG_SAVESTATE_FIQ_disable     : regmap_type := ( 46,   11,     11,        1,        1,   readwrite);
    
-   constant REG_SAVESTATE_IRP             : regmap_type := ( 47,   15,      0,        1,        1,   readwrite);
+   constant REG_SAVESTATE_IRP             : regmap_type := ( 47,   15,      0,        1,        0,   readwrite);
    
    -- memory
-   constant REG_SAVESTATE_EEPROM          : regmap_type := ( 48,   31,      0,        1,        1,   readwrite);
-   constant REG_SAVESTATE_FLASH           : regmap_type := ( 49,   16,      0,        1,        1,   readwrite);
+   constant REG_SAVESTATE_EEPROM          : regmap_type := ( 48,   31,      0,        1,        0,   readwrite);
+   constant REG_SAVESTATE_FLASH           : regmap_type := ( 49,   16,      0,        1,        0,   readwrite);
    
    -- dma
-   constant REG_SAVESTATE_DMASOURCE       : regmap_type := ( 50,   27,      0,        4,        1,   readwrite);
-   constant REG_SAVESTATE_DMATARGET       : regmap_type := ( 54,   27,      0,        4,        1,   readwrite);
-   constant REG_SAVESTATE_DMAMIXED        : regmap_type := ( 58,   30,      0,        4,        1,   readwrite);
+   constant REG_SAVESTATE_DMASOURCE       : regmap_type := ( 50,   27,      0,        4,        0,   readwrite);
+   constant REG_SAVESTATE_DMATARGET       : regmap_type := ( 54,   27,      0,        4,        0,   readwrite);
+   constant REG_SAVESTATE_DMAMIXED        : regmap_type := ( 58,   30,      0,        4,        0,   readwrite);
    
    -- timer
-   constant REG_SAVESTATE_TIMER           : regmap_type := ( 62,   29,      0,        1,        1,   readwrite);
+   constant REG_SAVESTATE_TIMER           : regmap_type := ( 62,   29,      0,        1,        0,   readwrite);
    
    -- GPU
-   constant REG_SAVESTATE_GPU             : regmap_type := ( 66,   24,      0,        1,        1,   readwrite);
+   constant REG_SAVESTATE_GPU             : regmap_type := ( 66,   24,      0,        1,        0,   readwrite);
    
 
    

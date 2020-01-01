@@ -266,6 +266,9 @@ begin
                   DrawState        <= NEXTPIXEL;
                   pixel_we         <= '1';
                   pixeldata        <= '0' & palette_data(14 downto 0);
+                  if (PALETTE_byteaddr = 0) then
+                     pixeldata(15) <= '1';
+                  end if;
                end if;
 
          end case;
