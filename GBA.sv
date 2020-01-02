@@ -243,6 +243,8 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.ps2_key(ps2_key),
 
 	.status(status),
+	.status_in({status[31:17],1'b0,status[15:0]}),
+	.status_set(cart_download),	
 	.status_menumask(status_menumask),
 	.info_req(ss_info_req),
 	.info(ss_info),
