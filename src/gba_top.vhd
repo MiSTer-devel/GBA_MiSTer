@@ -62,6 +62,7 @@ entity gba_top is
       save_eeprom        : out    std_logic;
       save_sram          : out    std_logic;
       save_flash         : out    std_logic;
+      load_done          : out    std_logic;                     -- savestate successfully loaded
       -- Keys - all active high   
       KeyA               : in     std_logic; 
       KeyB               : in     std_logic;
@@ -345,6 +346,8 @@ begin
       clk100              => clk100,
       gb_on               => gbaon,
       reset               => reset,
+      
+      load_done           => load_done,
                         
       save                => save_state,
       load                => load_state,

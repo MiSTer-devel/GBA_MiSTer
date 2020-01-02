@@ -25,6 +25,8 @@ entity gba_savestates is
       gb_on               : in     std_logic;
       reset               : out    std_logic := '0';
       
+      load_done           : out    std_logic := '0';
+      
       save                : in     std_logic;  
       load                : in     std_logic;
 
@@ -200,7 +202,8 @@ begin
          reset                <= '0';
          registerram_we       <= "0000";
          registerram_readen   <= '0';
-   
+         load_done            <= '0';
+         
          gb_on_1 <= gb_on;
          
          registerram_readvalid <= registerram_readen;
@@ -497,6 +500,7 @@ begin
                   reset             <= '1';
                   loading_savestate <= '0';
                   sleep_savestate   <= '0';
+                  load_done         <= '1';
                end if;
             
             when LOADMEMORY_READ =>
