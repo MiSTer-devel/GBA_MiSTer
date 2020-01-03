@@ -356,14 +356,14 @@ always @(posedge clk_sys) begin
 
 		if(status[18:17]) ss_base <= 0;
 
-		ss_info <= 7'd1 + {ss_base, ss_load};
-		ss_info_req <= (ss_load | ss_save);
+		if(ss_load | ss_save) ss_info <= 7'd1 + {ss_base, ss_load};
+		ss_info_req <= (ss_loaded | ss_save);
 	end
 end
 
 ////////////////////////////  SYSTEM  ///////////////////////////////////
 
-wire        save_eeprom, save_sram, save_flash;
+wire save_eeprom, save_sram, save_flash, ss_loaded;
 
 reg fast_forward, pause, cpu_turbo;
 reg ff_latch;
@@ -447,6 +447,7 @@ gba
 	.save_eeprom(save_eeprom),
 	.save_sram(save_sram),
 	.save_flash(save_flash),
+	.load_done(ss_loaded),
 
 	.bios_wraddr(bios_wraddr),
 	.bios_wrdata(bios_wrdata),
