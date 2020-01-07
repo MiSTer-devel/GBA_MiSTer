@@ -63,7 +63,7 @@ package pReg_savestates is
    constant REG_SAVESTATE_DMAMIXED        : regmap_type := ( 58,   30,      0,        4,        0,   readwrite);
    
    -- timer
-   constant REG_SAVESTATE_TIMER           : regmap_type := ( 62,   29,      0,        1,        0,   readwrite);
+   constant REG_SAVESTATE_TIMER           : regmap_type := ( 62,   29,      0,        4,        0,   readwrite);
    
    -- GPU
    constant REG_SAVESTATE_GPU             : regmap_type := ( 66,   24,      0,        1,        0,   readwrite);

@@ -236,44 +236,49 @@ architecture arch of gba_gpu_drawer is
    signal VRAM_Drawer_cnt_Hi   : std_logic := '0';
    
    -- background multiplexing
-   signal drawline_1       : std_logic := '0';
+   signal drawline_1           : std_logic := '0';
    
-   signal drawline_mode0_0 : std_logic;
-   signal drawline_mode0_1 : std_logic;
-   signal drawline_mode0_2 : std_logic;
-   signal drawline_mode0_3 : std_logic;
-   signal drawline_mode2_2 : std_logic;
-   signal drawline_mode2_3 : std_logic;
-   signal drawline_mode345 : std_logic;
-   signal drawline_obj     : std_logic;
+   signal drawline_mode0_0     : std_logic;
+   signal drawline_mode0_1     : std_logic;
+   signal drawline_mode0_2     : std_logic;
+   signal drawline_mode0_3     : std_logic;
+   signal drawline_mode2_2     : std_logic;
+   signal drawline_mode2_3     : std_logic;
+   signal drawline_mode345     : std_logic;
+   signal drawline_obj         : std_logic;
+       
+   signal pixel_we_mode0_0          : std_logic;
+   signal pixel_we_mode0_1          : std_logic;
+   signal pixel_we_mode0_2          : std_logic;
+   signal pixel_we_mode0_3          : std_logic;
+   signal pixel_we_mode2_2          : std_logic;
+   signal pixel_we_mode2_3          : std_logic;
+   signal pixel_we_mode345          : std_logic;
+   signal pixel_we_modeobj_color    : std_logic;
+   signal pixel_we_modeobj_settings : std_logic;
+   signal pixel_we_bg0              : std_logic;
+   signal pixel_we_bg1              : std_logic;
+   signal pixel_we_bg2              : std_logic;
+   signal pixel_we_bg3              : std_logic;
+   signal pixel_we_obj_color        : std_logic;
+   signal pixel_we_obj_settings     : std_logic;
    
-   signal pixel_we_mode0_0 : std_logic;
-   signal pixel_we_mode0_1 : std_logic;
-   signal pixel_we_mode0_2 : std_logic;
-   signal pixel_we_mode0_3 : std_logic;
-   signal pixel_we_mode2_2 : std_logic;
-   signal pixel_we_mode2_3 : std_logic;
-   signal pixel_we_mode345 : std_logic;
-   signal pixel_we_modeobj : std_logic;
-   signal pixel_we_bg0     : std_logic;
-   signal pixel_we_bg1     : std_logic;
-   signal pixel_we_bg2     : std_logic;
-   signal pixel_we_bg3     : std_logic;
-   signal pixel_we_obj     : std_logic;
-   
-   signal pixeldata_mode0_0 : std_logic_vector(15 downto 0);
-   signal pixeldata_mode0_1 : std_logic_vector(15 downto 0);
-   signal pixeldata_mode0_2 : std_logic_vector(15 downto 0);
-   signal pixeldata_mode0_3 : std_logic_vector(15 downto 0);
-   signal pixeldata_mode2_2 : std_logic_vector(15 downto 0);
-   signal pixeldata_mode2_3 : std_logic_vector(15 downto 0);
-   signal pixeldata_mode345 : std_logic_vector(15 downto 0);
-   signal pixeldata_modeobj : std_logic_vector(18 downto 0);
-   signal pixeldata_bg0     : std_logic_vector(15 downto 0);
-   signal pixeldata_bg1     : std_logic_vector(15 downto 0);
-   signal pixeldata_bg2     : std_logic_vector(15 downto 0);
-   signal pixeldata_bg3     : std_logic_vector(15 downto 0);
-   signal pixeldata_obj     : std_logic_vector(18 downto 0);
+   signal pixeldata_mode0_0            : std_logic_vector(15 downto 0);
+   signal pixeldata_mode0_1            : std_logic_vector(15 downto 0);
+   signal pixeldata_mode0_2            : std_logic_vector(15 downto 0);
+   signal pixeldata_mode0_3            : std_logic_vector(15 downto 0);
+   signal pixeldata_mode2_2            : std_logic_vector(15 downto 0);
+   signal pixeldata_mode2_3            : std_logic_vector(15 downto 0);
+   signal pixeldata_mode345            : std_logic_vector(15 downto 0);
+   signal pixeldata_modeobj_color      : std_logic_vector(15 downto 0);
+   signal pixeldata_modeobj_settings   : std_logic_vector( 2 downto 0);
+   signal pixeldata_bg0                : std_logic_vector(15 downto 0);
+   signal pixeldata_bg1                : std_logic_vector(15 downto 0);
+   signal pixeldata_bg2                : std_logic_vector(15 downto 0);
+   signal pixeldata_bg3                : std_logic_vector(15 downto 0);
+   signal pixeldata_obj                : std_logic_vector(18 downto 0);
+   signal pixeldata_obj_color          : std_logic_vector(15 downto 0);
+   signal pixeldata_obj_settings       : std_logic_vector( 2 downto 0);
    
    signal pixel_x_mode0_0 : integer range 0 to 239;
    signal pixel_x_mode0_1 : integer range 0 to 239;
@@ -336,6 +341,8 @@ architecture arch of gba_gpu_drawer is
    signal linebuffer_bg2_data    : std_logic_vector(15 downto 0);
    signal linebuffer_bg3_data    : std_logic_vector(15 downto 0);
    signal linebuffer_obj_data    : std_logic_vector(18 downto 0);
+   signal linebuffer_obj_color   : std_logic_vector(15 downto 0);
+   signal linebuffer_obj_setting : std_logic_vector( 2 downto 0);
                                  
    signal linebuffer_objwindow   : std_logic_vector(0 to 239) := (others => '0');
                                  
@@ -914,8 +921,10 @@ begin
       one_dim_mapping      => REG_DISPCNT_OBJ_Char_VRAM_Map(REG_DISPCNT_OBJ_Char_VRAM_Map'left),
       Mosaic_H_Size        => unsigned(REG_MOSAIC_OBJ_Mosaic_H_Size),
       
-      pixel_we             => pixel_we_modeobj,
-      pixeldata            => pixeldata_modeobj,
+      pixel_we_color       => pixel_we_modeobj_color,
+      pixeldata_color      => pixeldata_modeobj_color,
+      pixel_we_settings    => pixel_we_modeobj_settings,
+      pixeldata_settings   => pixeldata_modeobj_settings,
       pixel_x              => pixel_x_modeobj,
       pixel_objwnd         => pixel_objwnd,
       
@@ -1015,17 +1024,19 @@ begin
                clear_enable     <= '0';
             end if;
             
-            pixel_we_bg0 <= '1';
-            pixel_we_bg1 <= '1';
-            pixel_we_bg2 <= '1';
-            pixel_we_bg3 <= '1';
-            pixel_we_obj <= '1';
+            pixel_we_bg0          <= '1';
+            pixel_we_bg1          <= '1';
+            pixel_we_bg2          <= '1';
+            pixel_we_bg3          <= '1';
+            pixel_we_obj_color    <= '1';
+            pixel_we_obj_settings <= '1';
             
-            pixeldata_bg0 <= x"8000";
-            pixeldata_bg1 <= x"8000";
-            pixeldata_bg2 <= x"8000";
-            pixeldata_bg3 <= x"8000";
-            pixeldata_obj <= "000" & x"8000";
+            pixeldata_bg0          <= x"8000";
+            pixeldata_bg1          <= x"8000";
+            pixeldata_bg2          <= x"8000";
+            pixeldata_bg3          <= x"8000";
+            pixeldata_obj_color    <= x"8000";
+            pixeldata_obj_settings <= "000";
          
             pixel_x_bg0 <= clear_addr;
             pixel_x_bg1 <= clear_addr;
@@ -1035,13 +1046,15 @@ begin
          
          else         
          
-            pixel_we_bg0 <= pixel_we_mode0_0;
-            pixel_we_bg1 <= pixel_we_mode0_1;
-            pixel_we_obj <= pixel_we_modeobj;
+            pixel_we_bg0          <= pixel_we_mode0_0;
+            pixel_we_bg1          <= pixel_we_mode0_1;
+            pixel_we_obj_color    <= pixel_we_modeobj_color;
+            pixel_we_obj_settings <= pixel_we_modeobj_settings;
             
-            pixeldata_bg0 <= pixeldata_mode0_0;
-            pixeldata_bg1 <= pixeldata_mode0_1;
-            pixeldata_obj <= pixeldata_modeobj;
+            pixeldata_bg0          <= pixeldata_mode0_0;
+            pixeldata_bg1          <= pixeldata_mode0_1;
+            pixeldata_obj_color    <= pixeldata_modeobj_color;
+            pixeldata_obj_settings <= pixeldata_modeobj_settings;
             
             pixel_x_bg0 <= pixel_x_mode0_0;
             pixel_x_bg1 <= pixel_x_mode0_1;
@@ -1165,10 +1178,10 @@ begin
       we_b       => '0',
       re_b       => '1'
    );
-   ilinebuffer_obj: entity MEM.SyncRamDual
+   ilinebuffer_obj_color: entity MEM.SyncRamDual
    generic map
    (
-      DATA_WIDTH => 19,
+      DATA_WIDTH => 16,
       ADDR_WIDTH => 8
    )
    port map
@@ -1176,17 +1189,41 @@ begin
       clk        => clk100,
       
       addr_a     => pixel_x_obj,
-      datain_a   => pixeldata_obj,
+      datain_a   => pixeldata_obj_color,
       dataout_a  => open,
-      we_a       => pixel_we_obj,
+      we_a       => pixel_we_obj_color,
       re_a       => '0',
                
       addr_b     => linebuffer_addr,
-      datain_b   => (18 downto 0 => '0'),
-      dataout_b  => linebuffer_obj_data,
+      datain_b   => (15 downto 0 => '0'),
+      dataout_b  => linebuffer_obj_color,
       we_b       => '0',
       re_b       => '1'
    );
+   ilinebuffer_obj_settings: entity MEM.SyncRamDual
+   generic map
+   (
+      DATA_WIDTH => 3,
+      ADDR_WIDTH => 8
+   )
+   port map
+   (
+      clk        => clk100,
+      
+      addr_a     => pixel_x_obj,
+      datain_a   => pixeldata_obj_settings,
+      dataout_a  => open,
+      we_a       => pixel_we_obj_settings,
+      re_a       => '0',
+               
+      addr_b     => linebuffer_addr,
+      datain_b   => (2 downto 0 => '0'),
+      dataout_b  => linebuffer_obj_setting,
+      we_b       => '0',
+      re_b       => '1'
+   );
+   
+   linebuffer_obj_data <= linebuffer_obj_setting & linebuffer_obj_color;
    
    -- line buffer readout
    process (clk100)

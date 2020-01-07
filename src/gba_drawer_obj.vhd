@@ -18,8 +18,10 @@ entity gba_drawer_obj is
       one_dim_mapping      : in  std_logic;
       Mosaic_H_Size        : in  unsigned(3 downto 0);
       
-      pixel_we             : out std_logic := '0';
-      pixeldata            : out std_logic_vector(18 downto 0) := (others => '0');
+      pixel_we_color       : out std_logic := '0';
+      pixeldata_color      : out std_logic_vector(15 downto 0) := (others => '0');
+      pixel_we_settings    : out std_logic := '0';
+      pixeldata_settings   : out std_logic_vector(2 downto 0) := (others => '0');
       pixel_x              : out integer range 0 to 239;
       pixel_objwnd         : out std_logic := '0';
       
@@ -702,18 +704,20 @@ begin
          end if;   
          
          -- fourth cycle
-         pixel_we     <= '0';
-         pixel_objwnd <= '0';
-         pixel_x      <= target_merge;
+         pixel_we_color    <= '0';
+         pixel_we_settings <= '0';
+         pixel_objwnd      <= '0';
+         pixel_x           <= target_merge;
          
          if (enable_merge = '1' and mosaik_merge = '0') then
             if (PALETTE_byteaddr(1) = '1') then
-               pixeldata <= Pixel_merge.prio & Pixel_merge.alpha & '0' & PALETTE_Drawer_data(30 downto 16);
+               pixeldata_color <= '0' & PALETTE_Drawer_data(30 downto 16);
             else
-               pixeldata <= Pixel_merge.prio & Pixel_merge.alpha & '0' & PALETTE_Drawer_data(14 downto 0);
+               pixeldata_color <= '0' & PALETTE_Drawer_data(14 downto 0);
             end if;
+            pixeldata_settings <= Pixel_merge.prio & Pixel_merge.alpha;
          end if;
-         
+
          if (enable_merge = '1' and output_ok = '1') then
 
             if (Pixel_merge.transparent = '0' and Pixel_merge.objwnd = '1') then
@@ -722,14 +726,18 @@ begin
             
             if (Pixel_merge.transparent = '0' and Pixel_merge.objwnd = '0') then
                if (Pixel_readback.transparent = '1' or unsigned(Pixel_merge.prio) < unsigned(Pixel_readback.prio)) then
-               
-                  pixel_we  <= '1';
-
-                  pixelarray(target_merge).prio        <= Pixel_merge.prio;
+                  pixel_we_color                       <= '1';
                   pixelarray(target_merge).transparent <= '0';
-
                end if;
             end if; 
+            
+            if (Pixel_merge.objwnd = '0') then
+               if (Pixel_readback.transparent = '1' or unsigned(Pixel_merge.prio) < unsigned(Pixel_readback.prio)) then
+                  pixel_we_settings             <= '1';
+                  pixelarray(target_merge).prio <= Pixel_merge.prio;
+               end if;
+            end if; 
+            
          end if;
       
       end if;
