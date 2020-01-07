@@ -155,6 +155,8 @@ architecture arch of gba_top is
    
    signal bus_lowbits          : std_logic_vector(1 downto 0); -- only required for sram access
                                
+   signal bitmapdrawmode       : std_logic;
+                               
    signal VRAM_Lo_addr         : integer range 0 to 16383;
    signal VRAM_Lo_datain       : std_logic_vector(31 downto 0);
    signal VRAM_Lo_dataout      : std_logic_vector(31 downto 0);
@@ -454,6 +456,8 @@ begin
       SramFlashEnable      => SramFlashEnable,
       memory_remap         => memory_remap,
       
+      bitmapdrawmode       => bitmapdrawmode,
+      
       VRAM_Lo_addr         => VRAM_Lo_addr,   
       VRAM_Lo_datain       => VRAM_Lo_datain, 
       VRAM_Lo_dataout      => VRAM_Lo_dataout,
@@ -562,6 +566,8 @@ begin
       gb_bus               => gb_bus,
 
       interframe_blend     => interframe_blend,
+      
+      bitmapdrawmode       => bitmapdrawmode,
 
       pixel_out_x          => pixel_out_x,
       pixel_out_y          => pixel_out_y,

@@ -68,6 +68,8 @@ entity gba_memorymux is
       MaxPakAddr           : in     std_logic_vector(24 downto 0);
       SramFlashEnable      : in     std_logic;
       memory_remap         : in     std_logic;
+      
+      bitmapdrawmode       : in     std_logic;
                                     
       VRAM_Lo_addr         : out    integer range 0 to 16383;
       VRAM_Lo_datain       : out    std_logic_vector(31 downto 0);
@@ -898,8 +900,6 @@ begin
             -- Writes to OBJ(6010000h - 6017FFFh)(or 6014000h - 6017FFFh in Bitmap mode) and to OAM(7000000h - 70003FFh) are ignored, the memory content remains unchanged.
             -- Writes to BG(6000000h - 600FFFFh)(or 6000000h - 6013FFFh in Bitmap mode) and to Palette(5000000h - 50003FFh) are writing the new 8bit value to BOTH upper and lower 8bits of the addressed halfword, ie. "[addr AND NOT 1]=data*101h".
             
-            -- not fully compliant implemented at differentiation between vram bg and vram obj, see comment
-            
             when WRITE_PALETTE =>
                PALETTE_BG_addr     <= to_integer(unsigned(adr_save(8 downto 2)));
                PALETTE_OAM_addr    <= to_integer(unsigned(adr_save(8 downto 2)));
@@ -954,15 +954,15 @@ begin
                state <= IDLE;
                VRAM_be := (others => '0');
                if (acc_save = ACCESS_8BIT) then
-                  -- if ((GPU.videomode <= 2 && adr <= 0xFFFF) || GPU.videomode >= 3 && adr <= 0x013FFF)
-                  -- {
-                  case(adr_save(1 downto 0)) is
-                     when "00" => VRAM_be(0) := '1'; VRAM_be(1) := '1';
-                     when "01" => VRAM_be(1) := '1'; VRAM_be(0) := '1';
-                     when "10" => VRAM_be(2) := '1'; VRAM_be(3) := '1';
-                     when "11" => VRAM_be(3) := '1'; VRAM_be(2) := '1';
-                     when others => null;
-                  end case;
+                  if ((bitmapdrawmode = '0' and unsigned(adr_save(16 downto 0)) <= 16#FFFF#) or (bitmapdrawmode = '1' and unsigned(adr_save(16 downto 0)) <= 16#13FFF#)) then
+                     case(adr_save(1 downto 0)) is
+                        when "00" => VRAM_be(0) := '1'; VRAM_be(1) := '1';
+                        when "01" => VRAM_be(1) := '1'; VRAM_be(0) := '1';
+                        when "10" => VRAM_be(2) := '1'; VRAM_be(3) := '1';
+                        when "11" => VRAM_be(3) := '1'; VRAM_be(2) := '1';
+                        when others => null;
+                     end case;
+                  end if;
                elsif (acc_save = ACCESS_16BIT) then
                   if (adr_save(1) = '1') then
                      VRAM_be(2) := '1';

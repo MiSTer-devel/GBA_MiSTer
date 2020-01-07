@@ -19,6 +19,8 @@ entity gba_gpu_drawer is
       gb_bus               : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');                  
         
       interframe_blend     : in    std_logic;
+      
+      bitmapdrawmode       : out   std_logic;
         
       pixel_out_x          : out   integer range 0 to 239;
       pixel_out_y          : out   integer range 0 to 159;
@@ -980,6 +982,11 @@ begin
    process (clk100)
    begin
       if rising_edge(clk100) then
+
+         bitmapdrawmode <= '0';
+         if (unsigned(BG_Mode) >= 3) then
+            bitmapdrawmode <= '1';
+         end if;
 
          if (PALETTE_BG_addr = 0 and PALETTE_BG_we(1) = '1') then
             pixeldata_back <= PALETTE_BG_datain(15 downto 0);

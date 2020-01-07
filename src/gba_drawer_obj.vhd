@@ -724,17 +724,14 @@ begin
                pixel_objwnd <= '1';
             end if;
             
-            if (Pixel_merge.transparent = '0' and Pixel_merge.objwnd = '0') then
-               if (Pixel_readback.transparent = '1' or unsigned(Pixel_merge.prio) < unsigned(Pixel_readback.prio)) then
-                  pixel_we_color                       <= '1';
-                  pixelarray(target_merge).transparent <= '0';
-               end if;
-            end if; 
-            
             if (Pixel_merge.objwnd = '0') then
                if (Pixel_readback.transparent = '1' or unsigned(Pixel_merge.prio) < unsigned(Pixel_readback.prio)) then
                   pixel_we_settings             <= '1';
                   pixelarray(target_merge).prio <= Pixel_merge.prio;
+                  if (Pixel_merge.transparent = '0') then
+                     pixel_we_color                       <= '1';
+                     pixelarray(target_merge).transparent <= '0';
+                  end if;
                end if;
             end if; 
             
