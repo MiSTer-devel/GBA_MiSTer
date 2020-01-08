@@ -2924,6 +2924,11 @@ begin
                      cpu_mode           <= CPUMODE_SUPERVISOR;
                      thumbmode          <= '0';
                      IRQ_disable        <= '1';
+                     FIQ_disable        <= regs(17)(6);
+                     Flag_Negative      <= regs(17)(31);
+                     Flag_Zero          <= regs(17)(30);
+                     Flag_Carry         <= regs(17)(29);
+                     Flag_V_Overflow    <= regs(17)(28);
                      new_pc             <= to_unsigned(8, new_pc'length);
                      branchnext         <= '1';
                   end if;

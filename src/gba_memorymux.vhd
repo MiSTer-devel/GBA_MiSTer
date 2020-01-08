@@ -415,7 +415,7 @@ begin
                         
                            when x"0" => 
                               if (PC_in_BIOS = '0') then
-                                 if (unsigned(mem_bus_Adr) < 16#400#) then
+                                 if (unsigned(mem_bus_Adr) < 16#4000#) then
                                     --rotate_data <= x"E3A02004"; -- only applies for one situation!
                                     --rotate_data <= x"E55EC002"; -- only applies for one situation!
                                     rotate_data <= bios_data_last;
@@ -658,10 +658,10 @@ begin
                if (gb_bus_out.done /= '0') then
                   if (read_operation = '1') then
                      if (is_simu = '0') then
-                        rotate_data <= gb_bus_out.Dout;
+                        rotate_data <= not gb_bus_out.Dout;
                      else
                         for i in 0 to 31 loop
-                           if (gb_bus_out.Dout(i) = '1') then rotate_data(i) <= '1'; else rotate_data(i) <= '0'; end if;
+                           if (gb_bus_out.Dout(i) = '0') then rotate_data(i) <= '1'; else rotate_data(i) <= '0'; end if;
                         end loop;
                      end if;
                      state <= rotate;

@@ -17,13 +17,10 @@ PLEASE do not report errors without testing with the original BIOS
 # Games with crashes/hang
 - Colin McRae Rally 2.0 hangs when going into race
 
-- Fear Factor Unleashed: hang after ~4 seconds
-
 - Madden06/07: crash at coin toss
 
 - Sennen Kazoku: hang on first screen
 - Starsky & Hutch: crash going ingame
-- SuperMarioAdvance: MarioBros Minigame hangs. Same game is included  and working in Super Mario Advance 2
 
 - TOCA World Touring Cars: hangs going into race
 
