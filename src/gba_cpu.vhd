@@ -2276,6 +2276,9 @@ begin
                         execute_saveregs       <= '1';
                         execute_saveState      <= '0';
                         execute_switchregs     <= '1';
+                        if ((cpu_mode = CPUMODE_USER and std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM) or (cpu_mode = CPUMODE_SYSTEM and std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER)) then
+                           execute_switchregs  <= '0';
+                        end if;
                         cpu_mode_old           <= cpu_mode;
                         cpu_mode               <= std_logic_vector(regs(17)(3 downto 0));
                         thumbmode              <= regs(17)(5);
@@ -2468,6 +2471,9 @@ begin
                         if (execute_Rn_op1(3) = '1') then new_value(31 downto 24) := msr_value(31 downto 24); end if;
                         if (cpu_mode /= std_logic_vector(new_value(3 downto 0))) then
                            execute_switchregs <= '1';
+                        end if;
+                        if ((cpu_mode = CPUMODE_USER and std_logic_vector(new_value(3 downto 0)) = CPUMODE_SYSTEM) or (cpu_mode = CPUMODE_SYSTEM and std_logic_vector(new_value(3 downto 0)) = CPUMODE_USER)) then
+                           execute_switchregs  <= '0';
                         end if;
                         execute_saveregs   <= '1';
                         cpu_mode_old       <= cpu_mode;
@@ -2864,6 +2870,9 @@ begin
                         calc_done          <= '1';
                         execute_saveState  <= '1';
                         execute_switchregs <= '1';
+                        if ((cpu_mode = CPUMODE_USER and std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM) or (cpu_mode = CPUMODE_SYSTEM and std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER)) then
+                           execute_switchregs  <= '0';
+                        end if;
                         execute_saveregs   <= '1';
                         cpu_mode_old       <= cpu_mode;
                         cpu_mode           <= std_logic_vector(regs(17)(3 downto 0));

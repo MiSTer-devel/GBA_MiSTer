@@ -15,8 +15,6 @@ Original GBA BIOS can be placed to GBA folder with name boot.rom
 PLEASE do not report errors without testing with the original BIOS
 
 # Games with crashes/hang
-- Banjo-Kazooie hangs after start. Workaround: instantly save ingame, reset the game and reload the save
-
 - Colin McRae Rally 2.0 hangs when going into race
 
 - Digimon Racing: hang on 3rd screen(Griptonite)
