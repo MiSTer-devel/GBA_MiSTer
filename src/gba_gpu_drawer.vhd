@@ -19,6 +19,7 @@ entity gba_gpu_drawer is
       gb_bus               : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');                  
         
       interframe_blend     : in    std_logic;
+      maxpixels            : in    std_logic;
       
       bitmapdrawmode       : out   std_logic;
         
@@ -922,6 +923,9 @@ begin
       BG_Mode              => BG_Mode,
       one_dim_mapping      => REG_DISPCNT_OBJ_Char_VRAM_Map(REG_DISPCNT_OBJ_Char_VRAM_Map'left),
       Mosaic_H_Size        => unsigned(REG_MOSAIC_OBJ_Mosaic_H_Size),
+      
+      hblankfree           => REG_DISPCNT_H_Blank_IntervalFree(REG_DISPCNT_H_Blank_IntervalFree'left),
+      maxpixels            => maxpixels,
       
       pixel_we_color       => pixel_we_modeobj_color,
       pixeldata_color      => pixeldata_modeobj_color,

@@ -18,6 +18,9 @@ entity gba_drawer_obj is
       one_dim_mapping      : in  std_logic;
       Mosaic_H_Size        : in  unsigned(3 downto 0);
       
+      hblankfree           : in  std_logic;
+      maxpixels            : in  std_logic;
+      
       pixel_we_color       : out std_logic := '0';
       pixeldata_color      : out std_logic_vector(15 downto 0) := (others => '0');
       pixel_we_settings    : out std_logic := '0';
@@ -213,6 +216,10 @@ architecture arch of gba_drawer_obj is
    signal mosaik_cnt        : integer range 0 to 15 := 0;
    signal mosaik_merge      : std_logic;
    
+   signal pixeltime         : integer range 0 to 32767; -- high number to support free drawing
+   signal maxpixeltime      : integer range 0 to 1210;
+   signal pixeltime_add     : integer range 0 to 1023;
+   
 begin 
 
    VRAM_Drawer_addr <= to_integer(pixeladdr_x(14 downto 2));
@@ -223,6 +230,12 @@ begin
       variable tileindex_var : integer range 0 to 1023;
    begin
       if rising_edge(clk100) then
+      
+         if (hblankfree = '1') then
+            maxpixeltime <= 954;
+         else
+            maxpixeltime <= 1210;
+         end if;
 
          if (hblank = '1') then -- immidiatly stop drawing when hblank is reached
          
@@ -309,7 +322,7 @@ begin
                
                when DONE =>
                   if (PIXELGen = WAITOAM) then
-                     if (OAM_currentobj = 127) then
+                     if (OAM_currentobj = 127 or (maxpixels = '1' and pixeltime >= maxpixeltime)) then
                         OAMFetch <= IDLE;
                      else
                         OAMFetch           <= WAITFIRST;
@@ -337,6 +350,10 @@ begin
       if rising_edge(clk100) then
 
          issue_pixel <= '0';
+         
+         if (drawline = '1') then
+            pixeltime <= 0;
+         end if;
 
          case (PIXELGen) is
          
@@ -351,6 +368,7 @@ begin
                   dy              <= to_integer(signed(OAM_data_aff2));
                   dmy             <= to_integer(signed(OAM_data_aff3));
                   
+                  pixeltime       <= pixeltime + 1;
 
                   posx <= to_integer(unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO)));
                   
@@ -441,6 +459,12 @@ begin
                   x        <= 0;
                end if;
                
+               if (Pixel_data0(OAM_AFFINE) = '1') then
+                  pixeltime_add <= 2 * fieldX;
+               else
+                  pixeltime_add <= fieldX;
+               end if;
+               
                if (posx > 16#100#) then posx <= posx - 16#200#; end if;
                
                --mosaik_h_cnt <= 0;
@@ -493,10 +517,12 @@ begin
             when NEXTADDR =>
                if (x >= fieldX) then
                   PIXELGen <= WAITOAM;
+                  pixeltime <= pixeltime + pixeltime_add;
                else
                   x <= x + 1;
                   if (x + posX > 239) then -- end of line already reached
-                     PIXELGen <= WAITOAM;
+                     PIXELGen  <= WAITOAM;
+                     pixeltime <= pixeltime + pixeltime_add;
                   else
                      PIXELGen <= PIXELISSUE;
                   end if;

@@ -187,6 +187,7 @@ parameter CONF_STR = {
 	"O5,Pause,Off,On;",
    "OJ,Flickerblend,Off,On;",
 	"H2OG,Turbo,Off,On;",
+   "OK,Spritelimit,Off,On;",
 	"R0,Reset;",
 	"J1,A,B,L,R,Select,Start,FastForward;",
 	"jn,A,B,L,R,Select,Start,X;",
@@ -423,6 +424,7 @@ gba
    .save_state(ss_save),
    .load_state(ss_load),
    .interframe_blend(status[19]),
+   .maxpixels(status[20]),
 
 	.sdram_read_ena(sdram_req),       // triggered once for read request 
 	.sdram_read_done(sdram_ack),      // must be triggered once when sdram_read_data is valid after last read

@@ -33,6 +33,7 @@ entity gba_top is
       save_state         : in     std_logic;
       load_state         : in     std_logic;
       interframe_blend   : in     std_logic;
+      maxpixels          : in     std_logic; -- limit pixels per line
       -- sdram interface
       sdram_read_ena     : out    std_logic;                     -- triggered once for read request 
       sdram_read_done    : in     std_logic := '0';              -- must be triggered once when sdram_read_data is valid after last read
@@ -577,6 +578,7 @@ begin
       gb_bus               => gb_bus,
 
       interframe_blend     => interframe_blend,
+      maxpixels            => maxpixels,
       
       bitmapdrawmode       => bitmapdrawmode,
 

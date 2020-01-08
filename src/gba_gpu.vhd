@@ -23,6 +23,7 @@ entity gba_gpu is
       gb_bus               : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
                   
       interframe_blend     : in    std_logic;
+      maxpixels            : in  std_logic;
       
       bitmapdrawmode       : out   std_logic;
                   
@@ -124,6 +125,7 @@ begin
       gb_bus                 => gb_bus,
       
       interframe_blend       => interframe_blend,
+      maxpixels              => maxpixels,
       
       bitmapdrawmode         => bitmapdrawmode,
       
