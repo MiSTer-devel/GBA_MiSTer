@@ -321,8 +321,10 @@ begin
                   end if;
                
                when DONE =>
-                  if (PIXELGen = WAITOAM) then
-                     if (OAM_currentobj = 127 or (maxpixels = '1' and pixeltime >= maxpixeltime)) then
+                  if (maxpixels = '1' and pixeltime >= maxpixeltime) then
+                     OAMFetch <= IDLE;
+                  elsif (PIXELGen = WAITOAM) then
+                     if (OAM_currentobj = 127) then
                         OAMFetch <= IDLE;
                      else
                         OAMFetch           <= WAITFIRST;
@@ -367,8 +369,6 @@ begin
                   dmx             <= to_integer(signed(OAM_data_aff1));
                   dy              <= to_integer(signed(OAM_data_aff2));
                   dmy             <= to_integer(signed(OAM_data_aff3));
-                  
-                  pixeltime       <= pixeltime + 1;
 
                   posx <= to_integer(unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO)));
                   
@@ -460,7 +460,7 @@ begin
                end if;
                
                if (Pixel_data0(OAM_AFFINE) = '1') then
-                  pixeltime_add <= 2 * fieldX;
+                  pixeltime_add <= 10 + 2 * fieldX;
                else
                   pixeltime_add <= fieldX;
                end if;
@@ -495,6 +495,8 @@ begin
             when BASEADDR =>
                PIXELGen <= NEXTADDR;
                
+               pixeltime <= pixeltime + pixeltime_add;
+               
                -- affine
                realX <= pixeladdr_pre_a0 - pixeladdr_pre_a1 - pixeladdr_pre_a2 + pixeladdr_pre_a3;
                realY <= pixeladdr_pre_a4 - pixeladdr_pre_a5 - pixeladdr_pre_a6 + pixeladdr_pre_a7;
@@ -517,12 +519,10 @@ begin
             when NEXTADDR =>
                if (x >= fieldX) then
                   PIXELGen <= WAITOAM;
-                  pixeltime <= pixeltime + pixeltime_add;
                else
                   x <= x + 1;
                   if (x + posX > 239) then -- end of line already reached
                      PIXELGen  <= WAITOAM;
-                     pixeltime <= pixeltime + pixeltime_add;
                   else
                      PIXELGen <= PIXELISSUE;
                   end if;
