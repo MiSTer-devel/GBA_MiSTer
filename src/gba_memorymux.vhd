@@ -468,28 +468,27 @@ begin
                               --state             <= WAIT_PROCBUS;
                               if (unsigned(mem_bus_Adr(24 downto 2)) >= unsigned(MaxPakAddr)) then
                                  state       <= READAFTERPAK;
-                              elsif (sdram_addr_buf = mem_bus_Adr(24 downto 3) and mem_bus_Adr(0) = '0' and (mem_bus_acc = ACCESS_16BIT or mem_bus_acc = ACCESS_32BIT)) then
+                              elsif (sdram_addr_buf = mem_bus_Adr(24 downto 3) and mem_bus_Adr(0) = '0' and mem_bus_acc = ACCESS_16BIT) then
                                  mem_bus_done <= '1'; 
-                                 if (mem_bus_acc = ACCESS_16BIT) then
-                                    if (mem_bus_Adr(2) = '0') then
-                                       if (mem_bus_Adr(1) = '0') then
-                                          mem_bus_din <= x"0000" & sdram_data_buf(15 downto 0);
-                                       else
-                                          mem_bus_din <= x"0000" & sdram_data_buf(31 downto 16);
-                                       end if;
+                                 if (mem_bus_Adr(2) = '0') then
+                                    if (mem_bus_Adr(1) = '0') then
+                                       mem_bus_din <= x"0000" & sdram_data_buf(15 downto 0);
                                     else
-                                       if (mem_bus_Adr(1) = '0') then
-                                          mem_bus_din <= x"0000" & sdram_data_buf(47 downto 32);
-                                       else
-                                          mem_bus_din <= x"0000" & sdram_data_buf(63 downto 48);
-                                       end if;
+                                       mem_bus_din <= x"0000" & sdram_data_buf(31 downto 16);
                                     end if;
                                  else
-                                    if (mem_bus_Adr(2) = '0') then
-                                       mem_bus_din <= sdram_data_buf(31 downto 0);
+                                    if (mem_bus_Adr(1) = '0') then
+                                       mem_bus_din <= x"0000" & sdram_data_buf(47 downto 32);
                                     else
-                                       mem_bus_din <= sdram_data_buf(63 downto 32);
+                                       mem_bus_din <= x"0000" & sdram_data_buf(63 downto 48);
                                     end if;
+                                 end if;
+                              elsif (sdram_addr_buf = mem_bus_Adr(24 downto 3) and mem_bus_Adr(1 downto 0) = "00" and mem_bus_acc = ACCESS_32BIT) then
+                                 mem_bus_done <= '1';
+                                 if (mem_bus_Adr(2) = '0') then
+                                    mem_bus_din <= sdram_data_buf(31 downto 0);
+                                 else
+                                    mem_bus_din <= sdram_data_buf(63 downto 32);
                                  end if;
                               else
                                  cache_read_enable <= '1';
