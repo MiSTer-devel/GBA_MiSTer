@@ -17,8 +17,6 @@ PLEASE do not report errors without testing with the original BIOS
 # Games with crashes/hang
 - Colin McRae Rally 2.0 hangs when going into race
 
-- Digimon Racing: hang on 3rd screen(Griptonite)
-
 - Fear Factor Unleashed: hang after ~4 seconds
 
 - Madden06/07: crash at coin toss
