@@ -155,7 +155,9 @@ architecture arch of gba_top is
    signal mem_bus_done         : std_logic;
    
    signal bus_lowbits          : std_logic_vector(1 downto 0); -- only required for sram access
-                               
+                                          
+   signal registersettle       : std_logic;
+   
    signal bitmapdrawmode       : std_logic;
                                
    signal VRAM_Lo_addr         : integer range 0 to 16383;
@@ -452,6 +454,8 @@ begin
       
       bus_lowbits          => bus_lowbits,
       
+      registersettle       => registersettle,
+      
       save_eeprom          => save_eeprom,
       save_sram            => save_sram,  
       save_flash           => save_flash, 
@@ -508,6 +512,9 @@ begin
       loading_savestate   => loading_savestate,
       
       gb_bus              => gb_bus,
+      
+      new_cycles          => new_cycles,      
+      new_cycles_valid    => new_cycles_valid,
       
       IRP_DMA             => IRP_DMA,
       
@@ -680,6 +687,7 @@ begin
       wait_cnt_value   => unsigned(REG_WAITCNT),
       wait_cnt_update  => WAITCNT_written,
       
+      registersettle   => registersettle,
       dma_on           => dma_on,
       do_step          => gba_step,
       done             => cpu_done,

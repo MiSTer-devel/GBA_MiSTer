@@ -52,7 +52,9 @@ entity gba_memorymux is
       bios_wr              : in     std_logic := '0';
       
       bus_lowbits          : in     std_logic_vector(1 downto 0);
-                                    
+      
+      registersettle       : out    std_logic := '0';
+      
       save_eeprom          : out    std_logic := '0';
       save_sram            : out    std_logic := '0';
       save_flash           : out    std_logic := '0';
@@ -163,6 +165,8 @@ architecture arch of gba_memorymux is
    signal read_operation     : std_logic := '0';
                              
    signal rotate_writedata   : std_logic_vector(31 downto 0) := (others => '0');
+   
+   signal registersettle_cnt : integer range 0 to 7 := 0;
    
    -- minicache
    signal sdram_addr_buf     : std_logic_vector(21 downto 0) := (others => '1');
@@ -347,6 +351,13 @@ begin
             
             sdram_addr_buf  <= (others => '1');
             state           <= IDLE;
+         end if;
+         
+         -- register settle
+         registersettle <= '0';
+         if (registersettle_cnt > 0) then
+            registersettle     <= '1';
+            registersettle_cnt <= registersettle_cnt - 1;
          end if;
       
          -- mini cache
@@ -545,7 +556,12 @@ begin
                                
                            -- done is ok, if the next state goes back to idle without conditions
                            when x"3" => state <= WRITE_WRAMSMALL; mem_bus_done <= '1'; 
-                           when x"4" => state <= WRITE_REG;
+                           
+                           when x"4" => 
+                              state <= WRITE_REG;
+                              registersettle_cnt <= 7;
+                              registersettle     <= '1';
+                           
                            when x"5" => state <= WRITE_PALETTE;   mem_bus_done <= '1';
                            when x"6" => state <= WRITE_VRAM;      mem_bus_done <= '1';
                            when x"7" => state <= WRITE_OAM;       mem_bus_done <= '1';

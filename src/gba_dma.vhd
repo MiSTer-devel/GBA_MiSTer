@@ -16,6 +16,9 @@ entity gba_dma is
       
       gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
       
+      new_cycles          : in    unsigned(7 downto 0);
+      new_cycles_valid    : in    std_logic;
+      
       IRP_DMA             : out   std_logic_vector(3 downto 0);
       
       dma_on              : out   std_logic;
@@ -115,6 +118,9 @@ begin
       loading_savestate => loading_savestate,
       
       gb_bus            => gb_bus,
+      
+      new_cycles        => new_cycles,      
+      new_cycles_valid  => new_cycles_valid,
                         
       IRP_DMA           => IRP_DMA(0),
                         
@@ -173,6 +179,9 @@ begin
       loading_savestate => loading_savestate,
       
       gb_bus            => gb_bus,
+      
+      new_cycles        => new_cycles,      
+      new_cycles_valid  => new_cycles_valid,
                         
       IRP_DMA           => IRP_DMA(1),
                         
@@ -231,6 +240,9 @@ begin
       loading_savestate => loading_savestate,
       
       gb_bus            => gb_bus,
+      
+      new_cycles        => new_cycles,      
+      new_cycles_valid  => new_cycles_valid,
                         
       IRP_DMA           => IRP_DMA(2),
                         
@@ -289,6 +301,9 @@ begin
       loading_savestate => loading_savestate,      
       
       gb_bus            => gb_bus,
+      
+      new_cycles        => new_cycles,      
+      new_cycles_valid  => new_cycles_valid,
          
       IRP_DMA           => IRP_DMA(3),
                         
