@@ -2609,7 +2609,7 @@ begin
                               busPrefetchAdd     <= '1';
                               busPrefetchClear   <= busaddress(27);
                               execute_addcycles  <= 3 + dataTicksAccess32 + dataTicksAccess32;
-                              prefetch_addcycles <= 4 + dataTicksAccess32 + dataTicksAccess32;
+                              prefetch_addcycles <= 3 + dataTicksAccess32 + dataTicksAccess32 + (codeticksAccess16 - codeticksAccessSeq16 - 1);
                            elsif (execute_datatransfer_swap = '0') then
                               busPrefetchAdd    <= '1';
                               busPrefetchClear  <= busaddress(27);
@@ -2617,20 +2617,20 @@ begin
                                  case (execute_datatransfer_type) is
                                     when ACCESS_8BIT | ACCESS_16BIT => 
                                        execute_addcycles  <= 3 + dataTicksAccess16;
-                                       prefetch_addcycles <= 4 + dataTicksAccess16;
+                                       prefetch_addcycles <= 3 + dataTicksAccess16 + (codeticksAccess16 - codeticksAccessSeq16 - 1);
                                     when ACCESS_32BIT               => 
                                        execute_addcycles  <= 3 + dataTicksAccess32;
-                                       prefetch_addcycles <= 4 + dataTicksAccess32;
+                                       prefetch_addcycles <= 3 + dataTicksAccess32 + (codeticksAccess16 - codeticksAccessSeq16 - 1);
                                     when others => null;
                                  end case;
                               else
                                  case (execute_datatransfer_type) is
                                     when ACCESS_8BIT | ACCESS_16BIT => 
                                        execute_addcycles  <= 2 + dataTicksAccess16;
-                                       prefetch_addcycles <= 3 + dataTicksAccess16;
+                                       prefetch_addcycles <= 2 + dataTicksAccess16 + (codeticksAccess16 - codeticksAccessSeq16 - 1);
                                     when ACCESS_32BIT => 
                                        execute_addcycles  <= 2 + dataTicksAccess32;
-                                       prefetch_addcycles <= 3 + dataTicksAccess32;
+                                       prefetch_addcycles <= 2 + dataTicksAccess32 + (codeticksAccess16 - codeticksAccessSeq16 - 1);
                                     when others => null;
                                  end case;
                               end if;
@@ -2789,10 +2789,10 @@ begin
                            busPrefetchClear <= busaddress(27);
                            if (first_mem_access = '1') then
                               execute_addcycles  <= 1 + dataTicksAccess32;
-                              prefetch_addcycles <= 2 + dataTicksAccess32;
+                              prefetch_addcycles <= 2 + dataTicksAccess32 + (codeticksAccess16 - codeticksAccessSeq16 - 1);
                            else
                               execute_addcycles  <= 1 + dataTicksAccessSeq32;
-                              prefetch_addcycles <= 2 + dataTicksAccessSeq32;
+                              prefetch_addcycles <= 1 + dataTicksAccessSeq32 + (codeticksAccess16 - codeticksAccessSeq16 - 1);
                            end if;
                         end if;
                         
@@ -2821,10 +2821,10 @@ begin
                            busPrefetchClear <= busaddress(27);
                            if (first_mem_access = '1') then
                               execute_addcycles  <= 2 + dataTicksAccess32;
-                              prefetch_addcycles <= 3 + dataTicksAccess32;
+                              prefetch_addcycles <= 3 + dataTicksAccess32 + (codeticksAccess16 - codeticksAccessSeq16 - 1);
                            else
                               execute_addcycles  <= 1 + dataTicksAccessSeq32;
-                              prefetch_addcycles <= 2 + dataTicksAccessSeq32;
+                              prefetch_addcycles <= 1 + dataTicksAccessSeq32 + (codeticksAccess16 - codeticksAccessSeq16 - 1);
                            end if;
                         end if;
                       

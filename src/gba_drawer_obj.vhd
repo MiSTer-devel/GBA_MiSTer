@@ -217,8 +217,8 @@ architecture arch of gba_drawer_obj is
    signal mosaik_merge      : std_logic;
    
    signal pixeltime         : integer range 0 to 32767; -- high number to support free drawing
+   signal pixeltime_current : integer range 0 to 32767;
    signal maxpixeltime      : integer range 0 to 1210;
-   signal pixeltime_add     : integer range 0 to 1023;
    
 begin 
 
@@ -459,12 +459,6 @@ begin
                   x        <= 0;
                end if;
                
-               if (Pixel_data0(OAM_AFFINE) = '1') then
-                  pixeltime_add <= 10 + 2 * fieldX;
-               else
-                  pixeltime_add <= fieldX;
-               end if;
-               
                if (posx > 16#100#) then posx <= posx - 16#200#; end if;
                
                --mosaik_h_cnt <= 0;
@@ -495,7 +489,13 @@ begin
             when BASEADDR =>
                PIXELGen <= NEXTADDR;
                
-               pixeltime <= pixeltime + pixeltime_add;
+               if (Pixel_data0(OAM_AFFINE) = '1') then
+                  pixeltime         <= pixeltime + 10 + fieldX * 2;
+                  pixeltime_current <= pixeltime + 10;
+               else
+                  pixeltime         <= pixeltime + fieldX;
+                  pixeltime_current <= pixeltime;
+               end if;
                
                -- affine
                realX <= pixeladdr_pre_a0 - pixeladdr_pre_a1 - pixeladdr_pre_a2 + pixeladdr_pre_a3;
@@ -517,7 +517,9 @@ begin
                end if;
 
             when NEXTADDR =>
-               if (x >= fieldX) then
+               if (maxpixels = '1' and pixeltime_current >= maxpixeltime) then
+                  PIXELGen <= WAITOAM;
+               elsif (x >= fieldX) then
                   PIXELGen <= WAITOAM;
                else
                   x <= x + 1;
@@ -528,6 +530,12 @@ begin
                   end if;
                end if;
                
+               if (Pixel_data0(OAM_AFFINE) = '1') then
+                  pixeltime_current <= pixeltime_current + 2;
+               else
+                  pixeltime_current <= pixeltime_current + 1;
+               end if;
+               
                skippixel <= '0';
                
                if ((x + posX) < 240 and (x + posX) >= 0) then
@@ -535,13 +543,6 @@ begin
                else
                   skippixel <= '1';
                end if;
-               
-               --if (mosaic_on && mosaik_h_cnt > 0 && (target - mosaik_h_cnt) >= 0)
-               --{
-               --    pixels_obj[target].copy(pixels_obj[target - mosaik_h_cnt]);
-               --    
-               --}
-               -- if (mosaik_h_cnt >= mosaic_h) { mosaik_h_cnt = 0; } else mosaik_h_cnt++;
                
                if (Pixel_data0(OAM_AFFINE) = '1') then
                   if (realX < 0 or (realX / 256) >= sizeX or realY < 0 or (realY / 256) >= sizeY) then
