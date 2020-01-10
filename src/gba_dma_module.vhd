@@ -313,7 +313,11 @@ begin
                            state <= WRITING;
                            dma_bus_rnw  <= '0';
                            dma_bus_ena  <= '1';
-                           dma_bus_Adr  <= std_logic_vector(addr_target);
+                           if (Transfer_Type_DW = '1') then
+                              dma_bus_Adr <= std_logic_vector(addr_target(27 downto 2)) & "00";
+                           else
+                              dma_bus_Adr <= std_logic_vector(addr_target(27 downto 1)) & "0";
+                           end if;
                            
                            if (addr_source >= 16#2000000#) then
                               dma_bus_dout   <= dma_bus_din;
