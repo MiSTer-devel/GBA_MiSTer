@@ -759,7 +759,15 @@ begin
                      fetch_available <= '1';
                      fetch_data      <= gb_bus_din;
                      if (thumbmode = '1') then
-                        lastread <= gb_bus_din(15 downto 0) & gb_bus_din(15 downto 0);
+                        if (PC(27 downto 24) = x"3") then
+                           if (PC(1) = '0') then
+                              lastread(31 downto 16) <= gb_bus_din(15 downto 0);
+                           else
+                              lastread(15 downto 0) <= gb_bus_din(15 downto 0);
+                           end if;
+                        else
+                           lastread <= gb_bus_din(15 downto 0) & gb_bus_din(15 downto 0);
+                        end if;
                      else
                         lastread <= gb_bus_din;
                      end if;
