@@ -333,7 +333,7 @@ begin
                            
                            -- next settings
                            if (Transfer_Type_DW = '1') then
-                              if (source_Adr_Control = 0 or source_Adr_Control = 3) then 
+                              if (source_Adr_Control = 0 or source_Adr_Control = 3 or (addr_source >= 16#8000000# and addr_source < 16#E000000#)) then 
                                  addr_source <= addr_source + 4; 
                               elsif (source_Adr_Control = 1) then
                                  addr_source <= addr_source - 4;
@@ -345,7 +345,7 @@ begin
                                  addr_target <= addr_target - 4;
                               end if;
                            else
-                              if (source_Adr_Control = 0 or source_Adr_Control = 3) then 
+                              if (source_Adr_Control = 0 or source_Adr_Control = 3 or (addr_source >= 16#8000000# and addr_source < 16#E000000#)) then 
                                  addr_source <= addr_source + 2; 
                               elsif (source_Adr_Control = 1) then
                                  addr_source <= addr_source - 2;
