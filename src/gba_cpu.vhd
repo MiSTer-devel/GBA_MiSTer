@@ -32,7 +32,7 @@ entity gba_cpu is
         
       bus_lowbits      : out   std_logic_vector(1 downto 0) := "00";
         
-      registersettle   : in    std_logic;
+      settle           : in    std_logic;
       dma_on           : in    std_logic;
       do_step          : in    std_logic;
       done             : buffer std_logic := '0';
@@ -847,7 +847,7 @@ begin
                      state_decode   <= DECODE_DONE;
                      
                   when DECODE_DONE =>
-                     if (state_execute = FETCH_OP and do_step = '1' and dma_on = '0' and registersettle = '0' and halt = '0') then
+                     if (state_execute = FETCH_OP and do_step = '1' and dma_on = '0' and settle = '0' and halt = '0') then
                         decode_request <= '1';
                         decode_ack     <= '1';
                         state_decode   <= WAITFETCH;
@@ -1026,7 +1026,7 @@ begin
             case state_execute is
                
                when FETCH_OP =>
-                  if (irq_triggerhold = '1' and IRQ_disable = '0' and dma_on = '0' and registersettle = '0') then
+                  if (irq_triggerhold = '1' and IRQ_disable = '0' and dma_on = '0' and settle = '0') then
 
                      if (state_decode /= WAITFETCH) then -- dont do irp when decode_PC has not been updated
                         halt            <= '0';
@@ -1043,7 +1043,7 @@ begin
                         
                      end if;
                      
-                  elsif (halt = '1' and dma_on = '0' and registersettle = '0') then
+                  elsif (halt = '1' and dma_on = '0' and settle = '0') then
                      
                      if (do_step = '1') then 
                         if (halt_cnt < 5) then
@@ -1055,7 +1055,7 @@ begin
                         end if;
                      end if;
 
-                  elsif (state_decode = DECODE_DONE and do_step = '1' and dma_on = '0' and registersettle = '0' and jump = '0') then
+                  elsif (state_decode = DECODE_DONE and do_step = '1' and dma_on = '0' and settle = '0' and jump = '0') then
                   
                      execute_cycles <= 0;
                   
@@ -2933,11 +2933,12 @@ begin
                      cpu_mode           <= CPUMODE_SUPERVISOR;
                      thumbmode          <= '0';
                      IRQ_disable        <= '1';
-                     FIQ_disable        <= regs(17)(6);
-                     Flag_Negative      <= regs(17)(31);
-                     Flag_Zero          <= regs(17)(30);
-                     Flag_Carry         <= regs(17)(29);
-                     Flag_V_Overflow    <= regs(17)(28);
+                     -- only switch for when not in system/usermode?
+                     --FIQ_disable        <= regs(17)(6);
+                     --Flag_Negative      <= regs(17)(31);
+                     --Flag_Zero          <= regs(17)(30);
+                     --Flag_Carry         <= regs(17)(29);
+                     --Flag_V_Overflow    <= regs(17)(28);
                      new_pc             <= to_unsigned(8, new_pc'length);
                      branchnext         <= '1';
                   end if;
@@ -3261,7 +3262,7 @@ begin
                
             end if;
                
-            if (state_decode = DECODE_DONE and state_execute = FETCH_OP and do_step = '1' and dma_on = '0' and registersettle = '0' and halt = '0' and (irq_triggerhold = '0' or IRQ_disable = '1')) then
+            if (state_decode = DECODE_DONE and state_execute = FETCH_OP and do_step = '1' and dma_on = '0' and settle = '0' and halt = '0' and (irq_triggerhold = '0' or IRQ_disable = '1')) then
                for i in 0 to 17 loop
                   outsave_regs(i) := regs(i);
                end loop;

@@ -53,7 +53,8 @@ entity gba_memorymux is
       
       bus_lowbits          : in     std_logic_vector(1 downto 0);
       
-      registersettle       : out    std_logic := '0';
+      dma_soon             : in     std_logic;
+      settle               : out    std_logic;
       
       save_eeprom          : out    std_logic := '0';
       save_sram            : out    std_logic := '0';
@@ -166,6 +167,7 @@ architecture arch of gba_memorymux is
                              
    signal rotate_writedata   : std_logic_vector(31 downto 0) := (others => '0');
    
+   signal registersettle     : std_logic := '0';
    signal registersettle_cnt : integer range 0 to 7 := 0;
    
    -- minicache
@@ -232,6 +234,8 @@ architecture arch of gba_memorymux is
    signal SAVESTATE_FLASH_BACK  : std_logic_vector(16 downto 0);
    
 begin 
+
+   settle <= '1' when registersettle = '1' or (new_cycles_valid = '1' and dma_soon = '1') else '0';
 
    igba_bios : entity work.gba_bios
    port map

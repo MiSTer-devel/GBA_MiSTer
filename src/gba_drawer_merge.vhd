@@ -11,8 +11,6 @@ entity gba_drawer_merge is
       xpos                 : in  integer range 0 to 239;
       ypos                 : in  integer range 0 to 159;
       
-      BG0_on               : in  std_logic;
-      BG1_on               : in  std_logic;
       WND0_on              : in  std_logic;
       WND1_on              : in  std_logic;
       WNDOBJ_on            : in  std_logic;

@@ -41,6 +41,7 @@ entity gba_dma_module is
       
       dma_on              : out   std_logic := '0';
       allow_on            : in    std_logic;
+      dma_soon            : out   std_logic := '0';
       
       sound_dma_req       : in    std_logic;
       hblank_trigger      : in    std_logic;
@@ -261,6 +262,7 @@ begin
                   (Start_Timing = 1 and vblank_trigger = '1') or 
                   (Start_Timing = 2 and hblank_trigger = '1') or 
                   (Start_Timing = 3 and sound_dma_req = '1')) then
+                     dma_soon   <= '1';
                      waitTicks  <= 3;
                      waiting    <= '0';
                      first      <= '1';
@@ -275,6 +277,7 @@ begin
                         running   <= '1';
                         dmaon     <= '1';
                         waitTicks <= 0;
+                        dma_soon  <= '0';
                      else
                         waitTicks <= waitTicks - to_integer(new_cycles);
                      end if;

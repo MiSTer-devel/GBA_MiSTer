@@ -199,6 +199,11 @@ architecture arch of gba_gpu_drawer is
                                                                              
    signal REG_BLDY                          : std_logic_vector(BLDY                         .upper downto BLDY                         .lower) := (others => '0');
 
+
+   signal on_delay_bg0   : std_logic_vector(2 downto 0);
+   signal on_delay_bg1   : std_logic_vector(2 downto 0);
+   signal on_delay_bg2   : std_logic_vector(2 downto 0);
+   signal on_delay_bg3   : std_logic_vector(2 downto 0);
    
    signal ref2_x_written : std_logic;
    signal ref2_y_written : std_logic;
@@ -945,13 +950,13 @@ begin
       VRAM_Drawer_valid    => VRAM_Drawer_valid_Hi(1)
    );
    
-   drawline_mode0_0 <= Screen_Display_BG0(Screen_Display_BG0'left) and start_draw when BG_Mode = "000" or BG_Mode = "001" else '0';
-   drawline_mode0_1 <= Screen_Display_BG1(Screen_Display_BG1'left) and start_draw when BG_Mode = "000" or BG_Mode = "001" else '0';
-   drawline_mode0_2 <= Screen_Display_BG2(Screen_Display_BG2'left) and start_draw when BG_Mode = "000" else '0';
-   drawline_mode0_3 <= Screen_Display_BG3(Screen_Display_BG3'left) and start_draw when BG_Mode = "000" else '0';
-   drawline_mode2_2 <= Screen_Display_BG2(Screen_Display_BG2'left) and start_draw when BG_Mode = "001" or BG_Mode = "010" else '0';
-   drawline_mode2_3 <= Screen_Display_BG3(Screen_Display_BG3'left) and start_draw when BG_Mode = "010" else '0';
-   drawline_mode345 <= Screen_Display_BG2(Screen_Display_BG2'left) and start_draw when BG_Mode = "011" or BG_Mode = "100" or BG_Mode = "101" else '0';
+   drawline_mode0_0 <= on_delay_bg0(2) and start_draw when BG_Mode = "000" or BG_Mode = "001" else '0';
+   drawline_mode0_1 <= on_delay_bg1(2) and start_draw when BG_Mode = "000" or BG_Mode = "001" else '0';
+   drawline_mode0_2 <= on_delay_bg2(2) and start_draw when BG_Mode = "000" else '0';
+   drawline_mode0_3 <= on_delay_bg3(2) and start_draw when BG_Mode = "000" else '0';
+   drawline_mode2_2 <= on_delay_bg2(2) and start_draw when BG_Mode = "001" or BG_Mode = "010" else '0';
+   drawline_mode2_3 <= on_delay_bg3(2) and start_draw when BG_Mode = "010" else '0';
+   drawline_mode345 <= on_delay_bg2(2) and start_draw when BG_Mode = "011" or BG_Mode = "100" or BG_Mode = "101" else '0';
    drawline_obj     <= Screen_Display_OBJ(Screen_Display_OBJ'left) and start_draw;
 
    PALETTE_BG_Drawer_addr0 <= PALETTE_Drawer_addr_mode0_0;
@@ -1253,6 +1258,13 @@ begin
          end if;
          -- synthesis translate_on
          
+         if (drawline = '1') then
+            if (Screen_Display_BG0(Screen_Display_BG0'left) = '0') then on_delay_bg0 <= (others => '0'); else on_delay_bg0 <= on_delay_bg0(1 downto 0) & '1'; end if;
+            if (Screen_Display_BG1(Screen_Display_BG1'left) = '0') then on_delay_bg1 <= (others => '0'); else on_delay_bg1 <= on_delay_bg1(1 downto 0) & '1'; end if;
+            if (Screen_Display_BG2(Screen_Display_BG2'left) = '0') then on_delay_bg2 <= (others => '0'); else on_delay_bg2 <= on_delay_bg2(1 downto 0) & '1'; end if;
+            if (Screen_Display_BG3(Screen_Display_BG3'left) = '0') then on_delay_bg3 <= (others => '0'); else on_delay_bg3 <= on_delay_bg3(1 downto 0) & '1'; end if;
+         end if;
+         
          drawline_1 <= drawline;
          start_draw <= '0';
          
@@ -1366,8 +1378,6 @@ begin
       xpos                 => linebuffer_addr_1,
       ypos                 => linecounter_int,
       
-      BG0_on               => Screen_Display_BG0(Screen_Display_BG0'left),
-      BG1_on               => Screen_Display_BG1(Screen_Display_BG1'left),
       WND0_on              => REG_DISPCNT_Window_0_Display_Flag(REG_DISPCNT_Window_0_Display_Flag'left),
       WND1_on              => REG_DISPCNT_Window_1_Display_Flag(REG_DISPCNT_Window_1_Display_Flag'left),
       WNDOBJ_on            => REG_DISPCNT_OBJ_Wnd_Display_Flag(REG_DISPCNT_OBJ_Wnd_Display_Flag'left),
