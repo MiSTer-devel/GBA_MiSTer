@@ -108,6 +108,7 @@ architecture arch of gba_savestates is
       RESET_REGISTER,
       SAVE_WAITJUMP,
       SAVE_WAITSETTLE,
+      SAVEINTERNALS_WAIT,
       SAVEINTERNALS_READ,
       SAVEINTERNALS_WRITE,
       SAVEREGISTER_READ,
@@ -150,6 +151,8 @@ architecture arch of gba_savestates is
    
    signal registerram_readen    : std_logic;
    signal registerram_readvalid : std_logic;
+   
+   signal internal_databuffer   : std_logic_vector(31 downto 0) := (others => '0');
    
    signal header_amount         : unsigned(31 downto 0) := (others => '0');
 
@@ -279,7 +282,7 @@ begin
                if (waitcount < SETTLECOUNT) then
                   waitcount <= waitcount + 1;
                else
-                  state                <= SAVEINTERNALS_READ;
+                  state                <= SAVEINTERNALS_WAIT;
                   SAVE_BusRnW          <= '1';
                   bus_out_Adr          <= std_logic_vector(to_unsigned(Softmap_SaveState_ADDR + HEADERCOUNT, 26));
                   bus_out_rnw          <= '0';
@@ -291,16 +294,22 @@ begin
                end if;            
             
             
-            when SAVEINTERNALS_READ =>
+            when SAVEINTERNALS_WAIT =>
                if (internal_bus_out.done = '1') then
-                  state       <= SAVEINTERNALS_WRITE;
+                  state       <= SAVEINTERNALS_READ;
                   if (is_simu = '0') then
-                     bus_out_Din <= internal_bus_out.Dout;
+                     internal_databuffer <= internal_bus_out.Dout;
                   else
                      for i in 0 to 31 loop
-                        if (internal_bus_out.Dout(i) = '0') then bus_out_Din(i) <= '0'; else bus_out_Din(i) <= '1'; end if;
+                        if (internal_bus_out.Dout(i) = '0') then internal_databuffer(i) <= '0'; else internal_databuffer(i) <= '1'; end if;
                      end loop;
                   end if;
+               end if;
+              
+            when SAVEINTERNALS_READ =>
+               if (internal_bus_out.done = '1') then
+                  state          <= SAVEINTERNALS_WRITE;
+                  bus_out_Din    <= internal_databuffer;
                   bus_out_ena    <= '1';
                   bus_out_active <= '1';
                end if;
@@ -310,7 +319,7 @@ begin
                   bus_out_active <= '0';
                   bus_out_Adr <= std_logic_vector(unsigned(bus_out_Adr) + 1);
                   if (count < INTERNALSCOUNT) then
-                     state                <= SAVEINTERNALS_READ;
+                     state                <= SAVEINTERNALS_WAIT;
                      count                <= count + 1;
                      internal_bus_out.adr <= std_logic_vector(unsigned(internal_bus_out.adr) + 1);
                      internal_bus_out.ena <= '1';

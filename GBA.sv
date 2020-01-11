@@ -493,26 +493,49 @@ always @(posedge clk_sys) begin
 		if(ioctl_addr[26:4] == 'hA) begin
 			if(ioctl_addr[3:0] <  12) cart_id[{4'd10 - ioctl_addr[3:0], 3'd0} +:16] <= {ioctl_dout[7:0],ioctl_dout[15:8]};
 			if(ioctl_addr[3:0] == 12) begin
-				if(cart_id == {"ROCKY BOXING"} )              begin sram_quirk <= 1;                          end // Rocky US
-				if(cart_id == {"ROCKY", 56'h00000000000000} ) begin sram_quirk <= 1;                          end // Rocky EU
-				if(cart_id == {"DBZ LGCYGOKU"} )              begin sram_quirk <= 1;                          end // Dragon Ball Z - The Legacy of Goku US
-				if(cart_id == {"DRAGONBALL Z"} )              begin sram_quirk <= 1;                          end // Dragon Ball Z - The Legacy of Goku EU
-				if(cart_id == {"DBZ TAIKETSU"} )              begin sram_quirk <= 1;                          end // Dragon Ball Z - Taiketsu US
-				if(cart_id == {"DRAGON BALLZ"} )              begin sram_quirk <= 1;                          end // Dragon Ball Z - Taiketsu EU
-				if(cart_id == {"TOPGUN CZ", 24'h000000} )     begin sram_quirk <= 1;                          end // Top Gun - Combat Zones
-				if(cart_id == {"IRIDIONII", 24'h000000} )     begin sram_quirk <= 1;                          end // Iridion II EU and US
-				if(cart_id == {"BOMBER MAN", 16'h0000} )      begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series Bomberman
-				if(cart_id == {"CASTLEVANIA", 8'h00} )        begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series Castlevania
-				if(cart_id == {"DONKEY KONG", 8'h00} )        begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series Donkey Kong
-				if(cart_id == {"DR. MARIO", 24'h000000} )     begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series DR. MARIO
-				if(cart_id == {"EXCITEBIKE", 16'h0000} )      begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series EXCITEBIKE
-				if(cart_id == {"ICE CLIMBER", 8'h00} )        begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series ICE CLIMBER
-				if(cart_id == {"NES METROID", 8'h00} )        begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series NES METROID
-				if(cart_id == {"PAC-MAN", 40'h0000000000} )   begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series PAC-MAN
-				if(cart_id == {"SUPER MARIO", 8'h00} )        begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series SUPER MARIO Bros
-				if(cart_id == {"ZELDA 1", 40'h0000000000} )   begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series The Legend of Zelda
-				if(cart_id == {"XEVIOUS", 40'h0000000000} )   begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series XEVIOUS
-				if(cart_id == {"NES ZELDA 2", 8'h00} )        begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series Zelda II - The Adventure of Link
+				if(cart_id == {"ROCKY BOXING"} )              	begin sram_quirk <= 1;                          end // Rocky US
+				if(cart_id == {"ROCKY", 56'h00000000000000} ) 	begin sram_quirk <= 1;                          end // Rocky EU
+				if(cart_id == {"DBZ LGCYGOKU"} )              	begin sram_quirk <= 1;                          end // Dragon Ball Z - The Legacy of Goku US
+				if(cart_id == {"DRAGONBALL Z"} )              	begin sram_quirk <= 1;                          end // Dragon Ball Z - The Legacy of Goku EU
+				if(cart_id == {"DBZ TAIKETSU"} )              	begin sram_quirk <= 1;                          end // Dragon Ball Z - Taiketsu US
+				if(cart_id == {"DRAGON BALLZ"} )              	begin sram_quirk <= 1;                          end // Dragon Ball Z - Taiketsu EU
+				if(cart_id == {"TOPGUN CZ", 24'h000000} )     	begin sram_quirk <= 1;                          end // Top Gun - Combat Zones
+				if(cart_id == {"IRIDIONII", 24'h000000} )     	begin sram_quirk <= 1;                          end // Iridion II EU and US
+				if(cart_id == {"BOMBER MAN", 16'h0000} )      	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series Bomberman / Famicom Mini 09 - Bomber Man
+				if(cart_id == {"CASTLEVANIA", 8'h00} )        	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series Castlevania
+				if(cart_id == {"DONKEY KONG", 8'h00} )        	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series Donkey Kong / Famicom Mini 02 - Donkey Kong
+				if(cart_id == {"DR. MARIO", 24'h000000} )     	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series DR. MARIO / Famicom Mini 15 - Dr. Mario
+				if(cart_id == {"EXCITEBIKE", 16'h0000} )      	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series EXCITEBIKE / Famicom Mini 04 - Excitebike
+				if(cart_id == {"ICE CLIMBER", 8'h00} )        	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series ICE CLIMBER / Famicom Mini 03 - Ice Climber
+				if(cart_id == {"NES METROID", 8'h00} )        	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series NES METROID
+				if(cart_id == {"PAC-MAN", 40'h0000000000} )   	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series PAC-MAN / Famicom Mini 06 - Pac-Man
+				if(cart_id == {"SUPER MARIO", 8'h00} )        	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series SUPER MARIO Bros / Famicom Mini 01 - Super Mario Bros.
+				if(cart_id == {"ZELDA 1", 40'h0000000000} )   	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series The Legend of Zelda / Famicom Mini 05 - Zelda no Densetsu 1 - The Hyrule Fantasy
+				if(cart_id == {"XEVIOUS", 40'h0000000000} )   	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series XEVIOUS / Famicom Mini 07 - Xevious
+				if(cart_id == {"NES ZELDA 2", 8'h00} )        	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series Zelda II - The Adventure of Link
+				if(cart_id == {"SUPER ROBOT2"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini - Dai-2-ji Super Robot Taisen (Japan) (Promo)
+				if(cart_id == {"Z-GUNDAM", 32'h00000000} )    	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini - Kidou Senshi Z Gundam - Hot Scramble (Japan) (Promo)
+				if(cart_id == {"SD GACHAPON1"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 30 - SD Gundam World - Gachapon Senshi Scramble Wars
+				if(cart_id == {"DRACULA 1", 24'h000000} )     	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 29 - Akumajou Dracula
+				if(cart_id == {"TANTEI CLUB2"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 28 - Famicom Tantei Club Part II - Ushiro ni Tatsu Shoujo - Zen, Kouhen
+				if(cart_id == {"TANTEI CLUB1"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 27 - Famicom Tantei Club - Kieta Koukeisha - Zen, Kouhen
+				if(cart_id == {"ONIGASHIMA", 16'h0000} )      	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 26 - Famicom Mukashibanashi - Shin Onigashima - Zen, Kouhen
+				if(cart_id == {"LINK", 64'h0000000000000000} )	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 25 - The Legend of Zelda 2 - Link no Bouken
+				if(cart_id == {"PARTHENA", 32'h00000000} )    	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 24 - Hikari Shinwa - Palthena no Kagami
+				if(cart_id == {"FMS METROID", 8'h00} )        	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 23 - Metroid
+				if(cart_id == {"MURASAME", 32'h00000000} )    	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 22 - Nazo no Murasame Jou
+				if(cart_id == {"SUPER MARIO2"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 21 - Super Mario Bros. 2
+				if(cart_id == {"GOEMON 1", 32'h00000000} )    	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 20 - Ganbare Goemon! - Karakuri Douchuu
+				if(cart_id == {"TWINBEE", 40'h0000000000} )   	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 19 - Twin Bee
+				if(cart_id == {"MAKAIMURA", 24'h000000} )     	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 18 - Makaimura
+				if(cart_id == {"BOKENJIMA 1", 8'h00} )        	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 17 - Takahashi Meijin no Bouken-jima
+				if(cart_id == {"DIG DUG", 40'h0000000000} )   	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 16 - Dig Dug
+				if(cart_id == {"WRECKINGCREW"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 14 - Wrecking Crew
+				if(cart_id == {"BALLOONFIGHT"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 13 - Balloon Fight
+				if(cart_id == {"CLU CLU LAND"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 12 - Clu Clu Land
+				if(cart_id == {"MARIO BROS.", 8'h00} )      	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 11 - Mario Bros.
+				if(cart_id == {"STAR SOLDIER"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 10 - Star Soldier
+				if(cart_id == {"MAPPY", 56'h00000000000000} ) 	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 08 - Mappy
 			end
 		end
 	end
