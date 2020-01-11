@@ -19,7 +19,6 @@ PLEASE do not report errors without testing with the original BIOS
 
 - Madden06/07: crash at coin toss
 
-- Sennen Kazoku: hang on first screen
 - Starsky & Hutch: crash going ingame
 
 - TOCA World Touring Cars: hangs going into race
@@ -28,6 +27,8 @@ PLEASE do not report errors without testing with the original BIOS
 - Boktai 1/2/Shin Bokura no Taiyou(Japanese Boktai)
 - Warioware Twisted
 - Yoshi's Universal Gravitation
+- Bouken Yuuki Pluster World - Plust Gate/EX
+- Sennen Kazoku (RTC)
 
 # Status
 ~1600 games tested until ingame:
@@ -56,7 +57,7 @@ Hot keys for save states:
 
 # Not included
 - Multiplayer features like Serial
-- Tilt/Gyro/Rumble/Sun sensor)
+- Tilt/Gyro/Rumble/Sun sensor
 - RTC
 
 # Accuracy
