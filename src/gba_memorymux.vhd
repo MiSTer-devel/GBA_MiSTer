@@ -46,6 +46,7 @@ entity gba_memorymux is
       mem_bus_dout         : in     std_logic_vector(31 downto 0);
       mem_bus_din          : out    std_logic_vector(31 downto 0) := (others => '0');
       mem_bus_done         : out    std_logic;
+      mem_bus_unread       : out    std_logic;
       
       bios_wraddr          : in     std_logic_vector(11 downto 0) := (others => '0');
       bios_wrdata          : in     std_logic_vector(31 downto 0) := (others => '0');
@@ -154,6 +155,7 @@ architecture arch of gba_memorymux is
                              
    signal return_rotate      : std_logic_vector(1 downto 0);
    signal rotate_data        : std_logic_vector(31 downto 0) := (others => '0');
+   signal unread_next        : std_logic := '0';
       
    signal bios_data          : std_logic_vector(31 downto 0);
    signal bios_data_last     : std_logic_vector(31 downto 0) := (others => '0');
@@ -401,6 +403,8 @@ begin
          PALETTE_OAM_we  <= (others => '0');
          
          mem_bus_done    <= '0';
+         mem_bus_unread  <= '0';
+         unread_next     <= '0';
          
          cache_read_enable <= '0';
          
@@ -795,11 +799,12 @@ begin
                
             when READAFTERPAK =>
                rotate_data <= adr_save(16 downto 2) & "1" & adr_save(16 downto 2) & "0";
-               state       <= rotate; 
+               state       <= ROTATE; 
                
             when READ_UNREADABLE =>
                rotate_data <= lastread;
-               state       <= rotate;   
+               state       <= ROTATE; 
+               unread_next <= '1';               
                
             when ROTATE =>
                if (acc_save = ACCESS_8BIT) then
@@ -827,7 +832,8 @@ begin
                      when others => null;
                   end case;
                end if;
-               mem_bus_done <= '1'; 
+               mem_bus_done   <= '1'; 
+               mem_bus_unread <= unread_next;
                state <= IDLE;
             
             ----- writing

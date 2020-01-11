@@ -145,6 +145,7 @@ architecture arch of gba_top is
    signal dma_bus_dout         : std_logic_vector(31 downto 0);
    signal dma_bus_din          : std_logic_vector(31 downto 0);
    signal dma_bus_done         : std_logic;
+   signal dma_bus_unread       : std_logic;
    
    signal mem_bus_Adr          : std_logic_vector(31 downto 0);
    signal mem_bus_rnw          : std_logic;
@@ -153,6 +154,7 @@ architecture arch of gba_top is
    signal mem_bus_dout         : std_logic_vector(31 downto 0);
    signal mem_bus_din          : std_logic_vector(31 downto 0);
    signal mem_bus_done         : std_logic;
+   signal mem_bus_unread       : std_logic;
    
    signal bus_lowbits          : std_logic_vector(1 downto 0); -- only required for sram access
                                           
@@ -343,8 +345,9 @@ begin
       end if;
    end process;
    
-   dma_bus_din  <= mem_bus_din;
-   dma_bus_done <= mem_bus_done;
+   dma_bus_din    <= mem_bus_din;
+   dma_bus_done   <= mem_bus_done;
+   dma_bus_unread <= mem_bus_unread;
    
    cpu_bus_din  <= mem_bus_din;
    cpu_bus_done <= mem_bus_done;
@@ -452,6 +455,7 @@ begin
       mem_bus_dout         => mem_bus_dout,
       mem_bus_din          => mem_bus_din, 
       mem_bus_done         => mem_bus_done,
+      mem_bus_unread       => mem_bus_unread,
       
       bus_lowbits          => bus_lowbits,
       
@@ -543,6 +547,7 @@ begin
       dma_bus_dout        => dma_bus_dout,
       dma_bus_din         => dma_bus_din, 
       dma_bus_done        => dma_bus_done,
+      dma_bus_unread      => dma_bus_unread,
       
       debug_dma           => debug_dma
    );

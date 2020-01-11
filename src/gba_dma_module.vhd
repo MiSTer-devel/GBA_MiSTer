@@ -65,6 +65,7 @@ entity gba_dma_module is
       dma_bus_dout        : out   std_logic_vector(31 downto 0) := (others => '0'); 
       dma_bus_din         : in    std_logic_vector(31 downto 0);
       dma_bus_done        : in    std_logic;
+      dma_bus_unread      : in    std_logic;
       
       is_idle             : out   std_logic
    );
@@ -322,7 +323,7 @@ begin
                               dma_bus_Adr <= std_logic_vector(addr_target(27 downto 1)) & "0";
                            end if;
                            
-                           if (addr_source >= 16#2000000#) then
+                           if (addr_source >= 16#2000000# and dma_bus_unread = '0') then
                               dma_bus_dout   <= dma_bus_din;
                               last_dma_valid <= '1';
                               if (Transfer_Type_DW = '1') then                           

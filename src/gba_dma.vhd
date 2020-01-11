@@ -44,6 +44,7 @@ entity gba_dma is
       dma_bus_dout        : out    std_logic_vector(31 downto 0);
       dma_bus_din         : in     std_logic_vector(31 downto 0);
       dma_bus_done        : in     std_logic;
+      dma_bus_unread      : in     std_logic;
       
       debug_dma           : out   std_logic_vector(31 downto 0)
    );
@@ -152,6 +153,7 @@ begin
       dma_bus_dout      => Array_Dout(0), 
       dma_bus_din       => dma_bus_din,
       dma_bus_done      => Array_done(0),
+      dma_bus_unread    => dma_bus_unread,
       
       is_idle           => single_is_idle(0)
    );
@@ -214,6 +216,7 @@ begin
       dma_bus_dout      => Array_Dout(1), 
       dma_bus_din       => dma_bus_din,
       dma_bus_done      => Array_done(1),
+      dma_bus_unread    => dma_bus_unread,
       
       is_idle           => single_is_idle(1)
    );
@@ -276,6 +279,7 @@ begin
       dma_bus_dout      => Array_Dout(2), 
       dma_bus_din       => dma_bus_din,
       dma_bus_done      => Array_done(2),
+      dma_bus_unread    => dma_bus_unread,
       
       is_idle           => single_is_idle(2)
    );
@@ -338,6 +342,7 @@ begin
       dma_bus_dout      => Array_Dout(3), 
       dma_bus_din       => dma_bus_din,
       dma_bus_done      => Array_done(3),
+      dma_bus_unread    => dma_bus_unread,
       
       is_idle           => single_is_idle(3)
    );
