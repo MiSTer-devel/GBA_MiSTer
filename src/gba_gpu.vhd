@@ -76,6 +76,7 @@ architecture arch of gba_gpu is
 
    -- wiring
    signal drawline             : std_logic;
+   signal line_trigger         : std_logic;
    signal refpoint_update      : std_logic;
    signal linecounter_drawer   : unsigned(7 downto 0);
 
@@ -103,7 +104,8 @@ begin
       IRP_HBlank                   => IRP_HBlank,
       IRP_VBlank                   => IRP_VBlank, 
       IRP_LCDStat                  => IRP_LCDStat,
-                                   
+           
+      line_trigger                 => line_trigger,
       hblank_trigger               => hblank_trigger,                            
       vblank_trigger               => vblank_trigger,                            
       drawline                     => drawline,   
@@ -140,7 +142,8 @@ begin
       refpoint_update        => refpoint_update,
       hblank_trigger         => hblank_trigger,  
       vblank_trigger         => vblank_trigger,  
-      
+      line_trigger           => line_trigger,   
+            
       VRAM_Lo_addr           => VRAM_Lo_addr,   
       VRAM_Lo_datain         => VRAM_Lo_datain, 
       VRAM_Lo_dataout        => VRAM_Lo_dataout,

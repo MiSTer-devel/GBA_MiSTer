@@ -34,6 +34,7 @@ entity gba_gpu_drawer is
       refpoint_update      : in    std_logic;
       hblank_trigger       : in    std_logic;
       vblank_trigger       : in    std_logic;
+      line_trigger         : in    std_logic;
       
       VRAM_Lo_addr         : in    integer range 0 to 16383;
       VRAM_Lo_datain       : in    std_logic_vector(31 downto 0);
@@ -1258,7 +1259,7 @@ begin
          end if;
          -- synthesis translate_on
          
-         if (drawline = '1') then
+         if (line_trigger = '1') then
             if (Screen_Display_BG0(Screen_Display_BG0'left) = '0') then on_delay_bg0 <= (others => '0'); else on_delay_bg0 <= on_delay_bg0(1 downto 0) & '1'; end if;
             if (Screen_Display_BG1(Screen_Display_BG1'left) = '0') then on_delay_bg1 <= (others => '0'); else on_delay_bg1 <= on_delay_bg1(1 downto 0) & '1'; end if;
             if (Screen_Display_BG2(Screen_Display_BG2'left) = '0') then on_delay_bg2 <= (others => '0'); else on_delay_bg2 <= on_delay_bg2(1 downto 0) & '1'; end if;

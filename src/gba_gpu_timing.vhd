@@ -29,6 +29,7 @@ entity gba_gpu_timing is
       IRP_VBlank                   : out std_logic := '0';
       IRP_LCDStat                  : out std_logic := '0';
       
+      line_trigger                 : out std_logic := '0';                              
       hblank_trigger               : out std_logic := '0';                              
       vblank_trigger               : out std_logic := '0';                              
       drawline                     : out std_logic := '0';                       
@@ -111,6 +112,7 @@ begin
                
          drawline          <= '0';
          refpoint_update   <= '0';
+         line_trigger      <= '0';
          hblank_trigger    <= '0';
          vblank_trigger    <= '0';
          
@@ -165,8 +167,9 @@ begin
    
                         REG_DISPSTAT_H_Blank_flag <= "0";
                         if ((linecounter + 1) < 160) then
-                           gpustate <= VISIBLE;
-                           drawline <= '1';
+                           gpustate     <= VISIBLE;
+                           drawline     <= '1';
+                           line_trigger <= '1';
                         else
                            gpustate                  <= VBLANK;
                            refpoint_update           <= '1';
@@ -203,6 +206,7 @@ begin
                         end if;
                         
                         REG_DISPSTAT_H_Blank_flag <= "0";
+                        line_trigger <= '1';
                         if ((linecounter + 1) = 228) then
                            linecounter <= (others => '0');
                            gpustate    <= VISIBLE;
