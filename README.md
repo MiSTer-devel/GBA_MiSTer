@@ -43,6 +43,7 @@ PLEASE do not report errors without testing with the original BIOS
 - CPU Turbomode - give games additional CPU power
 - Flickerblend - turn on for games like F-Zero, Mario Kart or NES Classics to prevent flickering effects
 - Spritelimit - turn on to prevent wrong sprites for games that rely on the limit (opt-in because not 100% accurate)
+- Cheats
 
 # Savestates
 Core provides 4 slots to save the state. The first slot gets saved to disk and automatically loaded (but not applied)

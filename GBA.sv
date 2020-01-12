@@ -169,6 +169,9 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 parameter CONF_STR = {
 	"GBA;;",
 	"FS,GBA;",
+   "-;",
+   "C,Cheats;",
+	"H1O6,Cheats Enabled,Yes,No;",
 	"-;",
 	"D0RC,Reload Backup RAM;",
 	"D0RD,Save Backup RAM;",
@@ -205,7 +208,7 @@ parameter CONF_STR = {
 
 wire  [1:0] buttons;
 wire [31:0] status;
-wire [15:0] status_menumask = {cart_loaded, |cart_type, force_turbo, 1'b0, ~bk_ena};
+wire [15:0] status_menumask = {cart_loaded, |cart_type, force_turbo, ~gg_active, ~bk_ena};
 wire        forced_scandoubler;
 reg  [31:0] sd_lba;
 reg         sd_rd = 0;
@@ -426,6 +429,12 @@ gba
    .interframe_blend(status[19]),
    .maxpixels(status[20]),
 
+   .cheat_clear(gg_reset),
+   .cheats_enabled(~status[6]),
+   .cheat_on(gg_valid),   
+   .cheat_in(gg_code), 
+   .cheats_active(gg_active), 
+   
 	.sdram_read_ena(sdram_req),       // triggered once for read request 
 	.sdram_read_done(sdram_ack),      // must be triggered once when sdram_read_data is valid after last read
 	.sdram_read_addr(sdram_addr),     // all addresses are DWORD addresses!
@@ -955,6 +964,44 @@ always @(posedge clk_sys) begin
 					sd_lba <= sd_lba + 1'd1;
 					if(sd_lba[7:0] == save_sz) bk_state <= 0;
 				end
+		endcase
+	end
+end
+
+////////////////////////////  CODES  ///////////////////////////////////
+
+// Code layout:
+// {code flags,     32'b address, 32'b compare, 32'b replace}
+//  127:96          95:64         63:32         31:0
+// Integer values are in BIG endian byte order, so it up to the loader
+// or generator of the code to re-arrange them correctly.
+reg [127:0] gg_code;
+reg gg_valid;
+reg gg_reset;
+reg ioctl_download_1;
+wire gg_active;
+always_ff @(posedge clk_sys) begin
+	
+   gg_reset <= 0;
+   ioctl_download_1 <= ioctl_download;
+	if (ioctl_download && ~ioctl_download_1 && ioctl_index == 255) begin
+      gg_reset <= 1;
+   end
+   
+   gg_valid <= 0;
+	if (code_download & ioctl_wr) begin
+		case (ioctl_addr[3:0])
+			0:  gg_code[111:96]  <= ioctl_dout; // Flags Bottom Word
+			2:  gg_code[127:112] <= ioctl_dout; // Flags Top Word
+			4:  gg_code[79:64]   <= ioctl_dout; // Address Bottom Word
+			6:  gg_code[95:80]   <= ioctl_dout; // Address Top Word
+			8:  gg_code[47:32]   <= ioctl_dout; // Compare Bottom Word
+			10: gg_code[63:48]   <= ioctl_dout; // Compare top Word
+			12: gg_code[15:0]    <= ioctl_dout; // Replace Bottom Word
+			14: begin
+				gg_code[31:16]    <= ioctl_dout; // Replace Top Word
+				gg_valid          <= 1;          // Clock it in
+			end
 		endcase
 	end
 end

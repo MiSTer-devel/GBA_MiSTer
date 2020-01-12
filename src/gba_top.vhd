@@ -34,6 +34,12 @@ entity gba_top is
       load_state         : in     std_logic;
       interframe_blend   : in     std_logic;
       maxpixels          : in     std_logic; -- limit pixels per line
+      -- cheats
+      cheat_clear        : in     std_logic;
+      cheats_enabled     : in     std_logic;
+      cheat_on           : in     std_logic;
+      cheat_in           : in     std_logic_vector(127 downto 0);
+      cheats_active      : out    std_logic := '0';
       -- sdram interface
       sdram_read_ena     : out    std_logic;                     -- triggered once for read request 
       sdram_read_done    : in     std_logic := '0';              -- must be triggered once when sdram_read_data is valid after last read
@@ -119,7 +125,7 @@ architecture arch of gba_top is
    signal SAVE_BusRnW          : std_logic;
    signal SAVE_BusACC          : std_logic_vector(1 downto 0);
    signal SAVE_BusWriteData    : std_logic_vector(31 downto 0);
-   signal SAVE_Bus_ena         : std_logic := '0';
+   signal SAVE_Bus_ena         : std_logic;
    
    signal savestate_bus        : proc_bus_gb_type;
    signal reset                : std_logic;
@@ -128,6 +134,15 @@ architecture arch of gba_top is
    signal sleep_savestate      : std_logic;
    
    signal cpu_jump             : std_logic;
+   
+   -- cheats
+   signal Cheats_BusAddr       : std_logic_vector(27 downto 0);
+   signal Cheats_BusRnW        : std_logic;
+   signal Cheats_BusACC        : std_logic_vector(1 downto 0);
+   signal Cheats_BusWriteData  : std_logic_vector(31 downto 0);
+   signal Cheats_Bus_ena       : std_logic := '0';
+   
+   signal sleep_cheats         : std_logic;
    
    -- wiring  
    signal cpu_bus_Adr          : std_logic_vector(31 downto 0);
@@ -335,6 +350,13 @@ begin
             debug_bus_ena    <= '1';
             debug_bus_acc    <= SAVE_BusACC;
             debug_bus_dout   <= SAVE_BusWriteData;
+         elsif (Cheats_Bus_ena = '1') then
+            debug_bus_active <= '1';
+            debug_bus_Adr    <= Cheats_BusAddr;
+            debug_bus_rnw    <= Cheats_BusRnW;
+            debug_bus_ena    <= '1';
+            debug_bus_acc    <= Cheats_BusACC;
+            debug_bus_dout   <= Cheats_BusWriteData;
          end if;
          
          if (debug_bus_active = '1' and mem_bus_done = '1') then
@@ -397,6 +419,32 @@ begin
       bus_out_ena         => SAVE_out_ena,   
       bus_out_active      => SAVE_out_active,
       bus_out_done        => SAVE_out_done  
+   );
+   
+   igba_cheats : entity work.gba_cheats
+   port map
+   (
+      clk100         => clk100,
+      gb_on          => GBA_on,
+                      
+      cheat_clear    => cheat_clear,
+      cheats_enabled => cheats_enabled,
+      cheat_on       => cheat_on,
+      cheat_in       => cheat_in,
+      cheats_active  => cheats_active,
+                     
+      vsync          => vblank_trigger,
+                     
+      bus_ena_in     => mem_bus_ena,
+      sleep_cheats   => sleep_cheats,
+                    
+      BusAddr        => Cheats_BusAddr,     
+      BusRnW         => Cheats_BusRnW,      
+      BusACC         => Cheats_BusACC,      
+      BusWriteData   => Cheats_BusWriteData,
+      Bus_ena        => Cheats_Bus_ena,     
+      BusReadData    => mem_bus_din, 
+      BusDone        => mem_bus_done
    );
    
    process (clk100)
@@ -826,7 +874,7 @@ begin
          end if;
          
          gba_step <= '0';
-         if (DEBUG_NOCPU = '0' and sleep_savestate = '0' and (GBA_lockspeed = '0' or GBA_cputurbo = '1' or cycles_ahead < unsigned(CyclePrecalc))) then
+         if (DEBUG_NOCPU = '0' and sleep_savestate = '0' and sleep_cheats = '0' and (GBA_lockspeed = '0' or GBA_cputurbo = '1' or cycles_ahead < unsigned(CyclePrecalc))) then
             gba_step <= '1';
          end if;
       
