@@ -28,7 +28,7 @@ PLEASE do not report errors without testing with the original BIOS
 - Warioware Twisted
 - Yoshi's Universal Gravitation
 - Bouken Yuuki Pluster World - Plust Gate/EX
-- Sennen Kazoku (RTC)
+- Sennen Kazoku, Gachasute (RTC)
 
 # Status
 ~1600 games tested until ingame:
