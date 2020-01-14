@@ -307,8 +307,12 @@ begin
                      tileindex_var := to_integer(unsigned(OAMRAM_Drawer_data(OAM_TILE_HI downto OAM_TILE_LO)));
                   end if;
                
-                  -- skip if sprite is off or bitmapmode is on and tileindex in the vram area of bitmap
-                  if (OAM_data0(OAM_OFF_HI downto OAM_OFF_LO) = "10" or (unsigned(BG_Mode) >= 3 and tileindex_var < 512)) then
+                  -- skip if
+                  if (
+                        OAM_data0(OAM_OFF_HI downto OAM_OFF_LO) = "10"   or      -- sprite is off
+                        (unsigned(BG_Mode) >= 3 and tileindex_var < 512) or      -- bitmapmode is on and tileindex in the vram area of bitmap
+                        OAM_data0(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "11" -- obj shape prohibited
+                     ) then
                      if (OAM_currentobj = 127) then
                         OAMFetch <= IDLE;
                      else
