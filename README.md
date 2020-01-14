@@ -29,6 +29,7 @@ PLEASE do not report errors without testing with the original BIOS
 - Yoshi's Universal Gravitation
 - Bouken Yuuki Pluster World - Plust Gate/EX
 - Sennen Kazoku, Gachasute (RTC)
+- Koro Koro Puzzle
 
 # Status
 ~1600 games tested until ingame:
