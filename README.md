@@ -55,6 +55,7 @@ Hot keys for save states:
 - Multiplayer features like Serial
 - Tilt/Gyro/Rumble/Sun sensor
 - RTC
+- E-Reader support
 
 # Accuracy
 
