@@ -342,6 +342,7 @@ architecture arch of gba_cpu is
    signal decode_block_reglist            : std_logic_vector(15 downto 0) := (others => '0');
    signal decode_psr_with_spsr            : std_logic := '0';
    signal decode_leaveirp                 : std_logic := '0';
+   signal decode_leaveirp_user            : std_logic := '0';
    
    signal execute_functions_detail : tFunctions_detail;
    signal execute_datareceivetype  : tdatareceivetype;
@@ -381,6 +382,7 @@ architecture arch of gba_cpu is
    signal execute_block_reglist           : std_logic_vector(15 downto 0) := (others => '0');
    signal execute_psr_with_spsr           : std_logic := '0';
    signal execute_leaveirp                : std_logic := '0';
+   signal execute_leaveirp_user           : std_logic := '0';
    
    -- ############# ALU ##############
    type talu_stage is
@@ -1141,6 +1143,7 @@ begin
                      execute_block_reglist            <= decode_block_reglist; 
                      execute_psr_with_spsr            <= decode_psr_with_spsr; 
                      execute_leaveirp                 <= decode_leaveirp; 
+                     execute_leaveirp_user            <= decode_leaveirp_user; 
                      
                   end if;
                
@@ -1651,6 +1654,7 @@ begin
          decode_datatransfer_swap      <= '0';
          decode_datatransfer_writeback <= '0';
          decode_leaveirp               <= '0';
+         decode_leaveirp_user          <= '0';
          
          decode_shiftsettings    <= decode_datacomb(11 downto 4);
    
@@ -1717,6 +1721,10 @@ begin
                   
                   if ((unsigned(opcode) < 8 or unsigned(opcode) >= 12) and Rdest = x"F" and updateflags = '1') then
                      decode_leaveirp <= '1';
+                     if (cpu_mode = CPUMODE_SYSTEM or cpu_mode = CPUMODE_USER) then
+                        decode_leaveirp_user <= '1';
+                        decode_updateflags   <= '0';
+                     end if;
                   end if;
                
                end if;
@@ -2285,18 +2293,23 @@ begin
                         execute_saveregs       <= '1';
                         execute_saveState      <= '0';
                         execute_switchregs     <= '1';
-                        if ((cpu_mode = CPUMODE_USER and std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM) or (cpu_mode = CPUMODE_SYSTEM and std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER)) then
+                        if (
+                              (cpu_mode = CPUMODE_USER   and (std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER or std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM)) or
+                              (cpu_mode = CPUMODE_SYSTEM and (std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER or std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM))
+                          ) then
                            execute_switchregs  <= '0';
                         end if;
                         cpu_mode_old           <= cpu_mode;
-                        cpu_mode               <= std_logic_vector(regs(17)(3 downto 0));
-                        thumbmode              <= regs(17)(5);
-                        FIQ_disable            <= regs(17)(6);
-                        IRQ_disable            <= regs(17)(7);
-                        Flag_Negative          <= regs(17)(31);
-                        Flag_Zero              <= regs(17)(30);
-                        Flag_Carry             <= regs(17)(29);
-                        Flag_V_Overflow        <= regs(17)(28);
+                        if (execute_leaveirp_user = '0') then
+                           cpu_mode               <= std_logic_vector(regs(17)(3 downto 0));
+                           thumbmode              <= regs(17)(5);
+                           FIQ_disable            <= regs(17)(6);
+                           IRQ_disable            <= regs(17)(7);
+                           Flag_Negative          <= regs(17)(31);
+                           Flag_Zero              <= regs(17)(30);
+                           Flag_Carry             <= regs(17)(29);
+                           Flag_V_Overflow        <= regs(17)(28);
+                        end if;
                
                   end case;
                   
@@ -2481,7 +2494,10 @@ begin
                         if (cpu_mode /= std_logic_vector(new_value(3 downto 0))) then
                            execute_switchregs <= '1';
                         end if;
-                        if ((cpu_mode = CPUMODE_USER and std_logic_vector(new_value(3 downto 0)) = CPUMODE_SYSTEM) or (cpu_mode = CPUMODE_SYSTEM and std_logic_vector(new_value(3 downto 0)) = CPUMODE_USER)) then
+                        if (
+                              (cpu_mode = CPUMODE_USER   and (std_logic_vector(new_value(3 downto 0)) = CPUMODE_USER or std_logic_vector(new_value(3 downto 0)) = CPUMODE_SYSTEM)) or
+                              (cpu_mode = CPUMODE_SYSTEM and (std_logic_vector(new_value(3 downto 0)) = CPUMODE_USER or std_logic_vector(new_value(3 downto 0)) = CPUMODE_SYSTEM))
+                          ) then
                            execute_switchregs  <= '0';
                         end if;
                         execute_saveregs   <= '1';
@@ -2879,7 +2895,10 @@ begin
                         calc_done          <= '1';
                         execute_saveState  <= '1';
                         execute_switchregs <= '1';
-                        if ((cpu_mode = CPUMODE_USER and std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM) or (cpu_mode = CPUMODE_SYSTEM and std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER)) then
+                        if (
+                              (cpu_mode = CPUMODE_USER   and (std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER or std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM)) or
+                              (cpu_mode = CPUMODE_SYSTEM and (std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER or std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM))
+                          ) then
                            execute_switchregs  <= '0';
                         end if;
                         execute_saveregs   <= '1';

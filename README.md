@@ -15,13 +15,7 @@ Original GBA BIOS can be placed to GBA folder with name boot.rom
 PLEASE do not report errors without testing with the original BIOS
 
 # Games with crashes/hang
-- Colin McRae Rally 2.0 hangs when going into race
-
 - Madden06/07: crash at coin toss
-
-- Starsky & Hutch: crash going ingame
-
-- TOCA World Touring Cars: hangs going into race
 
 # Games that are unplayable because of catridge hardware missing
 - Boktai 1/2/Shin Bokura no Taiyou(Japanese Boktai)
