@@ -12,6 +12,7 @@ set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_drawer
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_gpu.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_gpu_drawer.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_gpu_timing.vhd ]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_gpu_colorshade.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_joypad.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_reservedregs.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_serial.vhd ]

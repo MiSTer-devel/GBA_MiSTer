@@ -163,7 +163,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3
 // 01234567890123456789012345678901
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXX XXXXXXXXXXXX    X
+// XXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -191,6 +191,7 @@ parameter CONF_STR = {
    "OJ,Flickerblend,Off,On;",
 	"H2OG,Turbo,Off,On;",
    "OK,Spritelimit,Off,On;",
+   "OOQ,Shader Colors,Off,GBA 2.2,GBA 1.6,NDS 1.6,VBA 1.4;",
 	"R0,Reset;",
 	"J1,A,B,L,R,Select,Start,FastForward;",
 	"jn,A,B,L,R,Select,Start,X;",
@@ -428,6 +429,7 @@ gba
    .load_state(ss_load),
    .interframe_blend(status[19]),
    .maxpixels(status[20]),
+   .shade_mode(status[26:24]),
 
    .cheat_clear(gg_reset),
    .cheats_enabled(~status[6]),
@@ -697,7 +699,7 @@ end
 ////////////////////////////  VIDEO  ////////////////////////////////////
 
 wire [15:0] pixel_addr;
-wire [14:0] pixel_data;
+wire [17:0] pixel_data;
 wire        pixel_we;
 
 reg vsync;
@@ -710,7 +712,7 @@ always @(posedge clk_sys) begin
 	vsync <= |sync;
 end
 
-dpram_n #(16,15,38400) vram
+dpram_n #(16,18,38400) vram
 (
 	.clock_a(clk_sys),
 	.address_a(pixel_addr),
@@ -723,11 +725,11 @@ dpram_n #(16,15,38400) vram
 );
 
 wire [15:0] px_addr;
-wire [14:0] rgb;
+wire [17:0] rgb;
 wire sync_core = status[11];
 
 reg hs, vs, hbl, vbl, ce_pix;
-reg [4:0] r,g,b;
+reg [5:0] r,g,b;
 reg hold_reset, force_pause;
 reg [13:0] force_pause_cnt;
 
@@ -813,9 +815,9 @@ wire [2:0] scale = status[4:2];
 wire [2:0] sl = scale ? scale - 1'd1 : 3'd0;
 wire       scandoubler = (scale || forced_scandoubler);
 
-wire [7:0] r_in = {r,r[4:2]};
-wire [7:0] g_in = {g,g[4:2]};
-wire [7:0] b_in = {b,b[4:2]};
+wire [7:0] r_in = {r,r[5:4]};
+wire [7:0] g_in = {g,g[5:4]};
+wire [7:0] b_in = {b,b[5:4]};
 
 //wire [7:0] luma = r_in[7:3] + g_in[7:1] + g_in[7:2] + b_in[7:3];
 wire [7:0] luma = r_in[7:2] + g_in[7:1] + g_in[7:3] + b_in[7:3];

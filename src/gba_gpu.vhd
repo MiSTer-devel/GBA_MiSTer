@@ -23,14 +23,15 @@ entity gba_gpu is
       gb_bus               : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
                   
       interframe_blend     : in    std_logic;
-      maxpixels            : in  std_logic;
+      maxpixels            : in    std_logic;
+      shade_mode           : in    std_logic_vector(2 downto 0);
       
       bitmapdrawmode       : out   std_logic;
                   
       pixel_out_x          : out   integer range 0 to 239;
       pixel_out_y          : out   integer range 0 to 159;
       pixel_out_addr       : out   integer range 0 to 38399;
-      pixel_out_data       : out   std_logic_vector(14 downto 0);  
+      pixel_out_data       : out   std_logic_vector(17 downto 0);  
       pixel_out_we         : out   std_logic := '0';
                            
       new_cycles           : in    unsigned(7 downto 0);
@@ -79,6 +80,12 @@ architecture arch of gba_gpu is
    signal line_trigger         : std_logic;
    signal refpoint_update      : std_logic;
    signal linecounter_drawer   : unsigned(7 downto 0);
+   
+   signal pixel_x              : integer range 0 to 239;
+   signal pixel_y              : integer range 0 to 159;
+   signal pixel_addr           : integer range 0 to 38399;
+   signal pixel_data           : std_logic_vector(14 downto 0);  
+   signal pixel_we             : std_logic := '0';
 
    
 begin 
@@ -131,11 +138,11 @@ begin
       
       bitmapdrawmode         => bitmapdrawmode,
       
-      pixel_out_x            => pixel_out_x,
-      pixel_out_y            => pixel_out_y,
-      pixel_out_addr         => pixel_out_addr,
-      pixel_out_data         => pixel_out_data,
-      pixel_out_we           => pixel_out_we,  
+      pixel_out_x            => pixel_x,   
+      pixel_out_y            => pixel_y,   
+      pixel_out_addr         => pixel_addr,
+      pixel_out_data         => pixel_data,
+      pixel_out_we           => pixel_we, 
                              
       linecounter            => linecounter_drawer,  
       drawline               => drawline,
@@ -170,6 +177,25 @@ begin
       PALETTE_OAM_we         => PALETTE_OAM_we     
    );         
    
+   igba_gpu_colorshade : entity work.gba_gpu_colorshade
+   port map
+   (
+      clk100               => clk100,
+                           
+      shade_mode           => shade_mode,
+                           
+      pixel_in_x           => pixel_x,   
+      pixel_in_y           => pixel_y,   
+      pixel_in_addr        => pixel_addr,
+      pixel_in_data        => pixel_data,
+      pixel_in_we          => pixel_we,
+                  
+      pixel_out_x          => pixel_out_x,   
+      pixel_out_y          => pixel_out_y,  
+      pixel_out_addr       => pixel_out_addr,
+      pixel_out_data       => pixel_out_data,
+      pixel_out_we         => pixel_out_we  
+   );
 
 end architecture;
 

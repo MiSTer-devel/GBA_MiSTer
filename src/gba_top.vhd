@@ -33,7 +33,8 @@ entity gba_top is
       save_state         : in     std_logic;
       load_state         : in     std_logic;
       interframe_blend   : in     std_logic;
-      maxpixels          : in     std_logic; -- limit pixels per line
+      maxpixels          : in     std_logic;                    -- limit pixels per line
+      shade_mode         : in     std_logic_vector(2 downto 0); -- 0 = off, 1..4 modes
       -- cheats
       cheat_clear        : in     std_logic;
       cheats_enabled     : in     std_logic;
@@ -92,7 +93,7 @@ entity gba_top is
       pixel_out_x        : out   integer range 0 to 239;
       pixel_out_y        : out   integer range 0 to 159;
       pixel_out_addr     : out   integer range 0 to 38399;       -- address for framebuffer 
-      pixel_out_data     : out   std_logic_vector(14 downto 0);  -- RGB data for framebuffer 
+      pixel_out_data     : out   std_logic_vector(17 downto 0);  -- RGB data for framebuffer 
       pixel_out_we       : out   std_logic;                      -- new pixel for framebuffer 
       -- sound                            
       sound_out_left     : out   std_logic_vector(15 downto 0) := (others => '0');
@@ -642,6 +643,7 @@ begin
 
       interframe_blend     => interframe_blend,
       maxpixels            => maxpixels,
+      shade_mode           => shade_mode,
       
       bitmapdrawmode       => bitmapdrawmode,
 
