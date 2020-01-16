@@ -979,6 +979,7 @@ begin
                state <= IDLE;
                VRAM_be := (others => '0');
                if (acc_save = ACCESS_8BIT) then
+                  -- maybe also just check like 16/32 bit?
                   if ((bitmapdrawmode = '0' and unsigned(adr_save(16 downto 0)) <= 16#FFFF#) or (bitmapdrawmode = '1' and unsigned(adr_save(16 downto 0)) <= 16#13FFF#)) then
                      case(adr_save(1 downto 0)) is
                         when "00" => VRAM_be(0) := '1'; VRAM_be(1) := '1';
@@ -989,15 +990,19 @@ begin
                      end case;
                   end if;
                elsif (acc_save = ACCESS_16BIT) then
-                  if (adr_save(1) = '1') then
-                     VRAM_be(2) := '1';
-                     VRAM_be(3) := '1';
-                  else                                                               
-                     VRAM_be(0) := '1';
-                     VRAM_be(1) := '1';
+                  if ((bitmapdrawmode = '0' or unsigned(adr_save(16 downto 14)) /= "110")) then
+                     if (adr_save(1) = '1') then
+                        VRAM_be(2) := '1';
+                        VRAM_be(3) := '1';
+                     else                                                               
+                        VRAM_be(0) := '1';
+                        VRAM_be(1) := '1';
+                     end if;
                   end if;
                else
-                  VRAM_be := (others => '1');
+                  if ((bitmapdrawmode = '0' or unsigned(adr_save(16 downto 14)) /= "110")) then
+                     VRAM_be := (others => '1');
+                  end if;
                end if;
                VRAM_Hi_be <= VRAM_be;
                VRAM_Lo_be <= VRAM_be;
