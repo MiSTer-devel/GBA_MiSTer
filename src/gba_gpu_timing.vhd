@@ -17,6 +17,7 @@ entity gba_gpu_timing is
       clk100                       : in  std_logic;  
       gb_on                        : in  std_logic;
       reset                        : in  std_logic;
+      lockspeed                    : in  std_logic;
       
       savestate_bus                : inout proc_bus_gb_type;
       
@@ -34,7 +35,8 @@ entity gba_gpu_timing is
       vblank_trigger               : out std_logic := '0';                              
       drawline                     : out std_logic := '0';                       
       refpoint_update              : out std_logic := '0';                       
-      linecounter_drawer           : out unsigned(7 downto 0);      
+      linecounter_drawer           : out unsigned(7 downto 0);
+      pixelpos                     : out integer range 0 to 511;
       
       DISPSTAT_debug               : out std_logic_vector(31 downto 0)
    );
@@ -62,6 +64,7 @@ architecture arch of gba_gpu_timing is
    
    signal linecounter : unsigned(7 downto 0)  := (others => '0');
    signal cycles      : unsigned(11 downto 0) := (others => '0');
+   signal drawsoon    : std_logic := '0';
    
    -- savestate
    signal SAVESTATE_GPU      : std_logic_vector(24 downto 0);
@@ -139,10 +142,20 @@ begin
             if (new_cycles_valid = '1') then
                cycles <= cycles + new_cycles;
             else
-         
+            
                case (gpustate) is
                   when VISIBLE =>
+                     if ((lockspeed = '0' or cycles >= 160)) then
+                        if (lockspeed = '1') then
+                           pixelpos  <= (to_integer(cycles) / 4) - 40;
+                        end if;
+                        if (drawsoon = '1') then
+                           drawline  <= '1';
+                           drawsoon  <= '0';
+                        end if;
+                     end if;
                      if (cycles >= 1008) then -- 960 is drawing time
+                        pixelpos                  <= 240;
                         cycles                    <= cycles - 1008;
                         gpustate                  <= HBLANK;
                         REG_DISPSTAT_H_Blank_flag <= "1";
@@ -168,7 +181,8 @@ begin
                         REG_DISPSTAT_H_Blank_flag <= "0";
                         if ((linecounter + 1) < 160) then
                            gpustate     <= VISIBLE;
-                           drawline     <= '1';
+                           drawsoon     <= '1';
+                           pixelpos     <= 0;
                            line_trigger <= '1';
                         else
                            gpustate                  <= VBLANK;
@@ -210,12 +224,13 @@ begin
                         if ((linecounter + 1) = 228) then
                            linecounter <= (others => '0');
                            gpustate    <= VISIBLE;
-                           drawline    <= '1';
+                           drawsoon    <= '1';
+                           pixelpos    <= 0;
                            REG_DISPSTAT_V_Blank_flag <= "0";
                         else
                            gpustate <= VBLANK;
                            --if ((linecounter + 1) = 227)
-                              -- GBRegs.Sect_display.DISPSTAT_V_Blank_flag.write(0);  where does this come from? commented out in emulator
+                              -- GBRegs.Sect_display.DISPSTAT_V_Blank_flag.write(0);  -- V-Blank flag (1=VBlank) (set in line 160..226; not 227)
                            --end if;
                         end if;
                      end if;

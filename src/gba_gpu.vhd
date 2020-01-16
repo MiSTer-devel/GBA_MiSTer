@@ -21,7 +21,8 @@ entity gba_gpu is
       savestate_bus        : inout proc_bus_gb_type;
                            
       gb_bus               : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
-                  
+                      
+      lockspeed            : in    std_logic;
       interframe_blend     : in    std_logic;
       maxpixels            : in    std_logic;
       shade_mode           : in    std_logic_vector(2 downto 0);
@@ -80,6 +81,7 @@ architecture arch of gba_gpu is
    signal line_trigger         : std_logic;
    signal refpoint_update      : std_logic;
    signal linecounter_drawer   : unsigned(7 downto 0);
+   signal pixelpos             : integer range 0 to 511;
    
    signal pixel_x              : integer range 0 to 239;
    signal pixel_y              : integer range 0 to 159;
@@ -100,6 +102,7 @@ begin
       clk100                       => clk100,
       gb_on                        => gb_on,
       reset                        => reset,
+      lockspeed                    => lockspeed,
       
       savestate_bus                => savestate_bus,
             
@@ -117,7 +120,8 @@ begin
       vblank_trigger               => vblank_trigger,                            
       drawline                     => drawline,   
       refpoint_update              => refpoint_update,   
-      linecounter_drawer           => linecounter_drawer,             
+      linecounter_drawer           => linecounter_drawer, 
+      pixelpos                     => pixelpos,
                                    
       DISPSTAT_debug               => DISPSTAT_debug
    );
@@ -133,6 +137,7 @@ begin
       
       gb_bus                 => gb_bus,
       
+      lockspeed              => lockspeed,
       interframe_blend       => interframe_blend,
       maxpixels              => maxpixels,
       
@@ -144,12 +149,13 @@ begin
       pixel_out_data         => pixel_data,
       pixel_out_we           => pixel_we, 
                              
-      linecounter            => linecounter_drawer,  
+      linecounter            => linecounter_drawer,    
       drawline               => drawline,
       refpoint_update        => refpoint_update,
       hblank_trigger         => hblank_trigger,  
       vblank_trigger         => vblank_trigger,  
-      line_trigger           => line_trigger,   
+      line_trigger           => line_trigger,  
+      pixelpos               => pixelpos,         
             
       VRAM_Lo_addr           => VRAM_Lo_addr,   
       VRAM_Lo_datain         => VRAM_Lo_datain, 

@@ -641,6 +641,7 @@ begin
 
       gb_bus               => gb_bus,
 
+      lockspeed            => GBA_lockspeed,
       interframe_blend     => interframe_blend,
       maxpixels            => maxpixels,
       shade_mode           => shade_mode,

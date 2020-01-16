@@ -18,6 +18,7 @@ entity gba_gpu_drawer is
       
       gb_bus               : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');                  
         
+      lockspeed            : in    std_logic;
       interframe_blend     : in    std_logic;
       maxpixels            : in    std_logic;
       
@@ -30,6 +31,7 @@ entity gba_gpu_drawer is
       pixel_out_we         : out   std_logic := '0';
                            
       linecounter          : in    unsigned(7 downto 0);
+      pixelpos             : in    integer range 0 to 511;
       drawline             : in    std_logic;
       refpoint_update      : in    std_logic;
       hblank_trigger       : in    std_logic;
@@ -724,6 +726,8 @@ begin
       clk100               => clk100,
       drawline             => drawline_mode0_0,
       busy                 => busy_mode0_0,
+      lockspeed            => lockspeed,
+      pixelpos             => pixelpos, 
       ypos                 => linecounter_int,
       ypos_mosaic          => linecounter_mosaic_bg,
       mapbase              => unsigned(REG_BG0CNT_Screen_Base_Block),
@@ -751,6 +755,8 @@ begin
       clk100               => clk100,
       drawline             => drawline_mode0_1,
       busy                 => busy_mode0_1,
+      lockspeed            => lockspeed,
+      pixelpos             => pixelpos,
       ypos                 => linecounter_int,
       ypos_mosaic          => linecounter_mosaic_bg,
       mapbase              => unsigned(REG_BG1CNT_Screen_Base_Block),
@@ -778,6 +784,8 @@ begin
       clk100               => clk100,
       drawline             => drawline_mode0_2,
       busy                 => busy_mode0_2,
+      lockspeed            => lockspeed,
+      pixelpos             => pixelpos,
       ypos                 => linecounter_int,
       ypos_mosaic          => linecounter_mosaic_bg,
       mapbase              => unsigned(REG_BG2CNT_Screen_Base_Block),
@@ -805,6 +813,8 @@ begin
       clk100               => clk100,
       drawline             => drawline_mode0_3,
       busy                 => busy_mode0_3,
+      lockspeed            => lockspeed,
+      pixelpos             => pixelpos,
       ypos                 => linecounter_int,
       ypos_mosaic          => linecounter_mosaic_bg,
       mapbase              => unsigned(REG_BG3CNT_Screen_Base_Block),

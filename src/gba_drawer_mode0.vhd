@@ -10,6 +10,9 @@ entity gba_drawer_mode0 is
       drawline             : in  std_logic;
       busy                 : out std_logic := '0';
       
+      lockspeed            : in  std_logic;
+      pixelpos             : in  integer range 0 to 511;
+      
       ypos                 : in  integer range 0 to 159;
       ypos_mosaic          : in  integer range 0 to 159;
       mapbase              : in  unsigned(4 downto 0);
@@ -110,8 +113,8 @@ begin
          
             when IDLE =>
                if (drawline = '1') then
-                  busy         <= '1';
-                  vramfetch    <= CALCBASE;
+                  busy            <= '1';
+                  vramfetch       <= CALCBASE;
                   if (mosaic = '1') then
                      y_scrolled <= ypos_mosaic + to_integer(scrollY);
                   else
@@ -148,8 +151,10 @@ begin
                end if;
                
             when CALCADDR1 =>
-               vramfetch  <= CALCADDR2;
-               x_scrolled <= ((x_cnt + to_integer(scrollX)) mod scroll_x_mod);
+               if (pixelpos >= x_cnt or lockspeed = '0') then
+                  vramfetch  <= CALCADDR2;
+                  x_scrolled <= ((x_cnt + to_integer(scrollX)) mod scroll_x_mod);
+               end if;
    
             when CALCADDR2 =>
                tileindex_var  := 0;
