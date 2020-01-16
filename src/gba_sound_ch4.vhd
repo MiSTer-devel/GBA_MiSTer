@@ -47,7 +47,6 @@ architecture arch of gba_sound_ch4 is
    signal volume               : integer range 0 to 15 := 0;
    signal wave_on              : std_logic := '0';      
                                
-   signal divider_raw          : unsigned(23 downto 0) := (others => '0');
    signal freq_divider         : unsigned(23 downto 0) := (others => '0');
    signal length_on            : std_logic := '0';
    signal ch_on                : std_logic := '0';
@@ -76,6 +75,7 @@ begin
    iSOUND4CNT_HHighZero            : entity work.eProcReg_gba generic map ( SOUND4CNT_HHighZero                    ) port map  (clk100, gb_bus, x"0000");  
         
    process (clk100)
+      variable divider_raw         : unsigned(23 downto 0) := (others => '0');
    begin
       if rising_edge(clk100) then
       
@@ -89,7 +89,6 @@ begin
             envelope_add         <= (others => '0');
             volume               <= 0;
             wave_on              <= '0';      
-            divider_raw          <= (others => '0');
             freq_divider         <= (others => '0');
             length_on            <= '0';
             ch_on                <= '0';
@@ -113,22 +112,22 @@ begin
             end if;
             
             if (Dividing_Ratio_of_Freq_written = '1') then
+               divider_raw := to_unsigned(  8, divider_raw'length);
                case to_integer(unsigned(REG_Dividing_Ratio_of_Freq)) is
-                  when 0 => divider_raw <= to_unsigned(  8, divider_raw'length);
-                  when 1 => divider_raw <= to_unsigned( 16, divider_raw'length);
-                  when 2 => divider_raw <= to_unsigned( 32, divider_raw'length);
-                  when 3 => divider_raw <= to_unsigned( 48, divider_raw'length);
-                  when 4 => divider_raw <= to_unsigned( 64, divider_raw'length);
-                  when 5 => divider_raw <= to_unsigned( 80, divider_raw'length);
-                  when 6 => divider_raw <= to_unsigned( 96, divider_raw'length);
-                  when 7 => divider_raw <= to_unsigned(112, divider_raw'length);
+                  when 0 => divider_raw := to_unsigned(  8, divider_raw'length);
+                  when 1 => divider_raw := to_unsigned( 16, divider_raw'length);
+                  when 2 => divider_raw := to_unsigned( 32, divider_raw'length);
+                  when 3 => divider_raw := to_unsigned( 48, divider_raw'length);
+                  when 4 => divider_raw := to_unsigned( 64, divider_raw'length);
+                  when 5 => divider_raw := to_unsigned( 80, divider_raw'length);
+                  when 6 => divider_raw := to_unsigned( 96, divider_raw'length);
+                  when 7 => divider_raw := to_unsigned(112, divider_raw'length);
                   when others => null;
                end case;
                
-               lfsr7bit <= REG_Counter_Step_Width(REG_Counter_Step_Width'left);
-               
+               lfsr7bit     <= REG_Counter_Step_Width(REG_Counter_Step_Width'left);
+               freq_divider <= divider_raw sll to_integer(unsigned(REG_Shift_Clock_Frequency));
             end if;
-            freq_divider <= divider_raw sll to_integer(unsigned(REG_Shift_Clock_Frequency));
             
             if (Initial_written = '1') then
                length_on <= REG_Length_Flag(REG_Length_Flag'left);
@@ -137,6 +136,7 @@ begin
                   envelope_add <= (others => '0');
                   ch_on        <= '1';
                   
+                  wave_on <= '1'; -- 1 because negative output
                   lfsr <= (others => '0');
                   if (REG_Counter_Step_Width = "1") then
                      lfsr(6) <= '1';
@@ -154,10 +154,11 @@ begin
                   soundcycles_length   <= soundcycles_length   + 1;
                end if;
             
+               wave_on <= not lfsr(0);
+            
                -- freq / wavetable
                if (new_cycles_valid = '0' and soundcycles_freq >= freq_divider) then
                   soundcycles_freq <= soundcycles_freq - freq_divider;
-                  wave_on <= not lfsr(0);
                   if (lfsr7bit = '1') then
                      lfsr <= x"00" & (lfsr(1) xor lfsr(0)) & lfsr(6 downto 1);
                   else
