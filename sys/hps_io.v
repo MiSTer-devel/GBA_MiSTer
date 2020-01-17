@@ -51,6 +51,7 @@ module hps_io #(parameter STRLEN=0, PS2DIV=0, WIDE=0, VDNUM=1, PS2WE=0)
 
 	output      [1:0] buttons,
 	output            forced_scandoubler,
+	output            direct_video,
 
 	output reg [63:0] status,
 	input      [63:0] status_in,
@@ -154,12 +155,13 @@ assign HPS_BUS[36]   = clk_sys;
 assign HPS_BUS[32]   = io_wide;
 assign HPS_BUS[15:0] = io_dout;
 
-reg [7:0] cfg;
+reg [15:0] cfg;
 assign buttons = cfg[1:0];
 //cfg[2] - vga_scaler handled in sys_top
 //cfg[3] - csync handled in sys_top
 assign forced_scandoubler = cfg[4];
 //cfg[5] - ypbpr handled in sys_top
+assign direct_video = cfg[10];
 
 // command byte read by the io controller
 wire [15:0] sd_cmd =
@@ -185,6 +187,7 @@ video_calc video_calc
 (
 	.clk_100(HPS_BUS[43]),
 	.clk_vid(HPS_BUS[42]),
+	.clk_sys(clk_sys),
 	.ce_pix(HPS_BUS[41]),
 	.de(HPS_BUS[40]),
 	.hs(HPS_BUS[39]),
@@ -220,7 +223,7 @@ always@(posedge clk_sys) begin
 	reg [63:0] status_req;
 	reg        old_status_set = 0;
 	reg  [7:0] cd_req = 0;
-	reg        old_cd = 0;
+	reg        old_cd = 0; 
 	reg        old_info = 0;
 	reg  [7:0] info_n = 0;
 
@@ -278,7 +281,7 @@ always@(posedge clk_sys) begin
 					'h2B: io_dout <= 1;
 					'h2F: io_dout <= 1;
 					'h32: io_dout <= gamma_bus[21];
-					'h34: io_dout <= cd_req;
+					'h34: io_dout <= cd_req; 
 					'h36: begin io_dout <= info_n; info_n <= 0; end
 				endcase
 
@@ -289,7 +292,7 @@ always@(posedge clk_sys) begin
 
 				case(cmd)
 					// buttons and switches
-					'h01: cfg <= io_din[7:0];
+					'h01: cfg <= io_din;
 					'h02: if(byte_cnt==1) joystick_0[15:0] <= io_din; else joystick_0[31:16] <= io_din;
 					'h03: if(byte_cnt==1) joystick_1[15:0] <= io_din; else joystick_1[31:16] <= io_din;
 					'h10: if(byte_cnt==1) joystick_2[15:0] <= io_din; else joystick_2[31:16] <= io_din;
@@ -461,7 +464,7 @@ end
 generate
 	if(PS2DIV) begin
 		reg clk_ps2;
-		always @(negedge clk_sys) begin
+		always @(posedge clk_sys) begin
 			integer cnt;
 			cnt <= cnt + 1'd1;
 			if(cnt == PS2DIV) begin
@@ -740,6 +743,8 @@ module video_calc
 (
 	input clk_100,
 	input clk_vid,
+	input clk_sys,
+
 	input ce_pix,
 	input de,
 	input hs,
@@ -752,22 +757,22 @@ module video_calc
 	output reg [15:0] dout
 );
 
-always @(*) begin
+always @(posedge clk_sys) begin
 	case(par_num)
-		1: dout = {|vid_int, vid_nres};
-		2: dout = vid_hcnt[15:0];
-		3: dout = vid_hcnt[31:16];
-		4: dout = vid_vcnt[15:0];
-		5: dout = vid_vcnt[31:16];
-		6: dout = vid_htime[15:0];
-		7: dout = vid_htime[31:16];
-		8: dout = vid_vtime[15:0];
-		9: dout = vid_vtime[31:16];
-	  10: dout = vid_pix[15:0];
-	  11: dout = vid_pix[31:16];
-	  12: dout = vid_vtime_hdmi[15:0];
-	  13: dout = vid_vtime_hdmi[31:16];
-	  default dout = 0;
+		1: dout <= {|vid_int, vid_nres};
+		2: dout <= vid_hcnt[15:0];
+		3: dout <= vid_hcnt[31:16];
+		4: dout <= vid_vcnt[15:0];
+		5: dout <= vid_vcnt[31:16];
+		6: dout <= vid_htime[15:0];
+		7: dout <= vid_htime[31:16];
+		8: dout <= vid_vtime[15:0];
+		9: dout <= vid_vtime[31:16];
+	  10: dout <= vid_pix[15:0];
+	  11: dout <= vid_pix[31:16];
+	  12: dout <= vid_vtime_hdmi[15:0];
+	  13: dout <= vid_vtime_hdmi[31:16];
+	  default dout <= 0;
 	endcase
 end
 
