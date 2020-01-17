@@ -100,7 +100,15 @@ entity gba_memorymux is
       PALETTE_OAM_dataout  : in     std_logic_vector(31 downto 0);
       PALETTE_OAM_we       : out    std_logic_vector(3 downto 0);
       
-      debug_mem            : out   std_logic_vector(31 downto 0)  
+      specialmodule        : in     std_logic;
+      GPIO_readEna         : out    std_logic;
+      GPIO_done            : in     std_logic;
+      GPIO_Din             : in     std_logic_vector(3 downto 0);
+      GPIO_Dout            : out    std_logic_vector(3 downto 0);
+      GPIO_writeEna        : out    std_logic := '0';
+      GPIO_addr            : out    std_logic_vector(1 downto 0);
+      
+      debug_mem            : out    std_logic_vector(31 downto 0)  
    );
 end entity;
 
@@ -126,6 +134,7 @@ architecture arch of gba_memorymux is
       READAFTERPAK,
       READ_UNREADABLE,
       ROTATE,
+      READ_GPIO,
       WAIT_WRAMREADMODIFYWRITE,
       WRITE_WRAMLARGE,
       WRITE_WRAMSMALL,
@@ -401,6 +410,8 @@ begin
          OAMRAM_PROC_we  <= (others => '0');
          PALETTE_BG_we   <= (others => '0');
          PALETTE_OAM_we  <= (others => '0');
+         GPIO_readEna    <= '0';
+         GPIO_writeEna   <= '0';
          
          mem_bus_done    <= '0';
          mem_bus_unread  <= '0';
@@ -518,6 +529,14 @@ begin
                                  end if;
                                  state             <= WAIT_SDRAM;
                               end if;
+                              if (specialmodule = '1') then
+                                 if (unsigned(mem_bus_Adr(27 downto 0)) >= 16#80000C4# and unsigned(mem_bus_Adr(27 downto 0)) <= 16#80000C8#) then
+                                    state        <= READ_GPIO;
+                                    mem_bus_done <= '0';
+                                    GPIO_readEna <= '1';
+                                    GPIO_addr    <= std_logic_vector(to_unsigned(to_integer(unsigned(mem_bus_Adr(3 downto 1))) - 4 / 2, 2));
+                                 end if;
+                              end if;
                            
                            when x"D" =>
                               state            <= EEPROMREAD;  
@@ -573,6 +592,16 @@ begin
                            when x"5" => state <= WRITE_PALETTE;   mem_bus_done <= '1';
                            when x"6" => state <= WRITE_VRAM;      mem_bus_done <= '1';
                            when x"7" => state <= WRITE_OAM;       mem_bus_done <= '1';
+                           when x"8" =>
+                              mem_bus_done <= '1';
+                              if (specialmodule = '1') then
+                                 if (unsigned(mem_bus_Adr(27 downto 0)) >= 16#80000C4# and unsigned(mem_bus_Adr(27 downto 0)) <= 16#80000C8#) then
+                                    GPIO_writeEna <= '1';
+                                    GPIO_addr     <= std_logic_vector(to_unsigned(to_integer(unsigned(mem_bus_Adr(3 downto 1))) - 4 / 2, 2));
+                                    GPIO_Dout     <= mem_bus_dout(3 downto 0);
+                                 end if;
+                              end if;
+                           
                            when x"D" => state <= EEPROMWRITE;  
                            when x"E" | x"F" => state <= FLASHSRAMWRITEDECIDE1; adr_save(1 downto 0) <= mem_bus_Adr(1 downto 0) or bus_lowbits;
                            when others => mem_bus_done <= '1'; --report "writing here not implemented!" severity failure;
@@ -835,6 +864,14 @@ begin
                mem_bus_done   <= '1'; 
                mem_bus_unread <= unread_next;
                state <= IDLE;
+               
+            when READ_GPIO =>
+               if (GPIO_done = '1') then
+                  mem_bus_done   <= '1'; 
+                  mem_bus_din    <= x"0000000" & GPIO_Din;
+                  state <= IDLE;
+               end if;
+               
             
             ----- writing
             

@@ -35,6 +35,7 @@ entity gba_top is
       interframe_blend   : in     std_logic;
       maxpixels          : in     std_logic;                    -- limit pixels per line
       shade_mode         : in     std_logic_vector(2 downto 0); -- 0 = off, 1..4 modes
+      specialmodule      : in     std_logic;                    -- 0 = off, 1 = use gamepak GPIO Port at address 0x080000C4..0x080000C8
       -- cheats
       cheat_clear        : in     std_logic;
       cheats_enabled     : in     std_logic;
@@ -202,6 +203,13 @@ architecture arch of gba_top is
    signal PALETTE_OAM_datain   : std_logic_vector(31 downto 0);
    signal PALETTE_OAM_dataout  : std_logic_vector(31 downto 0);
    signal PALETTE_OAM_we       : std_logic_vector(3 downto 0);
+   
+   signal GPIO_done            : std_logic;
+   signal GPIO_readEna         : std_logic;
+   signal GPIO_Din             : std_logic_vector(3 downto 0);
+   signal GPIO_Dout            : std_logic_vector(3 downto 0);
+   signal GPIO_writeEna        : std_logic;
+   signal GPIO_addr            : std_logic_vector(1 downto 0);
    
    signal gbaon                : std_logic := '0';
    signal gpu_out_active       : std_logic;
@@ -448,6 +456,19 @@ begin
       BusDone        => mem_bus_done
    );
    
+   igba_gpiodummy : entity work.gba_gpiodummy
+   port map
+   (
+      clk100               => clk100,       
+                                           
+      GPIO_readEna         => GPIO_readEna, 
+      GPIO_done            => GPIO_done,   
+      GPIO_Din             => GPIO_Din,     
+      GPIO_Dout            => GPIO_Dout,    
+      GPIO_writeEna        => GPIO_writeEna,
+      GPIO_addr            => GPIO_addr    
+   );
+   
    process (clk100)
    begin
       if rising_edge(clk100) then
@@ -553,6 +574,14 @@ begin
       PALETTE_OAM_datain   => PALETTE_OAM_datain, 
       PALETTE_OAM_dataout  => PALETTE_OAM_dataout,
       PALETTE_OAM_we       => PALETTE_OAM_we,
+
+      specialmodule        => specialmodule,
+      GPIO_readEna         => GPIO_readEna,
+      GPIO_done            => GPIO_done,    
+      GPIO_Din             => GPIO_Din,     
+      GPIO_Dout            => GPIO_Dout,    
+      GPIO_writeEna        => GPIO_writeEna,
+      GPIO_addr            => GPIO_addr,    
 
       debug_mem            => debug_mem      
    );
