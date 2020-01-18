@@ -137,11 +137,9 @@ begin
                   ch_on        <= '1';
                   
                   wave_on <= '1'; -- 1 because negative output
-                  lfsr <= (others => '0');
+                  lfsr <= (others => '1');
                   if (REG_Counter_Step_Width = "1") then
-                     lfsr(6) <= '1';
-                  else
-                     lfsr(14) <= '1';
+                     lfsr(14 downto 7) <= (others => '0');
                   end if;
                end if;
             end if;
