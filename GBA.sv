@@ -430,7 +430,7 @@ gba
    .interframe_blend(status[19]),
    .maxpixels(status[20]),
    .shade_mode(status[26:24]),
-   .specialmodule('1),
+	.specialmodule('0),
 
    .cheat_clear(gg_reset),
    .cheats_enabled(~status[6]),
