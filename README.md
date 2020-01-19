@@ -15,7 +15,7 @@ Original GBA BIOS can be placed to GBA folder with name boot.rom
 PLEASE do not report errors without testing with the original BIOS
 
 # Games with crashes/hang
-- Madden06/07: crash at coin toss
+- Madden06/07: graphic messed up at coin toss
 
 # Games that are unplayable because of catridge hardware missing
 - Boktai 1/2/Shin Bokura no Taiyou(Japanese Boktai)
@@ -37,8 +37,9 @@ PLEASE do not report errors without testing with the original BIOS
 - FastForward - speed up game by factor 2-4
 - CPU Turbomode - give games additional CPU power
 - Flickerblend - turn on for games like F-Zero, Mario Kart or NES Classics to prevent flickering effects
-- Spritelimit - turn on to prevent wrong sprites for games that rely on the limit (opt-in because not 100% accurate)
+- Spritelimit - turn on to prevent wrong sprites for games that rely on the limit (opt-in as only 1 known game)
 - Cheats
+- Shadercolors
 
 # Savestates
 Core provides 4 slots to save the state. The first slot gets saved to disk and automatically loaded (but not applied)
