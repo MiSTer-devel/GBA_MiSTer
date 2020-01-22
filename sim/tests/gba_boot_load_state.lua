@@ -7,10 +7,10 @@ reg_set(0, gameboy.Reg_GBA_flash_1m)
 reg_set(0, gameboy.Reg_GBA_SramFlashEna)
 reg_set(0, gameboy.Reg_GBA_MemoryRemap )
 
-transmit_rom("armwrestler.gba", 65536+131072 + 0x6000000, nil)
+transmit_rom("armwrestler.gba", 65536+131072 + 0xC000000, nil)
 print("Game transfered")
 
-reg_set_file("tests\\savestate.ss", 0x7C00000, 0, 0)
+reg_set_file("tests\\savestate.ss", 0xF800000, 0, 0)
 print("Savestate transfered")
 
 reg_set(100, gameboy.Reg_GBA_CyclePrecalc)

@@ -80,14 +80,25 @@ begin
          cmd_burst_save   := DDRAM_BURSTCNT;
          wait until rising_edge(DDRAM_CLK);
          for i in 0 to (to_integer(unsigned(cmd_burst_save)) - 1) loop
-            if (cmd_address_save(0)) = '1' then
-               DDRAM_DOUT       <= std_logic_vector(to_signed(data(to_integer(unsigned(cmd_address_save)) + (i * 2) - 1), 32)) & 
-                                   std_logic_vector(to_signed(data(to_integer(unsigned(cmd_address_save)) + (i * 2) + 0), 32));
-            else
-               DDRAM_DOUT       <= std_logic_vector(to_signed(data(to_integer(unsigned(cmd_address_save)) + (i * 2) + 1), 32)) & 
-                                   std_logic_vector(to_signed(data(to_integer(unsigned(cmd_address_save)) + (i * 2) + 0), 32));
+            DDRAM_DOUT       <= std_logic_vector(to_signed(data(to_integer(unsigned(cmd_address_save)) * 2 + (i * 2) + 1), 32)) & 
+                                std_logic_vector(to_signed(data(to_integer(unsigned(cmd_address_save)) * 2 + (i * 2) + 0), 32));
+            DDRAM_DOUT_READY <= '1';
+            wait until rising_edge(DDRAM_CLK);
+         end loop;
+         DDRAM_DOUT_READY <= '0';
+      end if;  
+      
+      if (DDRAM_WE = '1') then
+         cmd_address_save := DDRAM_ADDR;
+         cmd_burst_save   := DDRAM_BURSTCNT;
+         wait until rising_edge(DDRAM_CLK);
+         for i in 0 to (to_integer(unsigned(cmd_burst_save)) - 1) loop                                                         
+            if (DDRAM_BE(7 downto 4) = x"F") then                        
+               data(to_integer(unsigned(cmd_address_save)) * 2 + (i * 2) + 1) := to_integer(signed(DDRAM_DIN(63 downto 32)));
+            end if;                                                      
+            if (DDRAM_BE(3 downto 0) = x"F") then                        
+               data(to_integer(unsigned(cmd_address_save)) * 2 + (i * 2) + 0) := to_integer(signed(DDRAM_DIN(31 downto  0)));
             end if;
-            cmd_address_save(0) := '0';
             DDRAM_DOUT_READY <= '1';
             wait until rising_edge(DDRAM_CLK);
          end loop;

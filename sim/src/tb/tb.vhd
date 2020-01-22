@@ -321,21 +321,21 @@ begin
    );
    
    
-   ch1_addr <= sdram_read_addr & "00";
+   ch1_addr <= '0' & sdram_read_addr & "0";
    ch1_req  <= sdram_read_ena;
    ch1_rnw  <= '1';
    sdram_second_dword <= ch1_dout(63 downto 32);
    sdram_read_data    <= ch1_dout(31 downto 0);
    sdram_read_done    <= ch1_ready; 
    
-   ch2_addr <= bus_out_Adr(24 downto 0) & "00";
+   ch2_addr <= bus_out_Adr & "0";
    ch2_din  <= bus_out_Din;
    ch2_req  <= bus_out_ena;
    ch2_rnw  <= bus_out_rnw;
    bus_out_Dout <= ch2_dout;
    bus_out_done <= ch2_ready;
    
-   ch4_addr <= SAVE_out_Adr(21 downto 0) & "00";
+   ch4_addr <= SAVE_out_Adr(22 downto 0) & "0";
    ch4_din  <= SAVE_out_Din;
    ch4_req  <= SAVE_out_ena;
    ch4_rnw  <= SAVE_out_rnw;
