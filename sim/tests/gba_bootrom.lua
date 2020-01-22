@@ -1,8 +1,5 @@
 require("gba_lib")
 
-gba_loadsavegame = false
-gba_savegame_path = "C:\\Users\\FPGADev\\Desktop\\gba_saves\\"
-
 wait_ns(220000)
 
 reg_set(0, gameboy.Reg_GBA_on)

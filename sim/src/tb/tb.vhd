@@ -328,12 +328,19 @@ begin
    sdram_read_data    <= ch1_dout(31 downto 0);
    sdram_read_done    <= ch1_ready; 
    
-   ch2_addr <= bus_out_Adr & '0';
+   ch2_addr <= bus_out_Adr(24 downto 0) & "00";
    ch2_din  <= bus_out_Din;
    ch2_req  <= bus_out_ena;
    ch2_rnw  <= bus_out_rnw;
    bus_out_Dout <= ch2_dout;
    bus_out_done <= ch2_ready;
+   
+   ch4_addr <= SAVE_out_Adr(21 downto 0) & "00";
+   ch4_din  <= SAVE_out_Din;
+   ch4_req  <= SAVE_out_ena;
+   ch4_rnw  <= SAVE_out_rnw;
+   SAVE_out_Dout <= ch4_dout;
+   SAVE_out_done <= ch4_ready;
    
    iddrram : entity top.ddram
    port map (

@@ -24,7 +24,7 @@ end entity;
 architecture arch of ddrram_model is
 
    -- not full size, because of memory required
-   type t_data is array(0 to (2**27)-1) of integer;
+   type t_data is array(0 to (2**28)-1) of integer;
    type bit_vector_file is file of bit_vector;
    
 begin
