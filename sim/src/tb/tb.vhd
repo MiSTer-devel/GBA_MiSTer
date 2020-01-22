@@ -85,8 +85,8 @@ architecture arch of etb is
    signal bus_out_ena      : std_logic;
    signal bus_out_done     : std_logic;
    
-   signal SAVE_out_Din     : std_logic_vector(31 downto 0);
-   signal SAVE_out_Dout    : std_logic_vector(31 downto 0);
+   signal SAVE_out_Din     : std_logic_vector(63 downto 0);
+   signal SAVE_out_Dout    : std_logic_vector(63 downto 0);
    signal SAVE_out_Adr     : std_logic_vector(25 downto 0);
    signal SAVE_out_rnw     : std_logic;                    
    signal SAVE_out_ena     : std_logic;                    
@@ -152,9 +152,9 @@ architecture arch of etb is
    signal ch3_rnw          : std_logic;
    signal ch3_ready        : std_logic;
                      
-   signal ch4_addr         : std_logic_vector(24 downto 1);
-   signal ch4_dout         : std_logic_vector(31 downto 0);
-   signal ch4_din          : std_logic_vector(31 downto 0);
+   signal ch4_addr         : std_logic_vector(24 downto 0);
+   signal ch4_dout         : std_logic_vector(63 downto 0);
+   signal ch4_din          : std_logic_vector(63 downto 0);
    signal ch4_req          : std_logic;
    signal ch4_rnw          : std_logic;
    signal ch4_ready        : std_logic;
@@ -335,7 +335,7 @@ begin
    bus_out_Dout <= ch2_dout;
    bus_out_done <= ch2_ready;
    
-   ch4_addr <= SAVE_out_Adr(22 downto 0) & "0";
+   ch4_addr <= SAVE_out_Adr(22 downto 0) & "00";
    ch4_din  <= SAVE_out_Din;
    ch4_req  <= SAVE_out_ena;
    ch4_rnw  <= SAVE_out_rnw;

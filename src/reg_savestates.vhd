@@ -68,6 +68,8 @@ package pReg_savestates is
    -- GPU
    constant REG_SAVESTATE_GPU             : regmap_type := ( 66,   24,      0,        1,        0,   readwrite);
    
+   constant REG_SAVESTATE_DUMMY           : regmap_type := ( 67,    0,      0,        1,        0,   readwrite);
+   
 
    
    

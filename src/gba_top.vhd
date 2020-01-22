@@ -56,8 +56,8 @@ entity gba_top is
       bus_out_ena        : out    std_logic;                     -- one cycle high for each action
       bus_out_done       : in     std_logic;                     -- should be one cycle high when write is done or read value is valid
       -- savestate           
-      SAVE_out_Din       : out    std_logic_vector(31 downto 0); -- data read from savestate
-      SAVE_out_Dout      : in     std_logic_vector(31 downto 0); -- data written to savestate
+      SAVE_out_Din       : out    std_logic_vector(63 downto 0); -- data read from savestate
+      SAVE_out_Dout      : in     std_logic_vector(63 downto 0); -- data written to savestate
       SAVE_out_Adr       : out    std_logic_vector(25 downto 0); -- all addresses are DWORD addresses!
       SAVE_out_rnw       : out    std_logic;                     -- read = 1, write = 0
       SAVE_out_ena       : out    std_logic;                     -- one cycle high for each action
@@ -409,6 +409,7 @@ begin
       loading_savestate   => loading_savestate,
       saving_savestate    => saving_savestate,
       sleep_savestate     => sleep_savestate,
+      bus_ena_in          => mem_bus_ena,
       
       gb_bus              => gb_bus,
        
@@ -819,7 +820,9 @@ begin
    iREG_POSTFLG : entity work.eProcReg_gba generic map (work.pReg_gba_system.POSTFLG) port map  (clk100, gb_bus, REG_POSTFLG, REG_POSTFLG);
    iREG_HALTCNT : entity work.eProcReg_gba generic map (work.pReg_gba_system.HALTCNT) port map  (clk100, gb_bus, (REG_HALTCNT'range => '0'), REG_HALTCNT, REG_HALTCNT_written);
 
-   iSAVESTATE_IRP : entity work.eProcReg_gba generic map (REG_SAVESTATE_IRP ) port map (clk100, savestate_bus, IRPFLags , SAVESTATE_IRP);
+   iSAVESTATE_IRP   : entity work.eProcReg_gba generic map (REG_SAVESTATE_IRP  ) port map (clk100, savestate_bus, IRPFLags , SAVESTATE_IRP);
+   
+   iSAVESTATE_DUMMY : entity work.eProcReg_gba generic map (REG_SAVESTATE_DUMMY) port map (clk100, savestate_bus, "0" , open);
 
    debug_irq(15 downto 0) <= IRPFLags;
    debug_irq(16) <= REG_IME(0);

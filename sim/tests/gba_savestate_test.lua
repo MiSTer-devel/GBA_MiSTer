@@ -71,7 +71,7 @@ reg_set(1, gameboy.Reg_GBA_lockspeed)
 reg_set(1, gameboy.Reg_GBA_on)
 
 reg_set(1, gameboy.Reg_GBA_SaveState)
-wait_ns(25000000)
+wait_ns(8000000)
 
 -- reset to wrong
 write_gbbus_32bit(0xFA11, 0x2000000)
@@ -100,7 +100,7 @@ write_gbbus_32bit(0xFA11, 0x7000004)
 -- load state
 reg_set(1, gameboy.Reg_GBA_LoadState)
 reg_set(0, gameboy.Reg_GBA_CyclePrecalc) -- pause
-wait_ns(25000000)
+wait_ns(10000000)
 
 -- test loaded data
 compare_gbbus_32bit(0x1234, 0x2000000)

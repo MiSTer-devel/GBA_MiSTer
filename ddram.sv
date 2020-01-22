@@ -55,9 +55,9 @@ module ddram
 	output        ch3_ready,
 
 	// save state
-	input  [24:1] ch4_addr,
-	output [31:0] ch4_dout,
-	input  [31:0] ch4_din,
+	input  [24:0] ch4_addr,
+	output [63:0] ch4_dout,
+	input  [63:0] ch4_din,
 	input         ch4_req,
 	input         ch4_rnw,
 	output        ch4_ready
@@ -83,7 +83,7 @@ assign DDRAM_WE       = ram_write;
 assign ch1_dout  = ch1_addr[2] ? {ram_q[1][31:0], ram_q[1][63:32]} : ram_q[1];
 assign ch2_dout  = ch2_addr[2] ? ram_q[2][63:32] : ram_q[2][31:0];
 assign ch3_dout  = {ram_q[3][39:32], ram_q[3][7:0]};
-assign ch4_dout  = ch4_addr[2] ? ram_q[4][63:32] : ram_q[4][31:0];
+assign ch4_dout  = ram_q[4];
 assign ch1_ready = ready[1];
 assign ch2_ready = ready[2];
 assign ch3_ready = ready[3];
@@ -195,8 +195,8 @@ always @(posedge DDRAM_CLK) begin
 			   else if(ch_rq[4]) begin
 					ch_rq[4]         <= 0;
 					ch               <= 4;
-					ram_data         <= {ch4_din, ch4_din};
-					ram_be           <= ch4_addr[2] ? 8'hF0 : 8'h0F;
+					ram_data         <= ch4_din;
+					ram_be           <= 8'hFF;
 					ram_address      <= {3'b111,ch4_addr};
 					ram_burst        <= 1;
 					if(~ch4_rnw) begin

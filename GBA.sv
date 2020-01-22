@@ -617,7 +617,7 @@ wire [31:0] ddr_sdram_dout1, ddr_sdram_dout2, ddr_bus_dout;
 wire [15:0] ddr_bram_din;
 wire        ddr_sdram_ack, ddr_bus_ack, ddr_bram_ack;
 
-wire [31:0] ss_dout, ss_din;
+wire [63:0] ss_dout, ss_din;
 wire [19:2] ss_addr;
 wire        ss_rnw, ss_req, ss_ack;
 
@@ -647,7 +647,7 @@ ddram ddram
 	.ch3_rnw(~bk_loading),
 	.ch3_ready(ddr_bram_ack),
 	
-	.ch4_addr({ss_base, ss_addr, 1'b0}),
+	.ch4_addr({ss_base, ss_addr, 2'b0}),
 	.ch4_din(ss_din),
 	.ch4_dout(ss_dout),
 	.ch4_req(ss_req),
