@@ -63,13 +63,6 @@ module ddram
 	output        ch4_ready
 );
 
-assign DDRAM_BURSTCNT = ram_burst;
-assign DDRAM_BE       = ram_read ? 8'hFF : ram_be;
-assign DDRAM_ADDR     = {4'b0011, ram_address[27:3]}; // RAM at 0x30000000
-assign DDRAM_RD       = ram_read;
-assign DDRAM_DIN      = ram_data;
-assign DDRAM_WE       = ram_write;
-
 reg  [7:0] ram_burst;
 reg [63:0] ram_q[4:1];
 reg [63:0] ram_data;
@@ -80,6 +73,13 @@ reg  [7:0] ram_be;
 
 reg  [4:1] ready;
 
+assign DDRAM_BURSTCNT = ram_burst;
+assign DDRAM_BE       = ram_read ? 8'hFF : ram_be;
+assign DDRAM_ADDR     = {4'b0011, ram_address[27:3]}; // RAM at 0x30000000
+assign DDRAM_RD       = ram_read;
+assign DDRAM_DIN      = ram_data;
+assign DDRAM_WE       = ram_write;
+
 assign ch1_dout  = ch1_addr[2] ? {ram_q[1][31:0], ram_q[1][63:32]} : ram_q[1];
 assign ch2_dout  = ch2_addr[2] ? ram_q[2][63:32] : ram_q[2][31:0];
 assign ch3_dout  = {ram_q[3][39:32], ram_q[3][7:0]};
@@ -89,13 +89,15 @@ assign ch2_ready = ready[2];
 assign ch3_ready = ready[3];
 assign ch4_ready = ready[4];
 
+reg [63:0] next_q[2:1];
+reg [27:1] cache_addr[2:1];
+reg  [1:0] state  = 0;
+reg  [2:1] cached = 0;
+reg  [2:0] ch = 0; 
+reg  [4:1] ch_rq;
+
 always @(posedge DDRAM_CLK) begin
-	reg [63:0] next_q[2:1];
-	reg [27:1] cache_addr[2:1];
-	reg  [1:0] state  = 0;
-	reg  [2:1] cached = 0;
-	reg  [2:0] ch = 0; 
-	reg  [4:1] ch_rq;
+
 
 	ch_rq <= ch_rq | {ch4_req, ch3_req, ch2_req, ch1_req};
 	ready <= 0;
