@@ -73,3 +73,11 @@ Timer    |       936 |   445     |  511 |   440 |  464
 Carry    |        93 |    93     |   93 |    93 |   93
 BIOSMath |       625 |   625     |  625 |   425 |  625
 DMATests |      1256 |  1248     | 1232 |  1008 | 1064
+
+# Information for developers
+
+How to simulate:
+https://github.com/MiSTer-devel/GBA_MiSTer/tree/master/sim
+
+How to implement a GPIO module:
+https://github.com/MiSTer-devel/GBA_MiSTer/blob/master/gpio_readme.md
