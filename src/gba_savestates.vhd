@@ -15,8 +15,7 @@ entity gba_savestates is
    (
       Softmap_GBA_WRam_ADDR    : integer; -- count:   65536  -- 256 Kbyte Data for GBA WRam Large
       Softmap_GBA_FLASH_ADDR   : integer; -- count:  131072  -- 128/512 Kbyte Data for GBA Flash
-      Softmap_GBA_EEPROM_ADDR  : integer; -- count:    8192  -- 8/32 Kbyte Data for GBA EEProm
-      Softmap_SaveState_ADDR   : integer; -- count:  524288  -- 512 Kbyte Data for Savestate 
+      Softmap_GBA_EEPROM_ADDR  : integer; -- count:    8192  -- 8/32 Kbyte Data for GBA EEProm 
       is_simu                  : std_logic := '0'
    );
    port 
@@ -29,6 +28,8 @@ entity gba_savestates is
       
       save                : in     std_logic;  
       load                : in     std_logic;
+      savestate_address   : in     integer;
+      savestate_busy      : out    std_logic;
 
       cpu_jump            : in     std_logic;
       
@@ -140,12 +141,6 @@ architecture arch of gba_savestates is
    
    signal gb_on_1  : std_logic := '0';
    
-   signal save_1 : std_logic := '0';
-   signal load_1 : std_logic := '0';
-   
-   signal save_buffer  : std_logic := '0';
-   signal load_buffer  : std_logic := '0';
-   
    signal registerram_addr_r    : integer range 0 to 255 := 0;
    signal registerram_addr_w    : integer range 0 to 255 := 0;
    signal registerram_DataOut   : std_logic_vector(31 downto 0) := (others => '0');
@@ -197,6 +192,8 @@ begin
       registerram_din_single <= registerram_DataIn(((i+1) * 8) - 1 downto (i * 8));
       registerram_DataOut(((i+1) * 8) - 1 downto (i * 8)) <= registerram_dout_single;
    end generate;
+   
+   savestate_busy <= '0' when state = IDLE else '1';
 
    process (clk100)
    begin
@@ -215,16 +212,6 @@ begin
          
          registerram_readvalid <= registerram_readen;
          
-         save_1 <= save; 
-         if (save = '1' and save_1 = '0') then
-            save_buffer <= '1';
-         end if;
-         
-         load_1 <= load;
-         if (load = '1' and load_1 = '0') then
-            load_buffer <= '1';
-         end if;
-         
          if (gb_on = '0') then 
             header_amount <= (others => '0');
          end if;
@@ -239,11 +226,10 @@ begin
                   registerram_DataIn   <= gb_bus.Din;
                   registerram_addr_w   <= to_integer(unsigned(gb_bus.adr(9 downto 2)));
                   registerram_we       <= gb_bus.bEna;
-               elsif (save_buffer = '1') then
+               elsif (save = '1') then
                   state                <= SAVE_WAITJUMP;
                   header_amount        <= header_amount + 1;
-                  save_buffer          <= '0';
-               elsif (load_buffer = '1') then
+               elsif (load = '1') then
                   state                <= LOAD_WAITSETTLE;
                   settle               <= 0;
                   sleep_savestate      <= '1';
@@ -289,7 +275,7 @@ begin
                   state                <= SAVEINTERNALS_WAIT;
                   first_dword          <= '1';
                   SAVE_BusRnW          <= '1';
-                  bus_out_Adr          <= std_logic_vector(to_unsigned(Softmap_SaveState_ADDR + (HEADERCOUNT / 2), 26));
+                  bus_out_Adr          <= std_logic_vector(to_unsigned(savestate_address + (HEADERCOUNT / 2), 26));
                   bus_out_rnw          <= '0';
                   internal_bus_out.adr <= (others => '0');
                   internal_bus_out.rnw <= '1';
@@ -390,7 +376,7 @@ begin
                   SAVE_Bus_ena <= '1';
                else
                   state          <= SAVESIZEAMOUNT;
-                  bus_out_Adr    <= std_logic_vector(to_unsigned(Softmap_SaveState_ADDR, 26));
+                  bus_out_Adr    <= std_logic_vector(to_unsigned(savestate_address, 26));
                   bus_out_Din    <= (31 downto 27 => '0') & bus_out_Adr & '0' & std_logic_vector(header_amount);
                   bus_out_ena    <= '1';
                   bus_out_active <= '1';
@@ -447,8 +433,7 @@ begin
                   settle <= settle + 1;
                else
                   state                <= LOAD_HEADERAMOUNTCHECK;
-                  load_buffer          <= '0';
-                  bus_out_Adr          <= std_logic_vector(to_unsigned(Softmap_SaveState_ADDR, 26));
+                  bus_out_Adr          <= std_logic_vector(to_unsigned(savestate_address, 26));
                   bus_out_rnw          <= '1';
                   bus_out_ena          <= '1';
                   bus_out_active       <= '1';
@@ -461,7 +446,7 @@ begin
                      header_amount        <= unsigned(bus_out_Dout(31 downto 0));
                      state                <= LOADINTERNALS_READ;
                      SAVE_BusRnW          <= '0';
-                     bus_out_Adr          <= std_logic_vector(to_unsigned(Softmap_SaveState_ADDR + (HEADERCOUNT / 2), 26));
+                     bus_out_Adr          <= std_logic_vector(to_unsigned(savestate_address + (HEADERCOUNT / 2), 26));
                      bus_out_rnw          <= '1';
                      bus_out_ena          <= '1';
                      bus_out_active       <= '1';

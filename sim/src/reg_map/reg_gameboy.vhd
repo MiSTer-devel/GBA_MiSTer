@@ -50,6 +50,8 @@ package pReg_gameboy is
    constant Reg_GBA_FrameBlend    : regmap_type := (1056785,   0,      0,        1,       0,   readwrite); -- mix last and current frame
    constant Reg_GBA_Pixelshade    : regmap_type := (1056786,   2,      0,        1,       0,   readwrite); -- pixel shade 1..4, 0 = off
    constant Reg_GBA_SaveStateAddr : regmap_type := (1056787,  25,      0,        1,       0,   readwrite); -- address to save/load savestate
+   constant Reg_GBA_Rewind_on     : regmap_type := (1056788,   0,      0,        1,       0,   readwrite);
+   constant Reg_GBA_Rewind_active : regmap_type := (1056789,   0,      0,        1,       0,   readwrite);
    
    --debug
    constant Reg_GBA_DEBUG_CPU_PC  : regmap_type := (1056800,  31,      0,        1,       0,   readonly);

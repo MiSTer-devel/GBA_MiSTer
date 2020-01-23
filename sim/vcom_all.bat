@@ -57,6 +57,7 @@ vcom -quiet -work sim/gba ^
 ../src/gba_gpu_colorshade.vhd ^
 ../src/gba_gpu.vhd ^
 ../src/gba_savestates.vhd ^
+../src/gba_statemanager.vhd ^
 ../src/gba_cheats.vhd ^
 ../src/gba_gpiodummy.vhd
 

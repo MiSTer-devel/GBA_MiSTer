@@ -30,6 +30,8 @@ gameboy.Reg_GBA_LoadState = {1056784,0,0,1,0,"gameboy.Reg_GBA_LoadState"}
 gameboy.Reg_GBA_FrameBlend = {1056785,0,0,1,0,"gameboy.Reg_GBA_FrameBlend"} -- mix last and current frame
 gameboy.Reg_GBA_Pixelshade = {1056786,2,0,1,0,"gameboy.Reg_GBA_Pixelshade"} -- pixel shade 1..4, 0 = off
 gameboy.Reg_GBA_SaveStateAddr = {1056787,25,0,1,0,"gameboy.Reg_GBA_SaveStateAddr"} -- address to save/load savestate
+gameboy.Reg_GBA_Rewind_on = {1056788,0,0,1,0,"gameboy.Reg_GBA_Rewind_on"}
+gameboy.Reg_GBA_Rewind_active = {1056789,0,0,1,0,"gameboy.Reg_GBA_Rewind_active"}
 gameboy.Reg_GBA_DEBUG_CPU_PC = {1056800,31,0,1,0,"gameboy.Reg_GBA_DEBUG_CPU_PC"}
 gameboy.Reg_GBA_DEBUG_CPU_MIX = {1056801,31,0,1,0,"gameboy.Reg_GBA_DEBUG_CPU_MIX"}
 gameboy.Reg_GBA_DEBUG_IRQ = {1056802,31,0,1,0,"gameboy.Reg_GBA_DEBUG_IRQ"}

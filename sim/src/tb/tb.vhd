@@ -40,6 +40,8 @@ architecture arch of etb is
    signal GBA_FrameBlend    : std_logic_vector(Reg_GBA_FrameBlend.upper     downto Reg_GBA_FrameBlend.lower)     := (others => '0');
    signal GBA_Pixelshade    : std_logic_vector(Reg_GBA_Pixelshade.upper     downto Reg_GBA_Pixelshade.lower)     := (others => '0');
    signal GBA_SaveStateAddr : std_logic_vector(Reg_GBA_SaveStateAddr.upper  downto Reg_GBA_SaveStateAddr.lower)  := (others => '0');
+   signal GBA_Rewind_on     : std_logic_vector(Reg_GBA_Rewind_on    .upper  downto Reg_GBA_Rewind_on    .lower)  := (others => '0');
+   signal GBA_Rewind_active : std_logic_vector(Reg_GBA_Rewind_active.upper  downto Reg_GBA_Rewind_active.lower)  := (others => '0');
                             
    signal GBA_flash_1m      : std_logic_vector(Reg_GBA_flash_1m.upper       downto Reg_GBA_flash_1m.lower)       := (others => '0');
    signal CyclePrecalc      : std_logic_vector(Reg_GBA_CyclePrecalc.upper   downto Reg_GBA_CyclePrecalc.lower);
@@ -152,7 +154,7 @@ architecture arch of etb is
    signal ch3_rnw          : std_logic;
    signal ch3_ready        : std_logic;
                      
-   signal ch4_addr         : std_logic_vector(24 downto 0);
+   signal ch4_addr         : std_logic_vector(27 downto 0);
    signal ch4_dout         : std_logic_vector(63 downto 0);
    signal ch4_din          : std_logic_vector(63 downto 0);
    signal ch4_req          : std_logic;
@@ -175,6 +177,8 @@ begin
    iReg_GBA_FrameBlend    : entity procbus.eProcReg generic map (Reg_GBA_FrameBlend)     port map (clk100, proc_bus_in, GBA_FrameBlend , GBA_FrameBlend );   
    iReg_GBA_Pixelshade    : entity procbus.eProcReg generic map (Reg_GBA_Pixelshade)     port map (clk100, proc_bus_in, GBA_Pixelshade , GBA_Pixelshade );   
    iReg_GBA_SaveStateAddr : entity procbus.eProcReg generic map (Reg_GBA_SaveStateAddr)  port map (clk100, proc_bus_in, GBA_SaveStateAddr , GBA_SaveStateAddr );   
+   iReg_GBA_Rewind_on     : entity procbus.eProcReg generic map (Reg_GBA_Rewind_on    )  port map (clk100, proc_bus_in, GBA_Rewind_on     , GBA_Rewind_on     );   
+   iReg_GBA_Rewind_active : entity procbus.eProcReg generic map (Reg_GBA_Rewind_active)  port map (clk100, proc_bus_in, GBA_Rewind_active , GBA_Rewind_active );   
                           
    iReg_GBA_flash_1m      : entity procbus.eProcReg generic map (Reg_GBA_flash_1m)       port map (clk100, proc_bus_in, GBA_flash_1m, GBA_flash_1m);  
    iReg_CyclesMissing     : entity procbus.eProcReg generic map (Reg_GBA_CyclesMissing)  port map (clk100, proc_bus_in, CyclesMissing);  
@@ -222,7 +226,8 @@ begin
       Softmap_GBA_WRam_ADDR    => 131072,
       Softmap_GBA_FLASH_ADDR   => 0,
       Softmap_GBA_EEPROM_ADDR  => 0,
-      Softmap_SaveState_ADDR   => 0,
+      Softmap_SaveState_ADDR   => 16#1800000#,
+      Softmap_Rewind_ADDR      => 16#1000000#,
       turbosound               => '1'
    )
    port map
@@ -245,6 +250,9 @@ begin
       maxpixels          => '0',
       shade_mode         => GBA_Pixelshade,
       specialmodule      => '0',
+      rewind_on          => GBA_Rewind_on(GBA_Rewind_on'left),
+      rewind_active      => GBA_Rewind_active(GBA_Rewind_active'left),
+      savestate_number   => 0,
       -- cheats
       cheat_clear        => GBA_CHEAT_RESET(GBA_CHEAT_RESET'left),
       cheats_enabled     => '1',
@@ -335,7 +343,7 @@ begin
    bus_out_Dout <= ch2_dout;
    bus_out_done <= ch2_ready;
    
-   ch4_addr <= SAVE_out_Adr(22 downto 0) & "00";
+   ch4_addr <= SAVE_out_Adr(25 downto 0) & "00";
    ch4_din  <= SAVE_out_Din;
    ch4_req  <= SAVE_out_ena;
    ch4_rnw  <= SAVE_out_rnw;

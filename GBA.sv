@@ -163,7 +163,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3
 // 01234567890123456789012345678901
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -192,9 +192,10 @@ parameter CONF_STR = {
 	"O5,Pause,Off,On;",
 	"H2OG,Turbo,Off,On;",
 	"OB,Sync core to video,Off,On;",
+	"OR,Rewind Capture,Off,On;",
 	"R0,Reset;",
-	"J1,A,B,L,R,Select,Start,FastForward;",
-	"jn,A,B,L,R,Select,Start,X;",
+	"J1,A,B,L,R,Select,Start,FastForward,Rewind;",
+	"jn,A,B,L,R,Select,Start,X,X;",
 	"I,",
 	"Save to state 1,",
 	"Restore state 1,",
@@ -229,7 +230,7 @@ wire        ioctl_wr;
 wire  [7:0] ioctl_index;
 reg         ioctl_wait = 0;
 
-wire [11:0] joy;
+wire [12:0] joy;
 wire [10:0] ps2_key;
 
 wire [21:0] gamma_bus;
@@ -409,7 +410,8 @@ gba_top
 	.Softmap_GBA_EEPROM_ADDR (0),                   //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
 	.Softmap_GBA_WRam_ADDR   (131072),              //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
 	.Softmap_GBA_Gamerom_ADDR(65536+131072),        //   32MB of ROM
-	.Softmap_SaveState_ADDR  (0),                   // 262144 (32bit) -- ~1Mbyte Data for SaveState (separate memory)
+	.Softmap_SaveState_ADDR  (25165824),            // 65536 (64bit) -- ~512kbyte Data for SaveState (separate memory)
+	.Softmap_Rewind_ADDR     (16777216),            // 65536 qwords*64 -- 64*512 Kbyte Data for Savestates
 	.turbosound('1)                                 // sound buffer to play sound in turbo mode without sound pitched up
 )
 gba
@@ -431,6 +433,9 @@ gba
    .maxpixels(status[20]),
    .shade_mode(status[26:24]),
 	.specialmodule('0),
+   .rewind_on(status[27]),
+   .rewind_active(joy[11]),
+   .savestate_number(ss_base),
 
    .cheat_clear(gg_reset),
    .cheats_enabled(~status[6]),
@@ -618,7 +623,7 @@ wire [15:0] ddr_bram_din;
 wire        ddr_sdram_ack, ddr_bus_ack, ddr_bram_ack;
 
 wire [63:0] ss_dout, ss_din;
-wire [19:2] ss_addr;
+wire [27:2] ss_addr;
 wire        ss_rnw, ss_req, ss_ack;
 
 assign DDRAM_CLK = clk_sys;
@@ -647,7 +652,7 @@ ddram ddram
 	.ch3_rnw(~bk_loading),
 	.ch3_ready(ddr_bram_ack),
 	
-	.ch4_addr({ss_base, ss_addr, 2'b0}),
+	.ch4_addr({ss_addr, 2'b0}),
 	.ch4_din(ss_din),
 	.ch4_dout(ss_dout),
 	.ch4_req(ss_req),
