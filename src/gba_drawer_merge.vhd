@@ -8,49 +8,50 @@ entity gba_drawer_merge is
       clk100               : in  std_logic;                     
         
       enable               : in  std_logic;
+      hblank               : in  std_logic;
       xpos                 : in  integer range 0 to 239;
       ypos                 : in  integer range 0 to 159;
       
-      WND0_on              : in  std_logic;
-      WND1_on              : in  std_logic;
-      WNDOBJ_on            : in  std_logic;
+      in_WND0_on           : in  std_logic;
+      in_WND1_on           : in  std_logic;
+      in_WNDOBJ_on         : in  std_logic;
       
-      WND0_X1              : in  unsigned(7 downto 0);
-      WND0_X2              : in  unsigned(7 downto 0);
-      WND0_Y1              : in  unsigned(7 downto 0);
-      WND0_Y2              : in  unsigned(7 downto 0);
-      WND1_X1              : in  unsigned(7 downto 0);
-      WND1_X2              : in  unsigned(7 downto 0);
-      WND1_Y1              : in  unsigned(7 downto 0);
-      WND1_Y2              : in  unsigned(7 downto 0);
+      in_WND0_X1           : in  unsigned(7 downto 0);
+      in_WND0_X2           : in  unsigned(7 downto 0);
+      in_WND0_Y1           : in  unsigned(7 downto 0);
+      in_WND0_Y2           : in  unsigned(7 downto 0);
+      in_WND1_X1           : in  unsigned(7 downto 0);
+      in_WND1_X2           : in  unsigned(7 downto 0);
+      in_WND1_Y1           : in  unsigned(7 downto 0);
+      in_WND1_Y2           : in  unsigned(7 downto 0);
+      
+      in_enables_wnd0      : in  std_logic_vector(5 downto 0);
+      in_enables_wnd1      : in  std_logic_vector(5 downto 0);
+      in_enables_wndobj    : in  std_logic_vector(5 downto 0);
+      in_enables_wndout    : in  std_logic_vector(5 downto 0);
 
-      enables_wnd0         : in  std_logic_vector(5 downto 0);
-      enables_wnd1         : in  std_logic_vector(5 downto 0);
-      enables_wndobj       : in  std_logic_vector(5 downto 0);
-      enables_wndout       : in  std_logic_vector(5 downto 0);
+      in_special_effect_in : in  unsigned(1 downto 0);
+      in_effect_1st_bg0    : in  std_logic;
+      in_effect_1st_bg1    : in  std_logic;
+      in_effect_1st_bg2    : in  std_logic;
+      in_effect_1st_bg3    : in  std_logic;
+      in_effect_1st_obj    : in  std_logic;
+      in_effect_1st_BD     : in  std_logic;
+      in_effect_2nd_bg0    : in  std_logic;
+      in_effect_2nd_bg1    : in  std_logic;
+      in_effect_2nd_bg2    : in  std_logic;
+      in_effect_2nd_bg3    : in  std_logic;
+      in_effect_2nd_obj    : in  std_logic;
+      in_effect_2nd_BD     : in  std_logic;
+     
+      in_Prio_BG0          : in  unsigned(1 downto 0);
+      in_Prio_BG1          : in  unsigned(1 downto 0);
+      in_Prio_BG2          : in  unsigned(1 downto 0);
+      in_Prio_BG3          : in  unsigned(1 downto 0);
       
-      special_effect_in    : in  unsigned(1 downto 0);
-      effect_1st_bg0       : in  std_logic;
-      effect_1st_bg1       : in  std_logic;
-      effect_1st_bg2       : in  std_logic;
-      effect_1st_bg3       : in  std_logic;
-      effect_1st_obj       : in  std_logic;
-      effect_1st_BD        : in  std_logic;
-      effect_2nd_bg0       : in  std_logic;
-      effect_2nd_bg1       : in  std_logic;
-      effect_2nd_bg2       : in  std_logic;
-      effect_2nd_bg3       : in  std_logic;
-      effect_2nd_obj       : in  std_logic;
-      effect_2nd_BD        : in  std_logic;
-      
-      Prio_BG0             : in  unsigned(1 downto 0);
-      Prio_BG1             : in  unsigned(1 downto 0);
-      Prio_BG2             : in  unsigned(1 downto 0);
-      Prio_BG3             : in  unsigned(1 downto 0);
-      
-      EVA                  : in  unsigned(4 downto 0);
-      EVB                  : in  unsigned(4 downto 0);
-      BLDY                 : in  unsigned(4 downto 0);
+      in_EVA               : in  unsigned(4 downto 0);
+      in_EVB               : in  unsigned(4 downto 0);
+      in_BLDY              : in  unsigned(4 downto 0);
       
       pixeldata_bg0        : in  std_logic_vector(15 downto 0);
       pixeldata_bg1        : in  std_logic_vector(15 downto 0);
@@ -80,6 +81,48 @@ architecture arch of gba_drawer_merge is
    constant OBJALPHA    : integer := 16;
    constant OBJPRIOH    : integer := 18;
    constant OBJPRIOL    : integer := 17;
+   
+   -- latch on hblank
+   signal WND0_on           : std_logic := '0';
+   signal WND1_on           : std_logic := '0';
+   signal WNDOBJ_on         : std_logic := '0';
+    
+   signal WND0_X1           : unsigned(7 downto 0) := (others => '0');
+   signal WND0_X2           : unsigned(7 downto 0) := (others => '0');
+   signal WND0_Y1           : unsigned(7 downto 0) := (others => '0');
+   signal WND0_Y2           : unsigned(7 downto 0) := (others => '0');
+   signal WND1_X1           : unsigned(7 downto 0) := (others => '0');
+   signal WND1_X2           : unsigned(7 downto 0) := (others => '0');
+   signal WND1_Y1           : unsigned(7 downto 0) := (others => '0');
+   signal WND1_Y2           : unsigned(7 downto 0) := (others => '0');
+    
+   signal enables_wnd0      : std_logic_vector(5 downto 0) := (others => '0');
+   signal enables_wnd1      : std_logic_vector(5 downto 0) := (others => '0');
+   signal enables_wndobj    : std_logic_vector(5 downto 0) := (others => '0');
+   signal enables_wndout    : std_logic_vector(5 downto 0) := (others => '0');
+    
+   signal special_effect_in : unsigned(1 downto 0) := (others => '0');
+   signal effect_1st_bg0    : std_logic := '0';
+   signal effect_1st_bg1    : std_logic := '0';
+   signal effect_1st_bg2    : std_logic := '0';
+   signal effect_1st_bg3    : std_logic := '0';
+   signal effect_1st_obj    : std_logic := '0';
+   signal effect_1st_BD     : std_logic := '0';
+   signal effect_2nd_bg0    : std_logic := '0';
+   signal effect_2nd_bg1    : std_logic := '0';
+   signal effect_2nd_bg2    : std_logic := '0';
+   signal effect_2nd_bg3    : std_logic := '0';
+   signal effect_2nd_obj    : std_logic := '0';
+   signal effect_2nd_BD     : std_logic := '0';
+    
+   signal Prio_BG0          : unsigned(1 downto 0) := (others => '0');
+   signal Prio_BG1          : unsigned(1 downto 0) := (others => '0');
+   signal Prio_BG2          : unsigned(1 downto 0) := (others => '0');
+   signal Prio_BG3          : unsigned(1 downto 0) := (others => '0');
+    
+   signal EVA               : unsigned(4 downto 0) := (others => '0');
+   signal EVB               : unsigned(4 downto 0) := (others => '0');
+   signal BLDY              : unsigned(4 downto 0) := (others => '0');
     
    -- common for whole line
    signal EVA_MAXED   : integer range 0 to 16;
@@ -168,6 +211,57 @@ architecture arch of gba_drawer_merge is
    signal blacker_blue            : integer range -256 to 255;
    
 begin 
+
+   -- ####################################
+   -- #### latch on hsync
+   -- ####################################
+   process (clk100)
+   begin
+      if rising_edge(clk100) then
+         if (hblank = '1') then
+            WND0_on           <= in_WND0_on;          
+            WND1_on           <= in_WND1_on;          
+            WNDOBJ_on         <= in_WNDOBJ_on;        
+               
+            WND0_X1           <= in_WND0_X1;          
+            WND0_X2           <= in_WND0_X2;          
+            WND0_Y1           <= in_WND0_Y1;          
+            WND0_Y2           <= in_WND0_Y2;          
+            WND1_X1           <= in_WND1_X1;          
+            WND1_X2           <= in_WND1_X2;          
+            WND1_Y1           <= in_WND1_Y1;          
+            WND1_Y2           <= in_WND1_Y2;          
+                  
+            enables_wnd0      <= in_enables_wnd0;     
+            enables_wnd1      <= in_enables_wnd1;     
+            enables_wndobj    <= in_enables_wndobj;   
+            enables_wndout    <= in_enables_wndout;   
+                           
+            special_effect_in <= in_special_effect_in;
+            effect_1st_bg0    <= in_effect_1st_bg0;   
+            effect_1st_bg1    <= in_effect_1st_bg1;   
+            effect_1st_bg2    <= in_effect_1st_bg2;   
+            effect_1st_bg3    <= in_effect_1st_bg3;   
+            effect_1st_obj    <= in_effect_1st_obj;   
+            effect_1st_BD     <= in_effect_1st_BD;    
+            effect_2nd_bg0    <= in_effect_2nd_bg0;   
+            effect_2nd_bg1    <= in_effect_2nd_bg1;   
+            effect_2nd_bg2    <= in_effect_2nd_bg2;   
+            effect_2nd_bg3    <= in_effect_2nd_bg3;   
+            effect_2nd_obj    <= in_effect_2nd_obj;   
+            effect_2nd_BD     <= in_effect_2nd_BD;    
+            
+            Prio_BG0          <= in_Prio_BG0;         
+            Prio_BG1          <= in_Prio_BG1;         
+            Prio_BG2          <= in_Prio_BG2;         
+            Prio_BG3          <= in_Prio_BG3;         
+                           
+            EVA               <= in_EVA;              
+            EVB               <= in_EVB;              
+            BLDY              <= in_BLDY;             
+         end if;
+      end if;
+   end process;
 
    -- ####################################
    -- #### pipeline independent

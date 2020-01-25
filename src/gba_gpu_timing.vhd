@@ -147,7 +147,7 @@ begin
                   when VISIBLE =>
                      if ((lockspeed = '0' or cycles >= 160)) then
                         if (lockspeed = '1') then
-                           pixelpos  <= (to_integer(cycles) / 4) - 40;
+                           pixelpos  <= (to_integer(cycles) / 2) - 80;
                         end if;
                         if (drawsoon = '1') then
                            drawline  <= '1';

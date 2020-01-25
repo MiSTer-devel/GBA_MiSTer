@@ -358,6 +358,7 @@ architecture arch of gba_gpu_drawer is
    signal linebuffer_objwindow   : std_logic_vector(0 to 239) := (others => '0');
                                  
    -- merge_pixel                
+   signal pixeldata_back_next    : std_logic_vector(15 downto 0) := (others => '0');
    signal pixeldata_back         : std_logic_vector(15 downto 0) := (others => '0');
    signal merge_enable           : std_logic := '0';
    signal merge_enable_1         : std_logic := '0';
@@ -388,6 +389,7 @@ architecture arch of gba_gpu_drawer is
    (
       IDLE,
       WAITDRAW,
+      WAITHBLANK,
       DRAWING,
       MERGING
    );
@@ -1009,7 +1011,7 @@ begin
          end if;
 
          if (PALETTE_BG_addr = 0 and PALETTE_BG_we(1) = '1') then
-            pixeldata_back <= PALETTE_BG_datain(15 downto 0);
+            pixeldata_back_next <= PALETTE_BG_datain(15 downto 0);
          end if;
       
          PALETTE_BG_Drawer_cnt <= PALETTE_BG_Drawer_cnt + 1;
@@ -1303,12 +1305,17 @@ begin
                
             when WAITDRAW =>
                if (draw_allmod /= x"00") then
-                  drawstate <= DRAWING;
+                  drawstate <= WAITHBLANK;
                else
                   drawstate        <= MERGING;
                   linebuffer_addr  <= 0;
                   merge_enable     <= '1';
                   clear_trigger    <= '1';
+               end if;
+               
+            when WAITHBLANK =>
+               if (hblank_trigger = '1') then
+                  drawstate <= DRAWING;
                end if;
 
             when DRAWING =>
@@ -1386,49 +1393,50 @@ begin
       clk100               => clk100,                
                            
       enable               => merge_enable_1,                     
+      hblank               => hblank_trigger,                     
       xpos                 => linebuffer_addr_1,
       ypos                 => linecounter_int,
       
-      WND0_on              => REG_DISPCNT_Window_0_Display_Flag(REG_DISPCNT_Window_0_Display_Flag'left),
-      WND1_on              => REG_DISPCNT_Window_1_Display_Flag(REG_DISPCNT_Window_1_Display_Flag'left),
-      WNDOBJ_on            => REG_DISPCNT_OBJ_Wnd_Display_Flag(REG_DISPCNT_OBJ_Wnd_Display_Flag'left),
-                           
-      WND0_X1              => unsigned(REG_WIN0H_X1),
-      WND0_X2              => unsigned(REG_WIN0H_X2),
-      WND0_Y1              => unsigned(REG_WIN0V_Y1),
-      WND0_Y2              => unsigned(REG_WIN0V_Y2),
-      WND1_X1              => unsigned(REG_WIN1H_X1),
-      WND1_X2              => unsigned(REG_WIN1H_X2),
-      WND1_Y1              => unsigned(REG_WIN1V_Y1),
-      WND1_Y2              => unsigned(REG_WIN1V_Y2),
-                           
-      enables_wnd0         => enables_wnd0,  
-      enables_wnd1         => enables_wnd1,  
-      enables_wndobj       => enables_wndobj,
-      enables_wndout       => enables_wndout,
-                            
-      special_effect_in    => unsigned(REG_BLDCNT_Color_Special_Effect),
-      effect_1st_bg0       => REG_BLDCNT_BG0_1st_Target_Pixel(REG_BLDCNT_BG0_1st_Target_Pixel'left),
-      effect_1st_bg1       => REG_BLDCNT_BG1_1st_Target_Pixel(REG_BLDCNT_BG1_1st_Target_Pixel'left),
-      effect_1st_bg2       => REG_BLDCNT_BG2_1st_Target_Pixel(REG_BLDCNT_BG2_1st_Target_Pixel'left),
-      effect_1st_bg3       => REG_BLDCNT_BG3_1st_Target_Pixel(REG_BLDCNT_BG3_1st_Target_Pixel'left),
-      effect_1st_obj       => REG_BLDCNT_OBJ_1st_Target_Pixel(REG_BLDCNT_OBJ_1st_Target_Pixel'left),
-      effect_1st_BD        => REG_BLDCNT_BD_1st_Target_Pixel(REG_BLDCNT_BD_1st_Target_Pixel'left),
-      effect_2nd_bg0       => REG_BLDCNT_BG0_2nd_Target_Pixel(REG_BLDCNT_BG0_2nd_Target_Pixel'left),
-      effect_2nd_bg1       => REG_BLDCNT_BG1_2nd_Target_Pixel(REG_BLDCNT_BG1_2nd_Target_Pixel'left),
-      effect_2nd_bg2       => REG_BLDCNT_BG2_2nd_Target_Pixel(REG_BLDCNT_BG2_2nd_Target_Pixel'left),
-      effect_2nd_bg3       => REG_BLDCNT_BG3_2nd_Target_Pixel(REG_BLDCNT_BG3_2nd_Target_Pixel'left),
-      effect_2nd_obj       => REG_BLDCNT_OBJ_2nd_Target_Pixel(REG_BLDCNT_OBJ_2nd_Target_Pixel'left),
-      effect_2nd_BD        => REG_BLDCNT_BD_2nd_Target_Pixel(REG_BLDCNT_BD_2nd_Target_Pixel'left),
-                            
-      Prio_BG0             => unsigned(REG_BG0CNT_BG_Priority),
-      Prio_BG1             => unsigned(REG_BG1CNT_BG_Priority),
-      Prio_BG2             => unsigned(REG_BG2CNT_BG_Priority),
-      Prio_BG3             => unsigned(REG_BG3CNT_BG_Priority),
-                            
-      EVA                  => unsigned(REG_BLDALPHA_EVA_Coefficient),
-      EVB                  => unsigned(REG_BLDALPHA_EVB_Coefficient),
-      BLDY                 => unsigned(REG_BLDY),
+      in_WND0_on           => REG_DISPCNT_Window_0_Display_Flag(REG_DISPCNT_Window_0_Display_Flag'left),
+      in_WND1_on           => REG_DISPCNT_Window_1_Display_Flag(REG_DISPCNT_Window_1_Display_Flag'left),
+      in_WNDOBJ_on         => REG_DISPCNT_OBJ_Wnd_Display_Flag(REG_DISPCNT_OBJ_Wnd_Display_Flag'left),
+                        
+      in_WND0_X1           => unsigned(REG_WIN0H_X1),
+      in_WND0_X2           => unsigned(REG_WIN0H_X2),
+      in_WND0_Y1           => unsigned(REG_WIN0V_Y1),
+      in_WND0_Y2           => unsigned(REG_WIN0V_Y2),
+      in_WND1_X1           => unsigned(REG_WIN1H_X1),
+      in_WND1_X2           => unsigned(REG_WIN1H_X2),
+      in_WND1_Y1           => unsigned(REG_WIN1V_Y1),
+      in_WND1_Y2           => unsigned(REG_WIN1V_Y2),
+                 
+      in_enables_wnd0      => enables_wnd0,  
+      in_enables_wnd1      => enables_wnd1,  
+      in_enables_wndobj    => enables_wndobj,
+      in_enables_wndout    => enables_wndout,
+                  
+      in_special_effect_in => unsigned(REG_BLDCNT_Color_Special_Effect),
+      in_effect_1st_bg0    => REG_BLDCNT_BG0_1st_Target_Pixel(REG_BLDCNT_BG0_1st_Target_Pixel'left),
+      in_effect_1st_bg1    => REG_BLDCNT_BG1_1st_Target_Pixel(REG_BLDCNT_BG1_1st_Target_Pixel'left),
+      in_effect_1st_bg2    => REG_BLDCNT_BG2_1st_Target_Pixel(REG_BLDCNT_BG2_1st_Target_Pixel'left),
+      in_effect_1st_bg3    => REG_BLDCNT_BG3_1st_Target_Pixel(REG_BLDCNT_BG3_1st_Target_Pixel'left),
+      in_effect_1st_obj    => REG_BLDCNT_OBJ_1st_Target_Pixel(REG_BLDCNT_OBJ_1st_Target_Pixel'left),
+      in_effect_1st_BD     => REG_BLDCNT_BD_1st_Target_Pixel(REG_BLDCNT_BD_1st_Target_Pixel'left),
+      in_effect_2nd_bg0    => REG_BLDCNT_BG0_2nd_Target_Pixel(REG_BLDCNT_BG0_2nd_Target_Pixel'left),
+      in_effect_2nd_bg1    => REG_BLDCNT_BG1_2nd_Target_Pixel(REG_BLDCNT_BG1_2nd_Target_Pixel'left),
+      in_effect_2nd_bg2    => REG_BLDCNT_BG2_2nd_Target_Pixel(REG_BLDCNT_BG2_2nd_Target_Pixel'left),
+      in_effect_2nd_bg3    => REG_BLDCNT_BG3_2nd_Target_Pixel(REG_BLDCNT_BG3_2nd_Target_Pixel'left),
+      in_effect_2nd_obj    => REG_BLDCNT_OBJ_2nd_Target_Pixel(REG_BLDCNT_OBJ_2nd_Target_Pixel'left),
+      in_effect_2nd_BD     => REG_BLDCNT_BD_2nd_Target_Pixel(REG_BLDCNT_BD_2nd_Target_Pixel'left),
+                  
+      in_Prio_BG0          => unsigned(REG_BG0CNT_BG_Priority),
+      in_Prio_BG1          => unsigned(REG_BG1CNT_BG_Priority),
+      in_Prio_BG2          => unsigned(REG_BG2CNT_BG_Priority),
+      in_Prio_BG3          => unsigned(REG_BG3CNT_BG_Priority),
+                         
+      in_EVA               => unsigned(REG_BLDALPHA_EVA_Coefficient),
+      in_EVB               => unsigned(REG_BLDALPHA_EVB_Coefficient),
+      in_BLDY              => unsigned(REG_BLDY),
                            
       pixeldata_bg0        => linebuffer_bg0_data,
       pixeldata_bg1        => linebuffer_bg1_data,
@@ -1471,6 +1479,8 @@ begin
             linecounter_mosaic_bg  <= 0;
             linecounter_mosaic_obj <= 0;
          elsif (drawline = '1') then
+         
+            pixeldata_back <= pixeldata_back_next;
          
             -- background
             if (mosaik_vcnt_bg < unsigned(REG_MOSAIC_BG_Mosaic_V_Size)) then
