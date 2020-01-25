@@ -760,6 +760,12 @@ begin
                   if (decode_request = '0') then
                      fetch_available <= '1';
                      fetch_data      <= gb_bus_din;
+                     
+                     --For THUMB code in 32K - WRAM on GBA, GBA SP, GBA Micro, NDS-Lite(but not NDS):
+                     --LSW = [$+4], MSW = OldHI   ; for opcodes at 4 - byte aligned locations
+                     --LSW = OldLO, MSW = [$+4]   ; for opcodes at non - 4 - byte aligned locations
+                     --OldLO=[$+2], OldHI=[$+2]
+                     
                      if (thumbmode = '1') then
                         if (PC(27 downto 24) = x"3") then
                            if (PC(1) = '0') then
@@ -768,7 +774,7 @@ begin
                               lastread(15 downto 0) <= gb_bus_din(15 downto 0);
                            end if;
                         else
-                           lastread <= gb_bus_din(15 downto 0) & gb_bus_din(15 downto 0);
+                           lastread <= gb_bus_din(15 downto 0) & gb_bus_din(15 downto 0); -- standard case LSW = [$+4], MSW = [$+4]
                         end if;
                      else
                         lastread <= gb_bus_din;
@@ -2150,6 +2156,9 @@ begin
                            execute_addcycles  <= 1;
                            prefetch_addcycles <= 1;
                            busPrefetchAdd     <= '1';
+                           if (execute_Rn_op1 = x"F") then
+                              alu_op1 <= regs_plus_12;
+                           end if;
                         end if;
                         
                      when ALUSHIFTWAIT =>
