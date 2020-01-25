@@ -514,6 +514,7 @@ always @(posedge clk_sys) begin
 				if(cart_id == {"ROCKY", 56'h00000000000000} ) 	begin sram_quirk <= 1;                          end // Rocky EU
 				if(cart_id == {"DBZ LGCYGOKU"} )              	begin sram_quirk <= 1;                          end // Dragon Ball Z - The Legacy of Goku US
 				if(cart_id == {"DRAGONBALL Z"} )              	begin sram_quirk <= 1;                          end // Dragon Ball Z - The Legacy of Goku EU
+				if(cart_id == {"DBZLEGACY1&2"} )                begin sram_quirk <= 1;                          end // 2 Games in 1 - Dragon Ball Z - The Legacy of Goku I & II (USA)
 				if(cart_id == {"DBZ TAIKETSU"} )              	begin sram_quirk <= 1;                          end // Dragon Ball Z - Taiketsu US
 				if(cart_id == {"DRAGON BALLZ"} )              	begin sram_quirk <= 1;                          end // Dragon Ball Z - Taiketsu EU
 				if(cart_id == {"TOPGUN CZ", 24'h000000} )     	begin sram_quirk <= 1;                          end // Top Gun - Combat Zones
