@@ -20,7 +20,8 @@ entity gba_dma is
       new_cycles_valid    : in    std_logic;
       
       IRP_DMA             : out   std_logic_vector(3 downto 0);
-      
+      lastread_dma        : out   std_logic_vector(31 downto 0);
+
       dma_on              : out   std_logic;
       CPU_bus_idle        : in    std_logic;
       do_step             : in    std_logic;
@@ -347,6 +348,7 @@ begin
       is_idle           => single_is_idle(3)
    );
    
+   lastread_dma <= last_dma_value;
    
    dma_bus_dout <= Array_Dout(0) when dma_switch = 0 else Array_Dout(1) when dma_switch = 1 else Array_Dout(2) when dma_switch = 2 else Array_Dout(3);
    dma_bus_Adr  <= Array_Adr(0)  when dma_switch = 0 else Array_Adr(1)  when dma_switch = 1 else Array_Adr(2)  when dma_switch = 2 else Array_Adr(3) ;

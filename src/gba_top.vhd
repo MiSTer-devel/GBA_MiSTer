@@ -243,8 +243,10 @@ architecture arch of gba_top is
    signal cpu_IRP  : std_logic := '0';
    signal new_halt : std_logic := '0';
    
-   signal PC_in_BIOS : std_logic;
-   signal lastread   : std_logic_vector(31 downto 0);
+   signal PC_in_BIOS      : std_logic;
+   signal lastread        : std_logic_vector(31 downto 0);
+   signal lastread_dma    : std_logic_vector(31 downto 0);
+   signal last_access_dma : std_logic := '0';
    
    signal new_cycles           : unsigned(7 downto 0);
    signal new_cycles_valid     : std_logic;      
@@ -349,7 +351,20 @@ begin
    mem_bus_ena  <=  debug_bus_ena         when debug_bus_active = '1' else cpu_bus_ena  when cpu_bus_ena = '1' else dma_bus_ena; 
    mem_bus_acc  <=  debug_bus_acc         when debug_bus_active = '1' else cpu_bus_acc  when cpu_bus_ena = '1' else dma_bus_acc;
    mem_bus_dout <=  debug_bus_dout        when debug_bus_active = '1' else cpu_bus_dout when cpu_bus_ena = '1' else dma_bus_dout;
-                                                                         
+       
+   process (clk100)
+   begin       
+      if rising_edge(clk100) then
+      
+         if (cpu_done = '1') then
+            last_access_dma <= '0';
+         elsif (dma_bus_ena = '1') then
+            last_access_dma <= '1';
+         end if;
+
+      end if;
+   end process;
+                      
    ------------- debug bus
    process (clk100)
    begin
@@ -581,6 +596,8 @@ begin
       
       PC_in_BIOS           => PC_in_BIOS,
       lastread             => lastread,
+      lastread_dma         => lastread_dma,
+      last_access_dma      => last_access_dma,
       
       dma_eepromcount      => dma_eepromcount,
       flash_1m             => GBA_flash_1m,
@@ -641,6 +658,7 @@ begin
       new_cycles_valid    => new_cycles_valid,
       
       IRP_DMA             => IRP_DMA,
+      lastread_dma        => lastread_dma,
       
       dma_on              => dma_on,
       CPU_bus_idle        => CPU_bus_idle,
