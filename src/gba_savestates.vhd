@@ -62,6 +62,8 @@ end entity;
 
 architecture arch of gba_savestates is
 
+   constant STATESIZE      : integer := 16#18346#;
+   
    constant SETTLECOUNT    : integer := 100;
    constant HEADERCOUNT    : integer := 2;
    constant INTERNALSCOUNT : integer := 68;
@@ -275,7 +277,7 @@ begin
                   state                <= SAVEINTERNALS_WAIT;
                   first_dword          <= '1';
                   SAVE_BusRnW          <= '1';
-                  bus_out_Adr          <= std_logic_vector(to_unsigned(savestate_address + (HEADERCOUNT / 2), 26));
+                  bus_out_Adr          <= std_logic_vector(to_unsigned(savestate_address + HEADERCOUNT, 26));
                   bus_out_rnw          <= '0';
                   internal_bus_out.adr <= (others => '0');
                   internal_bus_out.rnw <= '1';
@@ -320,7 +322,7 @@ begin
             when SAVEINTERNALS_WRITE => 
                if (bus_out_done = '1') then
                   bus_out_active <= '0';
-                  bus_out_Adr <= std_logic_vector(unsigned(bus_out_Adr) + 1);
+                  bus_out_Adr <= std_logic_vector(unsigned(bus_out_Adr) + 2);
                   if (count < INTERNALSCOUNT) then
                      state                <= SAVEINTERNALS_WAIT;
                      first_dword          <= '1';
@@ -354,7 +356,7 @@ begin
             when SAVEREGISTER_WRITE => 
                if (bus_out_done = '1') then
                   bus_out_active <= '0';
-                  bus_out_Adr <= std_logic_vector(unsigned(bus_out_Adr) + 1);
+                  bus_out_Adr <= std_logic_vector(unsigned(bus_out_Adr) + 2);
                   if (count < REGISTERCOUNT) then
                      state                <= SAVEREGISTER_READ;
                      first_dword          <= '1';
@@ -377,7 +379,7 @@ begin
                else
                   state          <= SAVESIZEAMOUNT;
                   bus_out_Adr    <= std_logic_vector(to_unsigned(savestate_address, 26));
-                  bus_out_Din    <= (31 downto 27 => '0') & bus_out_Adr & '0' & std_logic_vector(header_amount);
+                  bus_out_Din    <= std_logic_vector(to_unsigned(STATESIZE, 32)) & std_logic_vector(header_amount);
                   bus_out_ena    <= '1';
                   bus_out_active <= '1';
                end if;
@@ -400,7 +402,7 @@ begin
             when SAVEMEMORY_WRITE =>
                if (bus_out_done = '1') then
                   bus_out_active <= '0';
-                  bus_out_Adr <= std_logic_vector(unsigned(bus_out_Adr) + 1);
+                  bus_out_Adr <= std_logic_vector(unsigned(bus_out_Adr) + 2);
                   if (count < maxcount) then
                      state        <= SAVEMEMORY_READ;
                      first_dword  <= '1';
@@ -446,7 +448,7 @@ begin
                      header_amount        <= unsigned(bus_out_Dout(31 downto 0));
                      state                <= LOADINTERNALS_READ;
                      SAVE_BusRnW          <= '0';
-                     bus_out_Adr          <= std_logic_vector(to_unsigned(savestate_address + (HEADERCOUNT / 2), 26));
+                     bus_out_Adr          <= std_logic_vector(to_unsigned(savestate_address + HEADERCOUNT, 26));
                      bus_out_rnw          <= '1';
                      bus_out_ena          <= '1';
                      bus_out_active       <= '1';
@@ -478,7 +480,7 @@ begin
             
             when LOADINTERNALS_WRITE => 
                if (internal_bus_out.done = '1') then
-                  bus_out_Adr <= std_logic_vector(unsigned(bus_out_Adr) + 1);
+                  bus_out_Adr <= std_logic_vector(unsigned(bus_out_Adr) + 2);
                   if (count < INTERNALSCOUNT) then
                      state          <= LOADINTERNALS_READ;
                      count          <= count + 2;
@@ -519,7 +521,7 @@ begin
             when LOADREGISTER_WRITE => 
                if (SAVE_BusReadDone = '1') then
                   SAVE_BusAddr <= std_logic_vector(unsigned(SAVE_BusAddr) + 4);
-                  bus_out_Adr <= std_logic_vector(unsigned(bus_out_Adr) + 1);
+                  bus_out_Adr <= std_logic_vector(unsigned(bus_out_Adr) + 2);
                   if (count < REGISTERCOUNT) then
                      state              <= LOADREGISTER_READ;
                      count              <= count + 2;
@@ -566,7 +568,7 @@ begin
             when LOADMEMORY_WRITE =>
                if (SAVE_BusReadDone = '1') then
                   SAVE_BusAddr <= std_logic_vector(unsigned(SAVE_BusAddr) + 4);
-                  bus_out_Adr  <= std_logic_vector(unsigned(bus_out_Adr) + 1);
+                  bus_out_Adr  <= std_logic_vector(unsigned(bus_out_Adr) + 2);
                   if (count < maxcount) then
                      state          <= LOADMEMORY_READ;
                      count          <= count + 2;

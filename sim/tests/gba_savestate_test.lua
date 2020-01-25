@@ -14,7 +14,6 @@ local OAMPOS = VRAMPOS + 24576
 
 reg_set(0, gameboy.Reg_GBA_on)
 reg_set(1, gameboy.Reg_GBA_lockspeed)
-reg_set(0x7C00000, gameboy.Reg_GBA_SaveStateAddr)
 
 transmit_rom("armwrestler.gba", 65536+131072 + 0xC000000, nil)
 

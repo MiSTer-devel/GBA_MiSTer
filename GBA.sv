@@ -410,8 +410,8 @@ gba_top
 	.Softmap_GBA_EEPROM_ADDR (0),                   //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
 	.Softmap_GBA_WRam_ADDR   (131072),              //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
 	.Softmap_GBA_Gamerom_ADDR(65536+131072),        //   32MB of ROM
-	.Softmap_SaveState_ADDR  (25165824),            // 65536 (64bit) -- ~512kbyte Data for SaveState (separate memory)
-	.Softmap_Rewind_ADDR     (16777216),            // 65536 qwords*64 -- 64*512 Kbyte Data for Savestates
+	.Softmap_SaveState_ADDR  (58720256),            // 65536 (64bit) -- ~512kbyte Data for SaveState (separate memory)
+	.Softmap_Rewind_ADDR     (33554432),            // 65536 qwords*64 -- 64*512 Kbyte Data for Savestates
 	.turbosound('1)                                 // sound buffer to play sound in turbo mode without sound pitched up
 )
 gba
@@ -652,7 +652,7 @@ ddram ddram
 	.ch3_rnw(~bk_loading),
 	.ch3_ready(ddr_bram_ack),
 	
-	.ch4_addr({ss_addr, 2'b0}),
+	.ch4_addr({ss_addr, 1'b0}),
 	.ch4_din(ss_din),
 	.ch4_dout(ss_dout),
 	.ch4_req(ss_req),

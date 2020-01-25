@@ -154,7 +154,7 @@ architecture arch of etb is
    signal ch3_rnw          : std_logic;
    signal ch3_ready        : std_logic;
                      
-   signal ch4_addr         : std_logic_vector(27 downto 0);
+   signal ch4_addr         : std_logic_vector(27 downto 1);
    signal ch4_dout         : std_logic_vector(63 downto 0);
    signal ch4_din          : std_logic_vector(63 downto 0);
    signal ch4_req          : std_logic;
@@ -226,8 +226,8 @@ begin
       Softmap_GBA_WRam_ADDR    => 131072,
       Softmap_GBA_FLASH_ADDR   => 0,
       Softmap_GBA_EEPROM_ADDR  => 0,
-      Softmap_SaveState_ADDR   => 16#1800000#,
-      Softmap_Rewind_ADDR      => 16#1000000#,
+      Softmap_SaveState_ADDR   => 16#3800000#,
+      Softmap_Rewind_ADDR      => 16#2000000#,
       turbosound               => '1'
    )
    port map
@@ -343,7 +343,7 @@ begin
    bus_out_Dout <= ch2_dout;
    bus_out_done <= ch2_ready;
    
-   ch4_addr <= SAVE_out_Adr(25 downto 0) & "00";
+   ch4_addr <= SAVE_out_Adr(25 downto 0) & "0";
    ch4_din  <= SAVE_out_Din;
    ch4_req  <= SAVE_out_ena;
    ch4_rnw  <= SAVE_out_rnw;

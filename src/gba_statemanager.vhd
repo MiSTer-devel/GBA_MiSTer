@@ -32,10 +32,10 @@ end entity;
 
 architecture arch of gba_statemanager is
 
-   constant SAVESTATESIZE : integer := 16#10000#; -- 131072 Qwords = 512kbyte
+   constant SAVESTATESIZE : integer := 16#20000#; -- 131072 Dwords = 512kbyte
    constant REWIND_COUNT  : integer := 64;
    constant TIME_CAPTURE  : integer := 100000000; -- 1 second    sim 1000000;
-   constant TIME_REWIND   : integer := 50000000;  -- 200ms       sim 1200000;
+   constant TIME_REWIND   : integer := 50000000;  -- 500ms       sim 1200000;
 
    signal save_1         : std_logic := '0';
    signal load_1         : std_logic := '0';

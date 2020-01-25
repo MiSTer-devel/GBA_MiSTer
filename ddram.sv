@@ -55,7 +55,7 @@ module ddram
 	output        ch3_ready,
 
 	// save state
-	input  [27:0] ch4_addr,
+	input  [27:1] ch4_addr,
 	output [63:0] ch4_dout,
 	input  [63:0] ch4_din,
 	input         ch4_req,
