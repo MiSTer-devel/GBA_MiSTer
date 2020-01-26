@@ -161,7 +161,7 @@ architecture arch of gba_drawer_obj is
    signal second_pix        : std_logic;
    signal skippixel         : std_logic;
    signal issue_pixel       : std_logic;
-   signal pixeladdr_x       : unsigned(14 downto 0);
+   signal pixeladdr_x       : unsigned(14 downto 0) := (others => '0');
    signal pixeladdr_x_noaff : unsigned(14 downto 0);
    
    signal pixeladdr_x_aff0  : unsigned(14 downto 0);

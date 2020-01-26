@@ -1271,11 +1271,16 @@ begin
          end if;
          -- synthesis translate_on
          
+         if (Screen_Display_BG0(Screen_Display_BG0'left) = '0') then on_delay_bg0 <= (others => '0'); end if;
+         if (Screen_Display_BG1(Screen_Display_BG1'left) = '0') then on_delay_bg1 <= (others => '0'); end if;
+         if (Screen_Display_BG2(Screen_Display_BG2'left) = '0') then on_delay_bg2 <= (others => '0'); end if;
+         if (Screen_Display_BG3(Screen_Display_BG3'left) = '0') then on_delay_bg3 <= (others => '0'); end if;
+         
          if (line_trigger = '1') then
-            if (Screen_Display_BG0(Screen_Display_BG0'left) = '0') then on_delay_bg0 <= (others => '0'); else on_delay_bg0 <= on_delay_bg0(1 downto 0) & '1'; end if;
-            if (Screen_Display_BG1(Screen_Display_BG1'left) = '0') then on_delay_bg1 <= (others => '0'); else on_delay_bg1 <= on_delay_bg1(1 downto 0) & '1'; end if;
-            if (Screen_Display_BG2(Screen_Display_BG2'left) = '0') then on_delay_bg2 <= (others => '0'); else on_delay_bg2 <= on_delay_bg2(1 downto 0) & '1'; end if;
-            if (Screen_Display_BG3(Screen_Display_BG3'left) = '0') then on_delay_bg3 <= (others => '0'); else on_delay_bg3 <= on_delay_bg3(1 downto 0) & '1'; end if;
+            if (Screen_Display_BG0(Screen_Display_BG0'left) = '1') then on_delay_bg0 <= on_delay_bg0(1 downto 0) & '1'; end if;
+            if (Screen_Display_BG1(Screen_Display_BG1'left) = '1') then on_delay_bg1 <= on_delay_bg1(1 downto 0) & '1'; end if;
+            if (Screen_Display_BG2(Screen_Display_BG2'left) = '1') then on_delay_bg2 <= on_delay_bg2(1 downto 0) & '1'; end if;
+            if (Screen_Display_BG3(Screen_Display_BG3'left) = '1') then on_delay_bg3 <= on_delay_bg3(1 downto 0) & '1'; end if;
          end if;
          
          drawline_1 <= drawline;
@@ -1437,6 +1442,12 @@ begin
       in_EVA               => unsigned(REG_BLDALPHA_EVA_Coefficient),
       in_EVB               => unsigned(REG_BLDALPHA_EVB_Coefficient),
       in_BLDY              => unsigned(REG_BLDY),
+      
+      in_ena_bg0           => on_delay_bg0(2),
+      in_ena_bg1           => on_delay_bg1(2),
+      in_ena_bg2           => on_delay_bg2(2),
+      in_ena_bg3           => on_delay_bg3(2),
+      in_ena_obj           => Screen_Display_OBJ(Screen_Display_OBJ'left),
                            
       pixeldata_bg0        => linebuffer_bg0_data,
       pixeldata_bg1        => linebuffer_bg1_data,

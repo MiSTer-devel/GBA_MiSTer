@@ -53,6 +53,12 @@ entity gba_drawer_merge is
       in_EVB               : in  unsigned(4 downto 0);
       in_BLDY              : in  unsigned(4 downto 0);
       
+      in_ena_bg0           : in  std_logic;
+      in_ena_bg1           : in  std_logic;
+      in_ena_bg2           : in  std_logic;
+      in_ena_bg3           : in  std_logic;
+      in_ena_obj           : in  std_logic;
+      
       pixeldata_bg0        : in  std_logic_vector(15 downto 0);
       pixeldata_bg1        : in  std_logic_vector(15 downto 0);
       pixeldata_bg2        : in  std_logic_vector(15 downto 0);
@@ -123,6 +129,12 @@ architecture arch of gba_drawer_merge is
    signal EVA               : unsigned(4 downto 0) := (others => '0');
    signal EVB               : unsigned(4 downto 0) := (others => '0');
    signal BLDY              : unsigned(4 downto 0) := (others => '0');
+   
+   signal ena_bg0           : std_logic := '0';
+   signal ena_bg1           : std_logic := '0';
+   signal ena_bg2           : std_logic := '0';
+   signal ena_bg3           : std_logic := '0';
+   signal ena_obj           : std_logic := '0';
     
    -- common for whole line
    signal EVA_MAXED   : integer range 0 to 16;
@@ -258,7 +270,13 @@ begin
                            
             EVA               <= in_EVA;              
             EVB               <= in_EVB;              
-            BLDY              <= in_BLDY;             
+            BLDY              <= in_BLDY; 
+
+            ena_bg0           <= in_ena_bg0;
+            ena_bg1           <= in_ena_bg1;
+            ena_bg2           <= in_ena_bg2;
+            ena_bg3           <= in_ena_bg3;
+            ena_obj           <= in_ena_obj;
          end if;
       end if;
    end process;
@@ -339,7 +357,13 @@ begin
             end if;
          end if;
          enables_cycle1 <= '1' & enables_var; -- backdrop is always on
-      
+         
+         if (ena_bg0 = '0') then enables_cycle1(0) <= '0'; end if;
+         if (ena_bg1 = '0') then enables_cycle1(1) <= '0'; end if;
+         if (ena_bg2 = '0') then enables_cycle1(2) <= '0'; end if;
+         if (ena_bg3 = '0') then enables_cycle1(3) <= '0'; end if;
+         if (ena_obj = '0') then enables_cycle1(4) <= '0'; end if;
+
       end if;
    end process;
    
