@@ -200,6 +200,9 @@ architecture arch of gba_drawer_obj is
                             
    signal second_pix_start  : std_logic;
    signal second_pix_eval   : std_logic;
+   
+   signal zeroread_start    : std_logic;
+   signal zeroread_eval     : std_logic;
                             
    signal readaddr_mux      : unsigned(1 downto 0);
    signal readaddr_mux_eval : unsigned(1 downto 0);
@@ -310,7 +313,6 @@ begin
                   -- skip if
                   if (
                         OAM_data0(OAM_OFF_HI downto OAM_OFF_LO) = "10"   or      -- sprite is off
-                        (unsigned(BG_Mode) >= 3 and tileindex_var < 512) or      -- bitmapmode is on and tileindex in the vram area of bitmap
                         OAM_data0(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "11" -- obj shape prohibited
                      ) then
                      if (OAM_currentobj = 127) then
@@ -651,11 +653,17 @@ begin
          readaddr_mux     <= pixeladdr_x(1 downto 0);
          second_pix_start <= second_pix;
          
+         zeroread_start <= '0';
+         if (unsigned(BG_Mode) >= 3 and pixeladdr_x < 16#4000#) then   -- bitmapmode is on and address in the vram area of bitmap
+            zeroread_start <= '1';
+         end if;
+         
          -- first cycle - wait for vram to deliver data
          readaddr_mux_eval <= readaddr_mux;
          target_eval       <= target_start;
          enable_eval       <= enable_start;
          second_pix_eval   <= second_pix_start;
+         zeroread_eval     <= zeroread_start;
          
          -- must save those here, as pixeldata will be overwritten in next cycle
          prio_eval       <= Pixel_data2(OAM_PRIO_HI downto OAM_PRIO_LO);
@@ -676,13 +684,16 @@ begin
          if (mode_eval = "10") then Pixel_wait.objwnd <= '1'; else Pixel_wait.objwnd <= '0'; end if;
          
          colorbyte := x"00";
-         case (readaddr_mux_eval(1 downto 0)) is
-            when "00" => colorbyte := VRAM_Drawer_data(7  downto 0);
-            when "01" => colorbyte := VRAM_Drawer_data(15 downto 8);
-            when "10" => colorbyte := VRAM_Drawer_data(23 downto 16);
-            when "11" => colorbyte := VRAM_Drawer_data(31 downto 24);
-            when others => null;
-         end case;
+         if (zeroread_eval = '0') then
+            case (readaddr_mux_eval(1 downto 0)) is
+               when "00" => colorbyte := VRAM_Drawer_data(7  downto 0);
+               when "01" => colorbyte := VRAM_Drawer_data(15 downto 8);
+               when "10" => colorbyte := VRAM_Drawer_data(23 downto 16);
+               when "11" => colorbyte := VRAM_Drawer_data(31 downto 24);
+               when others => null;
+            end case;
+         end if;
+         
          
          if (enable_eval = '1') then
             if (hicolor_eval = '0') then
