@@ -633,7 +633,7 @@ begin
    
    gb_bus_Adr <= bus_fetch_Adr  when fetch_ack = '1' else bus_execute_Adr;
    gb_bus_rnw <= bus_fetch_rnw  when fetch_ack = '1' else bus_execute_rnw;
-   gb_bus_ena <= not branchnext when fetch_ack = '1' else bus_execute_ena;
+   gb_bus_ena <= '1'            when fetch_ack = '1' else bus_execute_ena;
    gb_bus_acc <= bus_fetch_acc  when fetch_ack = '1' else bus_execute_acc;
    
    PC_in_BIOS <= '1' when bus_fetch_Adr(27 downto 24) = x"0" else '0';
@@ -797,10 +797,6 @@ begin
                      fetch_ack  <= '1';
                      wait_fetch <= '1';
                   end if;
-               end if;
-               
-               if (fetch_ack = '1' and branchnext = '1') then
-                  wait_fetch <= '0';
                end if;
 
                if (gb_bus_done = '1' and skip_pending_fetch = '1') then

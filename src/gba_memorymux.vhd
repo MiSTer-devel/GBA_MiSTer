@@ -448,8 +448,10 @@ begin
                            when x"0" => 
                               if (PC_in_BIOS = '0') then
                                  if (unsigned(mem_bus_Adr) < 16#4000#) then
-                                    --rotate_data <= x"E3A02004"; -- only applies for one situation!
-                                    --rotate_data <= x"E55EC002"; -- only applies for one situation!
+                                    --rotate_data <= x"E3A02004"; -- only applies for one situation! -> after irq
+                                    --rotate_data <= x"E55EC002"; -- only applies for one situation! -> after swi
+                                    --rotate_data <= x"E129F000"; -- only applies for one situation! -> after startup
+                                    --rotate_data <= x"E25EF004"; -- only applies for one situation! -> while irq
                                     rotate_data <= bios_data_last;
                                     state       <= ROTATE;
                                  else
