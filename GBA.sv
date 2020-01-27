@@ -163,7 +163,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3
 // 01234567890123456789012345678901
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXX  XXXXXXXXXXXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -182,8 +182,7 @@ parameter CONF_STR = {
 	"h4H3-;",
 	"O1,Aspect Ratio,3:2,16:9;",
 	"O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
-	"O9A,Desaturate,Off,Level 1,Level 2,Level 3;",
-   "OOQ,Shader Colors,Off,GBA 2.2,GBA 1.6,NDS 1.6,VBA 1.4;",
+   "OOQ,Modify Colors,Off,GBA 2.2,GBA 1.6,NDS 1.6,VBA 1.4,75%,50%,25%;",
    "OJ,Flickerblend,Off,On;",
    "OK,Spritelimit,Off,On;",
 	"O78,Stereo Mix,None,25%,50%,100%;", 
@@ -431,7 +430,7 @@ gba
    .load_state(ss_load),
    .interframe_blend(status[19]),
    .maxpixels(status[20]),
-   .shade_mode(status[26:24]),
+   .shade_mode(shadercolors),
 	.specialmodule('0),
    .rewind_on(status[27]),
    .rewind_active(joy[11]),
@@ -831,7 +830,7 @@ wire [7:0] luma = r_in[7:2] + g_in[7:1] + g_in[7:3] + b_in[7:3];
 
 wire [7:0] r_out, g_out, b_out;
 always_comb begin
-	case(status[10:9])
+	case(desatcolors)
 		0: begin
 				r_out = r_in;
 				g_out = g_in;
@@ -847,12 +846,27 @@ always_comb begin
 				g_out = g_in[7:1] + luma[7:1];
 				b_out = b_in[7:1] + luma[7:1];
 			end
-		3: begin
+      3: begin
 				r_out = luma[7:1] + luma[7:2] + r_in[7:2];
 				g_out = luma[7:1] + luma[7:2] + g_in[7:2];
 				b_out = luma[7:1] + luma[7:2] + b_in[7:2];
 			end
 	endcase
+end
+
+////////////////////////////  Color options  //////////////////////////////////
+
+reg [2:0] shadercolors;
+reg [1:0] desatcolors;
+always @(posedge clk_sys) begin
+	if(status[26:24] < 5) begin
+      shadercolors = status[26:24];
+      desatcolors  = 0;
+   end
+   else begin
+      shadercolors = 0;
+      desatcolors  = status[26:24] - 4;
+   end		
 end
 
 video_mixer #(.LINE_LENGTH(520), .GAMMA(1)) video_mixer
