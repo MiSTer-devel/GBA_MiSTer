@@ -189,7 +189,7 @@ parameter CONF_STR = {
 	"O78,Stereo Mix,None,25%,50%,100%;", 
 	"-;",
 	"OEF,Storage,Auto,SDRAM,DDR3;",
-	"O5,Pause,Off,On;",
+	"O5,Pause when OSD is open,Off,On;",
 	"H2OG,Turbo,Off,On;",
 	"OB,Sync core to video,Off,On;",
 	"OR,Rewind Capture,Off,On;",
@@ -399,7 +399,7 @@ always @(posedge clk_sys) begin : ffwd
 	end
 
 	fast_forward <= (joy[10] | ff_latch) & ~force_turbo;
-	pause <= force_pause | status[5];
+	pause <= force_pause | (status[5] & OSD_STATUS);
 	cpu_turbo <= ((status[16] & ~fast_forward) | force_turbo) & ~pause;
 end
 
