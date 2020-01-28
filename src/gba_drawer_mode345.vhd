@@ -8,6 +8,7 @@ entity gba_drawer_mode345 is
       clk100               : in  std_logic;                     
       BG_Mode              : in  std_logic_vector(2 downto 0);
                            
+      line_trigger         : in  std_logic;                     
       drawline             : in  std_logic;
       busy                 : out std_logic := '0';
       
@@ -96,9 +97,7 @@ begin
          case (vramfetch) is
          
             when IDLE =>
-               if (drawline = '1') then
-                  busy      <= '1';
-                  vramfetch <= STARTREAD;
+               if (line_trigger = '1') then
                   if (mosaic = '1') then
                      realX     <= refX_mosaic;
                      realY     <= refY_mosaic;
@@ -106,6 +105,9 @@ begin
                      realX     <= refX;
                      realY     <= refY;
                   end if;
+               elsif (drawline = '1') then
+                  busy      <= '1';
+                  vramfetch <= STARTREAD;
                   x_cnt     <= 0;
                elsif (DrawState = NEXTPIXEL and palettefetch = IDLE) then
                   busy      <= '0';

@@ -842,6 +842,7 @@ begin
    port map
    (
       clk100               => clk100,
+      line_trigger         => line_trigger,
       drawline             => drawline_mode2_2,
       busy                 => busy_mode2_2,
       mapbase              => unsigned(REG_BG2CNT_Screen_Base_Block),
@@ -871,6 +872,7 @@ begin
    port map
    (
       clk100               => clk100,
+      line_trigger         => line_trigger,
       drawline             => drawline_mode2_3,
       busy                 => busy_mode2_3,
       mapbase              => unsigned(REG_BG3CNT_Screen_Base_Block),
@@ -900,9 +902,10 @@ begin
    port map
    (
       clk100               => clk100,
+      BG_Mode              => BG_Mode,
+      line_trigger         => line_trigger,
       drawline             => drawline_mode345,
       busy                 => busy_mode345,
-      BG_Mode              => BG_Mode,
       second_frame         => REG_DISPCNT_Display_Frame_Select(REG_DISPCNT_Display_Frame_Select'left),
       mosaic               => REG_BG2CNT_Mosaic(REG_BG2CNT_Mosaic'left),
       Mosaic_H_Size        => unsigned(REG_MOSAIC_BG_Mosaic_H_Size),

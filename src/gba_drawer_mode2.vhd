@@ -7,6 +7,7 @@ entity gba_drawer_mode2 is
    (
       clk100               : in  std_logic;                     
                            
+      line_trigger         : in  std_logic;
       drawline             : in  std_logic;
       busy                 : out std_logic := '0';
       
@@ -107,7 +108,15 @@ begin
          case (vramfetch) is
          
             when IDLE =>
-               if (drawline = '1') then
+               if (line_trigger = '1') then
+                  if (mosaic = '1') then
+                     realX     <= refX_mosaic;
+                     realY     <= refY_mosaic;
+                  else
+                     realX     <= refX;
+                     realY     <= refY;
+                  end if;
+               elsif (drawline = '1') then
                   busy         <= '1';
                   vramfetch    <= CALCADDR1;
                   case (to_integer(screensize)) is
@@ -118,13 +127,6 @@ begin
                      when others => null;
                   end case;
                   x_cnt     <= 0;
-                  if (mosaic = '1') then
-                     realX     <= refX_mosaic;
-                     realY     <= refY_mosaic;
-                  else
-                     realX     <= refX;
-                     realY     <= refY;
-                  end if;
                elsif (palettefetch = IDLE) then
                   busy         <= '0';
                end if;
