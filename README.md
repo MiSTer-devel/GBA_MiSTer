@@ -84,6 +84,10 @@ Carry    |        93 |    93     |   93 |    93 |   93
 BIOSMath |       625 |   625     |  625 |   425 |  625
 DMATests |      1256 |  1248     | 1232 |  1008 | 1064
 
+A complex CPU only testuite can be found here: https://github.com/jsmolka/gba-suite
+There are a total of 765 CPU Testcases included. 
+The GBA Core does pass all these test.
+
 # Information for developers
 
 How to simulate:
