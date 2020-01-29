@@ -39,7 +39,8 @@ PLEASE do not report errors without testing with the original BIOS
 - Flickerblend - turn on for games like F-Zero, Mario Kart or NES Classics to prevent flickering effects
 - Spritelimit - turn on to prevent wrong sprites for games that rely on the limit (opt-in as only 1 known game)
 - Cheats
-- Shadercolors
+- Color optimizations: shader colors and desaturate
+- Rewind: go back up to 60 seconds in time
 
 # Savestates
 Core provides 4 slots to save the state. The first slot gets saved to disk and automatically loaded (but not applied)
@@ -51,6 +52,10 @@ Hot keys for save states:
 - Alt-F1..F4 - save the state
 - F1...F4 - restore
 
+# Rewind
+To use rewind, turn on the OSD Option "Rewind Capture" and map the rewind button.
+You may have to restart the game for the function to work properly.
+Attention: Rewind capture will slow down your game by about 0.5% and may lead to light audio stutter.
 
 # Not included
 - Multiplayer features like Serial
