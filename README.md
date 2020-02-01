@@ -17,7 +17,7 @@ PLEASE do not report errors without testing with the original BIOS
 # Games with crashes/hang
 - Madden06/07: graphic messed up at coin toss
 
-# Games that are unplayable because of catridge hardware missing
+# Games that are unplayable because of cartridge hardware missing
 - Boktai 1/2/Shin Bokura no Taiyou(Japanese Boktai)
 - Warioware Twisted
 - Yoshi's Universal Gravitation
