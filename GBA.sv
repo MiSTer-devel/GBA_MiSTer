@@ -163,7 +163,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3
 // 01234567890123456789012345678901
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXX  XXXXXXXXXXXXXXXXX
+// XXXXXXXXX  XXXXXXXXXXXXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -192,6 +192,7 @@ parameter CONF_STR = {
 	"H2OG,Turbo,Off,On;",
 	"OB,Sync core to video,Off,On;",
 	"OR,Rewind Capture,Off,On;",
+	"OS,Homebrew BIOS(Reset!),Off,On;",
 	"R0,Reset;",
 	"J1,A,B,L,R,Select,Start,FastForward,Rewind;",
 	"jn,A,B,L,R,Select,Start,X,X;",
@@ -319,7 +320,7 @@ reg [31:0] bios_wrdata;
 reg        bios_wr;
 always @(posedge clk_sys) begin
 	bios_wr <= 0;
-	if(bios_download & ioctl_wr) begin
+	if(bios_download & ioctl_wr & ~status[28]) begin
 		if(~ioctl_addr[1]) bios_wrdata[15:0] <= ioctl_dout;
 		else begin
 			bios_wrdata[31:16] <= ioctl_dout;

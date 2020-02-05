@@ -14,6 +14,12 @@ Original GBA BIOS can be placed to GBA folder with name boot.rom
 
 PLEASE do not report errors without testing with the original BIOS
 
+Homebrew games are sometimes not supported by the official BIOS, 
+because the BIOS checks for Nintendo Logo included in the ROM, which is protected by copyright.
+To use these ROMs without renaming or removing the the boot.rom, 
+you can activate the "Homebrew BIOS" settings in OSD.
+As the BIOS is already replaced at boot time, you must save this settings and hard reset/reload the GBA core.
+
 # Games with crashes/hang
 - Madden06/07: graphic messed up at coin toss
 
