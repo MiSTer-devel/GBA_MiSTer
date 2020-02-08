@@ -80,6 +80,7 @@ architecture arch of gba_gpu is
    signal drawline             : std_logic;
    signal line_trigger         : std_logic;
    signal refpoint_update      : std_logic;
+   signal newline_invsync      : std_logic;
    signal linecounter_drawer   : unsigned(7 downto 0);
    signal pixelpos             : integer range 0 to 511;
    
@@ -120,6 +121,7 @@ begin
       vblank_trigger               => vblank_trigger,                            
       drawline                     => drawline,   
       refpoint_update              => refpoint_update,   
+      newline_invsync              => newline_invsync,   
       linecounter_drawer           => linecounter_drawer, 
       pixelpos                     => pixelpos,
                                    
@@ -155,6 +157,7 @@ begin
       hblank_trigger         => hblank_trigger,  
       vblank_trigger         => vblank_trigger,  
       line_trigger           => line_trigger,  
+      newline_invsync        => newline_invsync,  
       pixelpos               => pixelpos,         
             
       VRAM_Lo_addr           => VRAM_Lo_addr,   

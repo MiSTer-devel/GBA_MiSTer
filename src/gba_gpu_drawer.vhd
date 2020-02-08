@@ -37,6 +37,7 @@ entity gba_gpu_drawer is
       hblank_trigger       : in    std_logic;
       vblank_trigger       : in    std_logic;
       line_trigger         : in    std_logic;
+      newline_invsync      : in    std_logic;
       
       VRAM_Lo_addr         : in    integer range 0 to 16383;
       VRAM_Lo_datain       : in    std_logic_vector(31 downto 0);
@@ -248,6 +249,7 @@ architecture arch of gba_gpu_drawer is
    
    -- background multiplexing
    signal drawline_1           : std_logic := '0';
+   signal hblank_trigger_1     : std_logic := '0';
    
    signal drawline_mode0_0     : std_logic;
    signal drawline_mode0_1     : std_logic;
@@ -388,7 +390,6 @@ architecture arch of gba_gpu_drawer is
    type tdrawstate is
    (
       IDLE,
-      WAITDRAW,
       WAITHBLANK,
       DRAWING,
       MERGING
@@ -1274,19 +1275,22 @@ begin
          end if;
          -- synthesis translate_on
          
-         if (Screen_Display_BG0(Screen_Display_BG0'left) = '0') then on_delay_bg0 <= (others => '0'); end if;
-         if (Screen_Display_BG1(Screen_Display_BG1'left) = '0') then on_delay_bg1 <= (others => '0'); end if;
-         if (Screen_Display_BG2(Screen_Display_BG2'left) = '0') then on_delay_bg2 <= (others => '0'); end if;
-         if (Screen_Display_BG3(Screen_Display_BG3'left) = '0') then on_delay_bg3 <= (others => '0'); end if;
+         if (hblank_trigger = '1') then
+            if (Screen_Display_BG0(Screen_Display_BG0'left) = '0') then on_delay_bg0 <= (others => '0'); end if;
+            if (Screen_Display_BG1(Screen_Display_BG1'left) = '0') then on_delay_bg1 <= (others => '0'); end if;
+            if (Screen_Display_BG2(Screen_Display_BG2'left) = '0') then on_delay_bg2 <= (others => '0'); end if;
+            if (Screen_Display_BG3(Screen_Display_BG3'left) = '0') then on_delay_bg3 <= (others => '0'); end if;
+         end if;
          
-         if (line_trigger = '1') then
+         if (drawline = '1' or newline_invsync = '1') then
             if (Screen_Display_BG0(Screen_Display_BG0'left) = '1') then on_delay_bg0 <= on_delay_bg0(1 downto 0) & '1'; end if;
             if (Screen_Display_BG1(Screen_Display_BG1'left) = '1') then on_delay_bg1 <= on_delay_bg1(1 downto 0) & '1'; end if;
             if (Screen_Display_BG2(Screen_Display_BG2'left) = '1') then on_delay_bg2 <= on_delay_bg2(1 downto 0) & '1'; end if;
             if (Screen_Display_BG3(Screen_Display_BG3'left) = '1') then on_delay_bg3 <= on_delay_bg3(1 downto 0) & '1'; end if;
          end if;
          
-         drawline_1 <= drawline;
+         drawline_1       <= drawline;
+         hblank_trigger_1 <= hblank_trigger;
          start_draw <= '0';
          
          if (vblank_trigger = '1') then
@@ -1303,22 +1307,12 @@ begin
                if (drawline_1 = '1' and linesDrawn < 160) then
                   linesDrawn <= linesDrawn + 1;
                   if (nextLineDrawn = '0') then
-                     drawstate       <= WAITDRAW;
+                     drawstate       <= WAITHBLANK;
                      start_draw      <= '1';
                      linecounter_int <= to_integer(linecounter);
                      lineUpToDate(to_integer(linecounter)) <= '1';
                      linebuffer_objwindow <= (others => '0');
                   end if;
-               end if;
-               
-            when WAITDRAW =>
-               if (draw_allmod /= x"00") then
-                  drawstate <= WAITHBLANK;
-               else
-                  drawstate        <= MERGING;
-                  linebuffer_addr  <= 0;
-                  merge_enable     <= '1';
-                  clear_trigger    <= '1';
                end if;
                
             when WAITHBLANK =>
@@ -1401,7 +1395,7 @@ begin
       clk100               => clk100,                
                            
       enable               => merge_enable_1,                     
-      hblank               => hblank_trigger,                     
+      hblank               => hblank_trigger_1,   -- delayed 1 cycle because background is switched off at hblank                  
       xpos                 => linebuffer_addr_1,
       ypos                 => linecounter_int,
       
@@ -1477,6 +1471,9 @@ begin
          if (refpoint_update = '1' or ref3_y_written = '1') then ref3_y <= signed(REG_BG3RefY); mosaic_ref3_y <= signed(REG_BG3RefY); end if;
 
          if (hblank_trigger = '1') then
+         
+            pixeldata_back <= pixeldata_back_next;
+         
             if (BG_Mode /= "000" and Screen_Display_BG2 = "1") then
                ref2_x <= ref2_x + signed(REG_BG2RotScaleParDMX);
                ref2_y <= ref2_y + signed(REG_BG2RotScaleParDMY);
@@ -1493,8 +1490,6 @@ begin
             linecounter_mosaic_bg  <= 0;
             linecounter_mosaic_obj <= 0;
          elsif (drawline = '1') then
-         
-            pixeldata_back <= pixeldata_back_next;
          
             -- background
             if (mosaik_vcnt_bg < unsigned(REG_MOSAIC_BG_Mosaic_V_Size)) then

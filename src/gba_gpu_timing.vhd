@@ -14,31 +14,32 @@ entity gba_gpu_timing is
    );
    port 
    (
-      clk100                       : in  std_logic;  
-      gb_on                        : in  std_logic;
-      reset                        : in  std_logic;
-      lockspeed                    : in  std_logic;
+      clk100               : in  std_logic;  
+      gb_on                : in  std_logic;
+      reset                : in  std_logic;
+      lockspeed            : in  std_logic;
       
-      savestate_bus                : inout proc_bus_gb_type;
+      savestate_bus        : inout proc_bus_gb_type;
       
-      gb_bus                       : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
-                                   
-      new_cycles                   : in  unsigned(7 downto 0);
-      new_cycles_valid             : in  std_logic;
-                                   
-      IRP_HBlank                   : out std_logic := '0';
-      IRP_VBlank                   : out std_logic := '0';
-      IRP_LCDStat                  : out std_logic := '0';
+      gb_bus               : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
+                           
+      new_cycles           : in  unsigned(7 downto 0);
+      new_cycles_valid     : in  std_logic;
+                           
+      IRP_HBlank           : out std_logic := '0';
+      IRP_VBlank           : out std_logic := '0';
+      IRP_LCDStat          : out std_logic := '0';
       
-      line_trigger                 : out std_logic := '0';                              
-      hblank_trigger               : out std_logic := '0';                              
-      vblank_trigger               : out std_logic := '0';                              
-      drawline                     : out std_logic := '0';                       
-      refpoint_update              : out std_logic := '0';                       
-      linecounter_drawer           : out unsigned(7 downto 0);
-      pixelpos                     : out integer range 0 to 511;
+      line_trigger         : out std_logic := '0';                              
+      hblank_trigger       : out std_logic := '0';                              
+      vblank_trigger       : out std_logic := '0';                              
+      drawline             : out std_logic := '0';                       
+      refpoint_update      : out std_logic := '0';                       
+      newline_invsync      : out std_logic := '0';                       
+      linecounter_drawer   : out unsigned(7 downto 0);
+      pixelpos             : out integer range 0 to 511;
       
-      DISPSTAT_debug               : out std_logic_vector(31 downto 0)
+      DISPSTAT_debug       : out std_logic_vector(31 downto 0)
    );
 end entity;
 
@@ -109,15 +110,16 @@ begin
    begin
       if rising_edge(clk100) then
       
-         IRP_HBlank        <= '0';
-         IRP_VBlank        <= '0';
-         IRP_LCDStat       <= '0';
-               
-         drawline          <= '0';
-         refpoint_update   <= '0';
-         line_trigger      <= '0';
-         hblank_trigger    <= '0';
-         vblank_trigger    <= '0';
+         IRP_HBlank      <= '0';
+         IRP_VBlank      <= '0';
+         IRP_LCDStat     <= '0';
+                     
+         drawline        <= '0';
+         refpoint_update <= '0';
+         line_trigger    <= '0';
+         hblank_trigger  <= '0';
+         vblank_trigger  <= '0';
+         newline_invsync <= '0';
          
          if (reset = '1') then
          
@@ -200,6 +202,7 @@ begin
                         cycles                     <= cycles - 1008;
                         gpustate                   <= VBLANKHBLANK;
                         REG_DISPSTAT_H_Blank_flag  <= "1";
+                        newline_invsync            <= '1';
                         -- don't do hblank for dma here!
                         if (REG_DISPSTAT_H_Blank_IRQ_Enable = "1") then
                            IRP_HBlank <= '1'; -- Note that no H-Blank interrupts are generated within V-Blank period. Really? Seems to work this way...
