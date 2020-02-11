@@ -12,7 +12,8 @@ package pReg_gba_system is
    constant IRP_IE  : regmap_type := (16#200#,  15,      0,        1,        0,   readwrite); -- Interrupt Enable Register
    constant IRP_IF  : regmap_type := (16#200#,  31,     16,        1,        0,   readwrite); -- Interrupt Request Flags / IRQ Acknowledge  
    
-   constant WAITCNT : regmap_type := (16#204#,  15,      0,        1,        0,   readwrite); -- Game Pak Waitstate Control  
+   constant WAITCNT : regmap_type := (16#204#,  14,      0,        1,        0,   readwrite); -- Game Pak Waitstate Control  
+   constant ISCGB   : regmap_type := (16#204#,  15,     15,        1,        0,   readwrite); -- is CGB = 1, GBA = 0
 
    constant IME     : regmap_type := (16#208#,  31,      0,        1,        0,   readwrite); -- Interrupt Master Enable Register  
    

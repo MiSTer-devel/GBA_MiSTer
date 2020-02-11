@@ -278,7 +278,7 @@ architecture arch of gba_top is
    
    signal REG_IRP_IE  : std_logic_vector(work.pReg_gba_system.IRP_IE .upper downto work.pReg_gba_system.IRP_IE .lower) := (others => '0');
    signal REG_IRP_IF  : std_logic_vector(work.pReg_gba_system.IRP_IF .upper downto work.pReg_gba_system.IRP_IF .lower) := (others => '0');                                                                                                 
-   signal REG_WAITCNT : std_logic_vector(work.pReg_gba_system.WAITCNT.upper downto work.pReg_gba_system.WAITCNT.lower) := (others => '0');                                                                                                  
+   signal REG_WAITCNT : std_logic_vector(work.pReg_gba_system.WAITCNT.upper downto work.pReg_gba_system.WAITCNT.lower) := (others => '0');                                                                                                                                                                                                   
    signal REG_IME     : std_logic_vector(work.pReg_gba_system.IME    .upper downto work.pReg_gba_system.IME    .lower) := (others => '0');                                                                                                   
    signal REG_POSTFLG : std_logic_vector(work.pReg_gba_system.POSTFLG.upper downto work.pReg_gba_system.POSTFLG.lower) := (others => '0');
    signal REG_HALTCNT : std_logic_vector(work.pReg_gba_system.HALTCNT.upper downto work.pReg_gba_system.HALTCNT.lower) := (others => '0');
@@ -873,6 +873,7 @@ begin
    iREG_IRP_IE  : entity work.eProcReg_gba generic map (work.pReg_gba_system.IRP_IE ) port map  (clk100, gb_bus, REG_IRP_IE , REG_IRP_IE );
    iREG_IRP_IF  : entity work.eProcReg_gba generic map (work.pReg_gba_system.IRP_IF ) port map  (clk100, gb_bus, IRPFLags   , REG_IRP_IF , IF_written);                                                                                                                   
    iREG_WAITCNT : entity work.eProcReg_gba generic map (work.pReg_gba_system.WAITCNT) port map  (clk100, gb_bus, REG_WAITCNT, REG_WAITCNT, WAITCNT_written);                                                                                                                     
+   iREG_ISCGB   : entity work.eProcReg_gba generic map (work.pReg_gba_system.ISCGB  ) port map  (clk100, gb_bus, "0");                                                                                                                     
    iREG_IME     : entity work.eProcReg_gba generic map (work.pReg_gba_system.IME    ) port map  (clk100, gb_bus, REG_IME    , REG_IME    );                                                                                                                       
    iREG_POSTFLG : entity work.eProcReg_gba generic map (work.pReg_gba_system.POSTFLG) port map  (clk100, gb_bus, REG_POSTFLG, REG_POSTFLG);
    iREG_HALTCNT : entity work.eProcReg_gba generic map (work.pReg_gba_system.HALTCNT) port map  (clk100, gb_bus, (REG_HALTCNT'range => '0'), REG_HALTCNT, REG_HALTCNT_written);

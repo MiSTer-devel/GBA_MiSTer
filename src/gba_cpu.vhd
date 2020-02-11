@@ -27,7 +27,7 @@ entity gba_cpu is
       gb_bus_din       : in    std_logic_vector(31 downto 0);
       gb_bus_done      : in    std_logic;
         
-      wait_cnt_value   : in    unsigned(15 downto 0);
+      wait_cnt_value   : in    unsigned(14 downto 0);
       wait_cnt_update  : in    std_logic;
         
       bus_lowbits      : out   std_logic_vector(1 downto 0) := "00";
