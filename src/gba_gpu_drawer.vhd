@@ -1474,11 +1474,11 @@ begin
          
             pixeldata_back <= pixeldata_back_next;
          
-            if (BG_Mode /= "000" and Screen_Display_BG2 = "1") then
+            if (BG_Mode /= "000" and on_delay_bg2(2) = '1') then
                ref2_x <= ref2_x + signed(REG_BG2RotScaleParDMX);
                ref2_y <= ref2_y + signed(REG_BG2RotScaleParDMY);
             end if;
-            if (BG_Mode = "010" and Screen_Display_BG3 = "1") then
+            if (BG_Mode = "010" and on_delay_bg3(2) = '1') then
                ref3_x <= ref3_x + signed(REG_BG3RotScaleParDMX);
                ref3_y <= ref3_y + signed(REG_BG3RotScaleParDMY);
             end if;
