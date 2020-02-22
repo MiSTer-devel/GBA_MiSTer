@@ -62,6 +62,7 @@ Hot keys for save states:
 To use rewind, turn on the OSD Option "Rewind Capture" and map the rewind button.
 You may have to restart the game for the function to work properly.
 Attention: Rewind capture will slow down your game by about 0.5% and may lead to light audio stutter.
+Rewind capture is not compatible to "Pause when OSD is open", so pause is ignored when Rewind capture is on.
 
 # Spritelimit
 Currently there are only few games known that produce glitches without sprite pixel limit:
