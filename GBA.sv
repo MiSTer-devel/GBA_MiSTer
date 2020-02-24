@@ -188,7 +188,7 @@ parameter CONF_STR = {
 	"O78,Stereo Mix,None,25%,50%,100%;", 
 	"-;",
 	"OEF,Storage,Auto,SDRAM,DDR3;",
-	"O5,Pause when OSD is open,Off,On;",
+	"D5O5,Pause when OSD is open,Off,On;",
 	"H2OG,Turbo,Off,On;",
 	"OB,Sync core to video,Off,On;",
 	"OR,Rewind Capture,Off,On;",
@@ -210,7 +210,7 @@ parameter CONF_STR = {
 
 wire  [1:0] buttons;
 wire [31:0] status;
-wire [15:0] status_menumask = {cart_loaded, |cart_type, force_turbo, ~gg_active, ~bk_ena};
+wire [15:0] status_menumask = {status[27], cart_loaded, |cart_type, force_turbo, ~gg_active, ~bk_ena};
 wire        forced_scandoubler;
 reg  [31:0] sd_lba;
 reg         sd_rd = 0;
