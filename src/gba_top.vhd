@@ -37,6 +37,7 @@ entity gba_top is
       maxpixels          : in     std_logic;                    -- limit pixels per line
       shade_mode         : in     std_logic_vector(2 downto 0); -- 0 = off, 1..4 modes
       specialmodule      : in     std_logic;                    -- 0 = off, 1 = use gamepak GPIO Port at address 0x080000C4..0x080000C8
+      tilt               : in     std_logic;                    -- 0 = off, 1 = use tilt at address 0x0E008200, 0x0E008300, 0x0E008400, 0x0E008500
       rewind_on          : in     std_logic;
       rewind_active      : in     std_logic;
       savestate_number   : in     integer;
@@ -87,6 +88,8 @@ entity gba_top is
       KeyDown            : in     std_logic;
       KeyR               : in     std_logic;
       KeyL               : in     std_logic;
+      AnalogTiltX        : in     signed(7 downto 0);
+      AnalogTiltY        : in     signed(7 downto 0);
       -- debug interface          
       GBA_BusAddr        : in     std_logic_vector(27 downto 0);
       GBA_BusRnW         : in     std_logic;
@@ -639,6 +642,10 @@ begin
       GPIO_Dout            => GPIO_Dout,    
       GPIO_writeEna        => GPIO_writeEna,
       GPIO_addr            => GPIO_addr,    
+      
+      tilt                 => tilt,       
+      AnalogTiltX          => AnalogTiltX,
+      AnalogTiltY          => AnalogTiltY,
 
       debug_mem            => debug_mem      
    );

@@ -110,6 +110,10 @@ entity gba_memorymux is
       GPIO_writeEna        : out    std_logic := '0';
       GPIO_addr            : out    std_logic_vector(1 downto 0);
       
+      tilt                 : in     std_logic;
+      AnalogTiltX          : in     signed(7 downto 0);
+      AnalogTiltY          : in     signed(7 downto 0);
+      
       debug_mem            : out    std_logic_vector(31 downto 0)  
    );
 end entity;
@@ -238,6 +242,10 @@ architecture arch of gba_memorymux is
    signal flash_saveaddr  : std_logic_vector(busadr_bits-1 downto 0);
    signal flash_savecount : integer range 0 to 131072;
    signal flash_savedata  : std_logic_vector(7 downto 0);
+   
+   -- tilt
+   signal tilt_x : unsigned(11 downto 0);
+   signal tilt_y : unsigned(11 downto 0);
    
    -- savestate
    signal SAVESTATE_EEPROM  : std_logic_vector(31 downto 0);
@@ -394,6 +402,10 @@ begin
                sdram_data_buf(63 downto 32) <= sdram_second_dword;
             end if;
          end if;
+         
+         -- tilt
+         tilt_x <= to_unsigned(16#3A0# + to_integer(AnalogTiltX), 12);
+         tilt_y <= to_unsigned(16#3A0# + to_integer(AnalogTiltY), 12);
 
          -- default pulse regs
          bus_out_ena      <= '0';
@@ -1209,31 +1221,41 @@ begin
                end if;
             
             when FLASHREAD =>
-               -- only default, maybe overwritten
                state       <= rotate;
                rotate_data <= (others => '0');
                
-               case (flashReadState) is
-                  when FLASH_READ_ARRAY =>
-                     state <= FLASH_WAITREAD;
-                     bus_out_Adr  <= std_logic_vector(to_unsigned(Softmap_GBA_FLASH_ADDR, busadr_bits) + unsigned((flashBank & adr_save(15 downto 0))));
-                     bus_out_rnw  <= '1';
-                     bus_out_ena  <= '1'; 
-                     
-                  when FLASH_AUTOSELECT => 
-                     if (adr_save(7 downto 0) = x"00") then
-                        rotate_data <= flashManufacturerID & flashManufacturerID & flashManufacturerID & flashManufacturerID;
-                     elsif (adr_save(7 downto 0) = x"01") then
-                        rotate_data <= flashDeviceID & flashDeviceID & flashDeviceID & flashDeviceID;
-                     end if;
-                     
-                  when FLASH_ERASE_COMPLETE =>
-                     flashState     <= FLASH_READ_ARRAY;
-                     flashReadState <= FLASH_READ_ARRAY;
-                     rotate_data    <= (others => '1');
-                     
-                  when others => null;
-               end case;
+               if (tilt = '1') then
+               
+                  if (adr_save = x"E008200") then rotate_data(7 downto 0) <= std_logic_vector(tilt_x( 7 downto 0)); end if;
+                  if (adr_save = x"E008300") then rotate_data(3 downto 0) <= std_logic_vector(tilt_x(11 downto 8)); rotate_data(7) <= '1'; end if; -- bit 7 for sampling done
+                  if (adr_save = x"E008400") then rotate_data(7 downto 0) <= std_logic_vector(tilt_y( 7 downto 0)); end if;
+                  if (adr_save = x"E008500") then rotate_data(3 downto 0) <= std_logic_vector(tilt_y(11 downto 8)); end if;
+               
+               else
+               
+                  case (flashReadState) is
+                     when FLASH_READ_ARRAY =>
+                        state <= FLASH_WAITREAD;
+                        bus_out_Adr  <= std_logic_vector(to_unsigned(Softmap_GBA_FLASH_ADDR, busadr_bits) + unsigned((flashBank & adr_save(15 downto 0))));
+                        bus_out_rnw  <= '1';
+                        bus_out_ena  <= '1'; 
+                        
+                     when FLASH_AUTOSELECT => 
+                        if (adr_save(7 downto 0) = x"00") then
+                           rotate_data <= flashManufacturerID & flashManufacturerID & flashManufacturerID & flashManufacturerID;
+                        elsif (adr_save(7 downto 0) = x"01") then
+                           rotate_data <= flashDeviceID & flashDeviceID & flashDeviceID & flashDeviceID;
+                        end if;
+                        
+                     when FLASH_ERASE_COMPLETE =>
+                        flashState     <= FLASH_READ_ARRAY;
+                        flashReadState <= FLASH_READ_ARRAY;
+                        rotate_data    <= (others => '1');
+                        
+                     when others => null;
+                  end case;
+               
+               end if;
                
             when FLASH_WAITREAD =>
                if (bus_out_done = '1') then

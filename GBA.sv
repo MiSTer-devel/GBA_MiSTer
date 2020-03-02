@@ -163,7 +163,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3
 // 01234567890123456789012345678901
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXX  XXXXXXXXXXXXXXXXXX
+// XXXXXXXXXX XXXXXXXXXXXXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -192,6 +192,7 @@ parameter CONF_STR = {
 	"H2OG,Turbo,Off,On;",
 	"OB,Sync core to video,Off,On;",
 	"OR,Rewind Capture,Off,On;",
+	"O9,Tilt on Analogstick,Off,On;",
 	"OS,Homebrew BIOS(Reset!),Off,On;",
 	"R0,Reset;",
 	"J1,A,B,L,R,Select,Start,FastForward,Rewind;",
@@ -236,6 +237,8 @@ wire [10:0] ps2_key;
 wire [21:0] gamma_bus;
 wire [15:0] sdram_sz;
 
+wire [15:0] joystick_analog_0;
+
 hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 (
 	.clk_sys(clk_sys),
@@ -249,7 +252,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.ps2_key(ps2_key),
 
 	.status(status),
-	.status_in({status[31:17],1'b0,status[15:0]}),
+	.status_in({status[31:17],1'b0,status[15:10],1'b0,status[8:0]}),
 	.status_set(cart_download),	
 	.status_menumask(status_menumask),
 	.info_req(ss_info_req),
@@ -276,7 +279,9 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.img_size(img_size),
 
 	.sdram_sz(sdram_sz),
-	.gamma_bus(gamma_bus)
+	.gamma_bus(gamma_bus),
+   
+   .joystick_analog_0(joystick_analog_0)
 );
 
 //////////////////////////  ROM DETECT  /////////////////////////////////
@@ -433,6 +438,7 @@ gba
    .maxpixels(status[20]),
    .shade_mode(shadercolors),
 	.specialmodule('0),
+	.tilt(status[9]),
    .rewind_on(status[27]),
    .rewind_active(status[27] & joy[11]),
    .savestate_number(ss_base),
@@ -482,6 +488,8 @@ gba
 	.KeyDown(joy[2]),
 	.KeyR(joy[7]),
 	.KeyL(joy[6]),
+	.AnalogTiltX(joystick_analog_0[7:0]),
+	.AnalogTiltY(joystick_analog_0[15:8]),
 	
 	.pixel_out_addr(pixel_addr),      // integer range 0 to 38399;       -- address for framebuffer 
 	.pixel_out_data(pixel_data),      // RGB data for framebuffer 
