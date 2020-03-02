@@ -26,10 +26,8 @@ As the BIOS is already replaced at boot time, you must save this settings and ha
 # Games that are unplayable because of cartridge hardware missing
 - Boktai 1/2/Shin Bokura no Taiyou(Japanese Boktai)
 - Warioware Twisted
-- Yoshi's Universal Gravitation
 - Bouken Yuuki Pluster World - Plust Gate/EX
 - Sennen Kazoku, Gachasute (RTC)
-- Koro Koro Puzzle
 
 # Status
 ~1600 games tested until ingame:
@@ -47,6 +45,7 @@ As the BIOS is already replaced at boot time, you must save this settings and ha
 - Cheats
 - Color optimizations: shader colors and desaturate
 - Rewind: go back up to 60 seconds in time
+- Tilt: enable in OSD and use analog stick (map stick in Mister Main before)
 
 # Savestates
 Core provides 4 slots to save the state. The first slot gets saved to disk and automatically loaded (but not applied)
