@@ -59,7 +59,7 @@ vcom -quiet -work sim/gba ^
 ../src/gba_savestates.vhd ^
 ../src/gba_statemanager.vhd ^
 ../src/gba_cheats.vhd ^
-../src/gba_gpiodummy.vhd
+../src/gba_gpioRTCSolarGyro.vhd
 
 vcom -2008 -quiet -work sim/gba ^
 ../src/gba_cpu.vhd ^

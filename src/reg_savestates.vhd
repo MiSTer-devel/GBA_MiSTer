@@ -52,6 +52,7 @@ package pReg_savestates is
    constant REG_SAVESTATE_FIQ_disable     : regmap_type := ( 46,   11,     11,        1,        1,   readwrite);
    
    constant REG_SAVESTATE_IRP             : regmap_type := ( 47,   15,      0,        1,        0,   readwrite);
+   constant REG_SAVESTATE_GPIOBITS        : regmap_type := ( 47,   21,     16,        1,        0,   readwrite);
    
    -- memory
    constant REG_SAVESTATE_EEPROM          : regmap_type := ( 48,   31,      0,        1,        0,   readwrite);
@@ -68,10 +69,8 @@ package pReg_savestates is
    -- GPU
    constant REG_SAVESTATE_GPU             : regmap_type := ( 66,   24,      0,        1,        0,   readwrite);
    
-   constant REG_SAVESTATE_DUMMY           : regmap_type := ( 67,    0,      0,        1,        0,   readwrite);
-   
-
-   
+   -- GPIO
+   constant REG_SAVESTATE_GPIO            : regmap_type := ( 67,   29,      0,        1,        0,   readwrite);
    
    
 end package;

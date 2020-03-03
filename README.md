@@ -22,12 +22,7 @@ As the BIOS is already replaced at boot time, you must save this settings and ha
 
 # Games with crashes/hang
 - Madden06/07: graphic messed up at coin toss
-
-# Games that are unplayable because of cartridge hardware missing
-- Boktai 1/2/Shin Bokura no Taiyou(Japanese Boktai)
-- Warioware Twisted
-- Bouken Yuuki Pluster World - Plust Gate/EX
-- Sennen Kazoku, Gachasute (RTC)
+- Sennen Kazoku: RTC not recognized
 
 # Status
 ~1600 games tested until ingame:

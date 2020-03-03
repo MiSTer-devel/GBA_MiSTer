@@ -250,6 +250,8 @@ begin
       maxpixels          => '0',
       shade_mode         => GBA_Pixelshade,
       specialmodule      => '0',
+      solar_in           => "000",
+      tilt               => '0',
       rewind_on          => GBA_Rewind_on(GBA_Rewind_on'left),
       rewind_active      => GBA_Rewind_active(GBA_Rewind_active'left),
       savestate_number   => 0,
@@ -304,6 +306,8 @@ begin
       KeyDown            => GBA_KeyDown(GBA_KeyDown'left),
       KeyR               => GBA_KeyR(GBA_KeyR'left),
       KeyL               => GBA_KeyL(GBA_KeyL'left),
+      AnalogTiltX        => x"00",
+      AnalogTiltY        => x"00",
       -- debug interface 
       GBA_BusAddr        => GBA_BusAddr,     
       GBA_BusRnW         => GBA_BusRnW(GBA_BusRnW'left),      

@@ -547,10 +547,11 @@ begin
                               end if;
                               if (specialmodule = '1') then
                                  if (unsigned(mem_bus_Adr(27 downto 0)) >= 16#80000C4# and unsigned(mem_bus_Adr(27 downto 0)) <= 16#80000C8#) then
-                                    state        <= READ_GPIO;
-                                    mem_bus_done <= '0';
-                                    GPIO_readEna <= '1';
-                                    GPIO_addr    <= std_logic_vector(to_unsigned(to_integer(unsigned(mem_bus_Adr(3 downto 1))) - 4 / 2, 2));
+                                    state             <= READ_GPIO;
+                                    mem_bus_done      <= '0';
+                                    cache_read_enable <= '0';
+                                    GPIO_readEna      <= '1';
+                                    GPIO_addr         <= std_logic_vector(to_unsigned(to_integer(unsigned(mem_bus_Adr(3 downto 1))) - 4 / 2, 2));
                                  end if;
                               end if;
                            

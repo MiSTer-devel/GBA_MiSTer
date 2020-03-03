@@ -163,7 +163,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3
 // 01234567890123456789012345678901
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXX XXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -192,6 +192,8 @@ parameter CONF_STR = {
 	"H2OG,Turbo,Off,On;",
 	"OB,Sync core to video,Off,On;",
 	"OR,Rewind Capture,Off,On;",
+	"OA,RTC+Gyro+Solar,Off,On;",
+	"H6OTV,Solar Sensor,0%,15%,30%,42%,55%,70%,85%,100%;",
 	"O9,Tilt on Analogstick,Off,On;",
 	"OS,Homebrew BIOS(Reset!),Off,On;",
 	"R0,Reset;",
@@ -211,7 +213,7 @@ parameter CONF_STR = {
 
 wire  [1:0] buttons;
 wire [31:0] status;
-wire [15:0] status_menumask = {status[27], cart_loaded, |cart_type, force_turbo, ~gg_active, ~bk_ena};
+wire [15:0] status_menumask = {~status[10], status[27], cart_loaded, |cart_type, force_turbo, ~gg_active, ~bk_ena};
 wire        forced_scandoubler;
 reg  [31:0] sd_lba;
 reg         sd_rd = 0;
@@ -252,7 +254,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.ps2_key(ps2_key),
 
 	.status(status),
-	.status_in({status[31:17],1'b0,status[15:10],1'b0,status[8:0]}),
+	.status_in({status[31:17],1'b0,status[15:11],1'b0,1'b0,status[8:0]}),
 	.status_set(cart_download),	
 	.status_menumask(status_menumask),
 	.info_req(ss_info_req),
@@ -437,7 +439,8 @@ gba
    .interframe_blend(status[19]),
    .maxpixels(status[20]),
    .shade_mode(shadercolors),
-	.specialmodule('0),
+	.specialmodule(status[10]),
+	.solar_in(status[31:29]),
 	.tilt(status[9]),
    .rewind_on(status[27]),
    .rewind_active(status[27] & joy[11]),

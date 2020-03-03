@@ -34,6 +34,8 @@ begin
       variable data : t_data := (others => 0);
       variable cmd_address_save : STD_LOGIC_VECTOR(DDRAM_ADDR'left downto 0);
       variable cmd_burst_save   : STD_LOGIC_VECTOR(DDRAM_BURSTCNT'left downto 0);
+      variable cmd_din_save     : STD_LOGIC_VECTOR(63 downto 0);
+      variable cmd_be_save      : STD_LOGIC_VECTOR(7 downto 0);
       
       file infile             : bit_vector_file;
       variable f_status       : FILE_OPEN_STATUS;
@@ -75,7 +77,7 @@ begin
    begin
       wait until rising_edge(DDRAM_CLK);
       
-      if (DDRAM_RD = '1') then
+      if (DDRAM_RD = '1') then 
          cmd_address_save := DDRAM_ADDR;
          cmd_burst_save   := DDRAM_BURSTCNT;
          wait until rising_edge(DDRAM_CLK);
@@ -89,20 +91,23 @@ begin
       end if;  
       
       if (DDRAM_WE = '1') then
+         DDRAM_BUSY       <= '1';
          cmd_address_save := DDRAM_ADDR;
          cmd_burst_save   := DDRAM_BURSTCNT;
+         cmd_din_save     := DDRAM_DIN;
+         cmd_be_save      := DDRAM_BE;
          wait until rising_edge(DDRAM_CLK);
          for i in 0 to (to_integer(unsigned(cmd_burst_save)) - 1) loop                                                         
-            if (DDRAM_BE(7 downto 4) = x"F") then                        
-               data(to_integer(unsigned(cmd_address_save)) * 2 + (i * 2) + 1) := to_integer(signed(DDRAM_DIN(63 downto 32)));
+            if (cmd_be_save(7 downto 4) = x"F") then                        
+               data(to_integer(unsigned(cmd_address_save)) * 2 + (i * 2) + 1) := to_integer(signed(cmd_din_save(63 downto 32)));
             end if;                                                      
-            if (DDRAM_BE(3 downto 0) = x"F") then                        
-               data(to_integer(unsigned(cmd_address_save)) * 2 + (i * 2) + 0) := to_integer(signed(DDRAM_DIN(31 downto  0)));
+            if (cmd_be_save(3 downto 0) = x"F") then                        
+               data(to_integer(unsigned(cmd_address_save)) * 2 + (i * 2) + 0) := to_integer(signed(cmd_din_save(31 downto  0)));
             end if;
-            DDRAM_DOUT_READY <= '1';
             wait until rising_edge(DDRAM_CLK);
          end loop;
-         DDRAM_DOUT_READY <= '0';
+         --wait for 200 ns;
+         DDRAM_BUSY       <= '0';
       end if;  
       
       COMMAND_FILE_ACK <= '0';

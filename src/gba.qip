@@ -26,7 +26,7 @@ set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_timer_
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_savestates.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_statemanager.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_cheats.vhd ]
-set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_gpiodummy.vhd ]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_gpioRTCSolarGyro.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) proc_bus_gba.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) reggba_display.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) reggba_dma.vhd ]

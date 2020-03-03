@@ -37,6 +37,7 @@ entity gba_top is
       maxpixels          : in     std_logic;                    -- limit pixels per line
       shade_mode         : in     std_logic_vector(2 downto 0); -- 0 = off, 1..4 modes
       specialmodule      : in     std_logic;                    -- 0 = off, 1 = use gamepak GPIO Port at address 0x080000C4..0x080000C8
+      solar_in           : in     std_logic_vector(2 downto 0);
       tilt               : in     std_logic;                    -- 0 = off, 1 = use tilt at address 0x0E008200, 0x0E008300, 0x0E008400, 0x0E008500
       rewind_on          : in     std_logic;
       rewind_active      : in     std_logic;
@@ -514,17 +515,24 @@ begin
       BusDone        => mem_bus_done
    );
    
-   igba_gpiodummy : entity work.gba_gpiodummy
+   igba_gpioRTCSolarGyro : entity work.gba_gpioRTCSolarGyro
    port map
    (
-      clk100               => clk100,       
-                                           
+      clk100               => clk100, 
+      reset                => reset,
+      GBA_on               => GBA_on,
+                                         
+      savestate_bus        => savestate_bus,
+                                         
       GPIO_readEna         => GPIO_readEna, 
       GPIO_done            => GPIO_done,   
       GPIO_Din             => GPIO_Din,     
       GPIO_Dout            => GPIO_Dout,    
       GPIO_writeEna        => GPIO_writeEna,
-      GPIO_addr            => GPIO_addr    
+      GPIO_addr            => GPIO_addr,
+
+      AnalogX              => AnalogTiltX,
+      solar_in             => solar_in
    );
    
    process (clk100)
@@ -886,8 +894,6 @@ begin
    iREG_HALTCNT : entity work.eProcReg_gba generic map (work.pReg_gba_system.HALTCNT) port map  (clk100, gb_bus, (REG_HALTCNT'range => '0'), REG_HALTCNT, REG_HALTCNT_written);
 
    iSAVESTATE_IRP   : entity work.eProcReg_gba generic map (REG_SAVESTATE_IRP  ) port map (clk100, savestate_bus, IRPFLags , SAVESTATE_IRP);
-   
-   iSAVESTATE_DUMMY : entity work.eProcReg_gba generic map (REG_SAVESTATE_DUMMY) port map (clk100, savestate_bus, "0" , open);
 
    debug_irq(15 downto 0) <= IRPFLags;
    debug_irq(16) <= REG_IME(0);
