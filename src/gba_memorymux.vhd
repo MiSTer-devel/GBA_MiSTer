@@ -647,19 +647,9 @@ begin
                
             when READBIOS => 
                bios_data_last <= bios_data;
-               if (acc_save = ACCESS_8BIT) then
+               if (acc_save = ACCESS_8BIT or acc_save = ACCESS_16BIT) then
                   rotate_data  <= bios_data;
                   state        <= ROTATE;
-               elsif (acc_save = ACCESS_16BIT) then
-                  mem_bus_done <= '1'; 
-                  state <= IDLE;
-                  case (return_rotate) is
-                     when "00" => mem_bus_din <= x"0000" & bios_data(15 downto 0);
-                     when "01" => mem_bus_din <= bios_data(7 downto 0) & x"0000" & bios_data(15 downto 8);
-                     when "10" => mem_bus_din <= x"0000" & bios_data(31 downto 16);
-                     when "11" => mem_bus_din <= bios_data(23 downto 16) & x"0000" & bios_data(31 downto 24);
-                     when others => null;
-                  end case;
                else
                   mem_bus_done <= '1'; 
                   state <= IDLE;
@@ -751,30 +741,8 @@ begin
             when WAIT_PROCBUS =>
                if (bus_out_done = '1') then
                   if (read_operation = '1') then
-                     if (acc_save = ACCESS_8BIT) then
-                        rotate_data  <= bus_out_Dout;
-                        state        <= ROTATE;
-                     elsif (acc_save = ACCESS_16BIT) then
-                        mem_bus_done <= '1'; 
-                        state <= IDLE;
-                        case (return_rotate) is
-                           when "00" => mem_bus_din <= x"0000" & bus_out_Dout(15 downto 0);
-                           when "01" => mem_bus_din <= bus_out_Dout(7 downto 0) & x"0000" & bus_out_Dout(15 downto 8);
-                           when "10" => mem_bus_din <= x"0000" & bus_out_Dout(31 downto 16);
-                           when "11" => mem_bus_din <= bus_out_Dout(23 downto 16) & x"0000" & bus_out_Dout(31 downto 24);
-                           when others => null;
-                        end case;
-                     else
-                        mem_bus_done <= '1'; 
-                        state <= IDLE;
-                        case (return_rotate) is
-                           when "00" => mem_bus_din <= bus_out_Dout;
-                           when "01" => mem_bus_din <= bus_out_Dout(7 downto 0) & bus_out_Dout(31 downto 8);
-                           when "10" => mem_bus_din <= bus_out_Dout(15 downto 0) & bus_out_Dout(31 downto 16);
-                           when "11" => mem_bus_din <= bus_out_Dout(23 downto 0) & bus_out_Dout(31 downto 24);
-                           when others => null;
-                        end case;
-                     end if;
+                     rotate_data  <= bus_out_Dout;
+                     state        <= ROTATE;
                   else
                      mem_bus_done <= '1'; 
                      state <= IDLE;
