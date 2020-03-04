@@ -204,6 +204,8 @@ architecture arch of gba_top is
    signal VRAM_Hi_dataout      : std_logic_vector(31 downto 0);
    signal VRAM_Hi_we           : std_logic;
    signal VRAM_Hi_be           : std_logic_vector(3 downto 0);
+   signal vram_blocked         : std_logic;
+   signal vram_cycle           : std_logic;
                                
    signal OAMRAM_PROC_addr     : integer range 0 to 255;
    signal OAMRAM_PROC_datain   : std_logic_vector(31 downto 0);
@@ -627,7 +629,9 @@ begin
       VRAM_Hi_datain       => VRAM_Hi_datain, 
       VRAM_Hi_dataout      => VRAM_Hi_dataout,
       VRAM_Hi_we           => VRAM_Hi_we,     
-      VRAM_Hi_be           => VRAM_Hi_be,     
+      VRAM_Hi_be           => VRAM_Hi_be, 
+      vram_blocked         => vram_blocked,    
+      vram_cycle           => vram_cycle,
 
       OAMRAM_PROC_addr     => OAMRAM_PROC_addr,   
       OAMRAM_PROC_datain   => OAMRAM_PROC_datain, 
@@ -775,7 +779,8 @@ begin
       VRAM_Hi_datain       => VRAM_Hi_datain, 
       VRAM_Hi_dataout      => VRAM_Hi_dataout,
       VRAM_Hi_we           => VRAM_Hi_we,        
-      VRAM_Hi_be           => VRAM_Hi_be,        
+      VRAM_Hi_be           => VRAM_Hi_be,  
+      vram_blocked         => vram_blocked,        
                          
       OAMRAM_PROC_addr     => OAMRAM_PROC_addr,   
       OAMRAM_PROC_datain   => OAMRAM_PROC_datain, 
@@ -882,8 +887,8 @@ begin
       debug_cpu_mixed  => debug_cpu_mixed
    );
    
-   new_cycles       <= x"01"           when GBA_cputurbo = '1' or DEBUG_NOCPU = '1' else new_cycles_cpu      ;
-   new_cycles_valid <= new_exact_cycle when GBA_cputurbo = '1' or DEBUG_NOCPU = '1' else new_cycles_valid_cpu;
+   new_cycles       <= x"01"           when GBA_cputurbo = '1' or DEBUG_NOCPU = '1' or vram_cycle = '1' else new_cycles_cpu      ;
+   new_cycles_valid <= new_exact_cycle when GBA_cputurbo = '1' or DEBUG_NOCPU = '1' or vram_cycle = '1' else new_cycles_valid_cpu;
    
    iREG_IRP_IE  : entity work.eProcReg_gba generic map (work.pReg_gba_system.IRP_IE ) port map  (clk100, gb_bus, REG_IRP_IE , REG_IRP_IE );
    iREG_IRP_IF  : entity work.eProcReg_gba generic map (work.pReg_gba_system.IRP_IF ) port map  (clk100, gb_bus, IRPFLags   , REG_IRP_IF , IF_written);                                                                                                                   

@@ -30,6 +30,9 @@ entity gba_gpu_timing is
       IRP_VBlank           : out std_logic := '0';
       IRP_LCDStat          : out std_logic := '0';
       
+      vram_block_mode      : in  std_logic;
+      vram_blocked         : out std_logic := '0';
+      
       line_trigger         : out std_logic := '0';                              
       hblank_trigger       : out std_logic := '0';                              
       vblank_trigger       : out std_logic := '0';                              
@@ -120,6 +123,11 @@ begin
          hblank_trigger  <= '0';
          vblank_trigger  <= '0';
          newline_invsync <= '0';
+         
+         vram_blocked <= '0';
+         if (gpustate = visible and vram_block_mode = '1' and cycles < 980) then
+            vram_blocked <= '1';
+         end if;
          
          if (reset = '1') then
          

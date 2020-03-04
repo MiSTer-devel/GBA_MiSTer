@@ -87,6 +87,8 @@ entity gba_memorymux is
       VRAM_Hi_dataout      : in     std_logic_vector(31 downto 0);
       VRAM_Hi_we           : out    std_logic;
       VRAM_Hi_be           : out    std_logic_vector(3 downto 0);
+      vram_blocked         : in     std_logic;      
+      vram_cycle           : out    std_logic := '0';
                                     
       OAMRAM_PROC_addr     : out    integer range 0 to 255;
       OAMRAM_PROC_datain   : out    std_logic_vector(31 downto 0);
@@ -147,6 +149,7 @@ architecture arch of gba_memorymux is
       WRITE_REG,
       WRITE_PALETTE,
       WRITE_VRAM,
+      VRAMWAITWRITE,
       WRITE_OAM,
       EEPROMREAD,
       EEPROM_WAITREAD,
@@ -186,6 +189,8 @@ architecture arch of gba_memorymux is
    
    signal registersettle     : std_logic := '0';
    signal registersettle_cnt : integer range 0 to 7 := 0;
+   
+   signal vramwait           : std_logic := '0';
    
    -- minicache
    signal sdram_addr_buf     : std_logic_vector(21 downto 0) := (others => '1');
@@ -432,6 +437,8 @@ begin
          unread_next     <= '0';
          
          cache_read_enable <= '0';
+         
+         vram_cycle <= '0';
 
          case state is
          
@@ -607,7 +614,7 @@ begin
                               registersettle     <= '1';
                            
                            when x"5" => state <= WRITE_PALETTE;   mem_bus_done <= '1';
-                           when x"6" => state <= WRITE_VRAM;      mem_bus_done <= '1';
+                           when x"6" => state <= WRITE_VRAM;      mem_bus_done <= not vram_blocked or mem_bus_Adr(16); vramwait <= vram_blocked;
                            when x"7" => state <= WRITE_OAM;       mem_bus_done <= '1';
                            when x"8" =>
                               mem_bus_done <= '1';
@@ -1036,6 +1043,17 @@ begin
                   VRAM_Hi_we <= '1';
                else
                   VRAM_Lo_we <= '1';
+                  if (vramwait = '1') then
+                     state        <= VRAMWAITWRITE;
+                  end if;
+               end if;
+               
+            when VRAMWAITWRITE =>
+               if (vram_blocked = '0') then
+                  state        <= IDLE;
+                  mem_bus_done <= '1';
+               else
+                  vram_cycle <= '1';
                end if;
                
             when WRITE_OAM =>

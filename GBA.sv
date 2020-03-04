@@ -159,10 +159,10 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 
 ////////////////////////////  HPS I/O  //////////////////////////////////
 
-// Status Bit Map:
-// 0         1         2         3
-// 01234567890123456789012345678901
-// 0123456789ABCDEFGHIJKLMNOPQRSTUV
+// Status Bit Map: (0..31 => "O", 32..63 => "o")
+// 0         1         2         3         4         5         6   
+// 0123456789012345678901234567890123456789012345678901234567890123
+// 0123456789ABCDEFGHIJKLMNOPQRSTUV0123456789ABCDEFGHIJKLMNOPQRSTUV
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 `include "build_id.v"

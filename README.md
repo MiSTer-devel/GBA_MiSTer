@@ -20,10 +20,6 @@ To use these ROMs without renaming or removing the the boot.rom,
 you can activate the "Homebrew BIOS" settings in OSD.
 As the BIOS is already replaced at boot time, you must save this settings and hard reset/reload the GBA core.
 
-# Games with crashes/hang
-- Madden06/07: graphic messed up at coin toss
-- Sennen Kazoku: RTC not recognized
-
 # Status
 ~1600 games tested until ingame:
 - 99% without major issues (no crash, playable)

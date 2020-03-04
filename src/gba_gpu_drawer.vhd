@@ -23,6 +23,7 @@ entity gba_gpu_drawer is
       maxpixels            : in    std_logic;
       
       bitmapdrawmode       : out   std_logic;
+      vram_block_mode      : out   std_logic;
         
       pixel_out_x          : out   integer range 0 to 239;
       pixel_out_y          : out   integer range 0 to 159;
@@ -1012,6 +1013,11 @@ begin
          bitmapdrawmode <= '0';
          if (unsigned(BG_Mode) >= 3) then
             bitmapdrawmode <= '1';
+         end if;
+         
+         vram_block_mode <= '0';
+         if (unsigned(BG_Mode) = 2 and on_delay_bg2(2) = '1' and on_delay_bg3(2) = '1') then
+            vram_block_mode <= '1';    
          end if;
 
          if (PALETTE_BG_addr = 0 and PALETTE_BG_we(1) = '1') then
