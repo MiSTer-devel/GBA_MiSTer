@@ -63,9 +63,9 @@ Currently there are only few games known that produce glitches without sprite pi
 
 # Not included
 - Multiplayer features like Serial
-- Tilt/Gyro/Rumble/Sun sensor
-- RTC
+- RTC(fixed time is provided so games don't hang)
 - E-Reader support
+- other cartridge hardware
 
 # Accuracy
 
