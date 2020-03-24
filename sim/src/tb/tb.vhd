@@ -121,6 +121,8 @@ architecture arch of etb is
    signal sound_out_left     : std_logic_vector(15 downto 0);
    signal sound_out_right    : std_logic_vector(15 downto 0);
    
+   signal RTC_saveLoaded     : std_logic := '0';
+   
    -- ddrram
    signal DDRAM_CLK        : std_logic;
    signal DDRAM_BUSY       : std_logic;
@@ -218,6 +220,8 @@ begin
      
    cheats_vector <= GBA_CHEAT_FLAGS & GBA_CHEAT_ADDRESS & GBA_CHEAT_COMPARE & GBA_CHEAT_REPLACE; 
    
+   RTC_saveLoaded <= '1' after 500 ns;
+   
    igba_top : entity gba.gba_top
    generic map
    (
@@ -249,12 +253,20 @@ begin
       interframe_blend   => '0', --GBA_FrameBlend(GBA_FrameBlend'left),
       maxpixels          => '0',
       shade_mode         => GBA_Pixelshade,
-      specialmodule      => '0',
+      specialmodule      => '1',
       solar_in           => "000",
       tilt               => '0',
       rewind_on          => GBA_Rewind_on(GBA_Rewind_on'left),
       rewind_active      => GBA_Rewind_active(GBA_Rewind_active'left),
       savestate_number   => 0,
+      -- RTC
+      RTC_timestampIn    => x"00001E10", -- one hour
+      RTC_timestampSaved => x"00001000",
+      RTC_savedtimeIn    => x"19" & "10010" & "110001" & "110" & "100011" & "1011001" & "1011001",
+      RTC_saveLoaded     => RTC_saveLoaded,
+      RTC_timestampOut   => open,
+      RTC_savedtimeOut   => open,
+      RTC_inuse          => open, 
       -- cheats
       cheat_clear        => GBA_CHEAT_RESET(GBA_CHEAT_RESET'left),
       cheats_enabled     => '1',

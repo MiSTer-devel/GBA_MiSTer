@@ -446,6 +446,14 @@ gba
    .rewind_active(status[27] & joy[11]),
    .savestate_number(ss_base),
 
+   .RTC_timestampIn(0),
+   .RTC_timestampSaved(0),
+   .RTC_savedtimeIn(0),
+   .RTC_saveLoaded('0),
+   //.RTC_timestampOut
+   //.RTC_savedtimeOut
+   //.RTC_inuse , 
+
    .cheat_clear(gg_reset),
    .cheats_enabled(~status[6]),
    .cheat_on(gg_valid),   
