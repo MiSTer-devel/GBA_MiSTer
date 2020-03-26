@@ -885,8 +885,8 @@ always @(posedge clk_sys) begin
    end
    else begin
       shadercolors = 0;
-      desatcolors  = status[26:24] - 4;
-   end		
+      desatcolors  = status[25:24];
+   end
 end
 
 video_mixer #(.LINE_LENGTH(520), .GAMMA(1)) video_mixer
