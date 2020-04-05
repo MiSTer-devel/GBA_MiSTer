@@ -22,6 +22,7 @@ entity gba_gpioRTCSolarGyro is
       GPIO_addr            : in     std_logic_vector(1 downto 0);  -- 0..2 for 0x80000C4..0x80000C8
    
       vblank_trigger       : in     std_logic;  
+      RTC_timestampNew     : in     std_logic;                     -- new current timestamp from system
       RTC_timestampIn      : in     std_logic_vector(31 downto 0); -- timestamp in seconds, current time
       RTC_timestampSaved   : in     std_logic_vector(31 downto 0); -- timestamp in seconds, saved time
       RTC_savedtimeIn      : in     std_logic_vector(41 downto 0); -- time structure, loaded
@@ -68,6 +69,8 @@ architecture arch of gba_gpioRTCSolarGyro is
    constant GYRO_MAX    : integer := 16#0EFF#;
    
    -- RTC
+   signal RTC_timestampNew_1 : std_logic := '0';
+   
    signal saveRTC          : std_logic := '0';
    signal saveRTC_next     : std_logic := '0';
    signal rtc_change       : std_logic := '0';
@@ -76,7 +79,7 @@ architecture arch of gba_gpioRTCSolarGyro is
    signal RTC_timestamp    : std_logic_vector(31 downto 0);
    signal diffSeconds      : unsigned(31 downto 0) := (others => '0');
    
-   signal framecount       : integer range 0 to 127 := 0;
+   signal secondcount      : integer range 0 to 100000000 := 0; -- 1 second at 100 Mhz
                            
    signal tm_year          : unsigned(7 downto 0) := x"09";
    signal tm_mon           : unsigned(4 downto 0) := '1' & x"2";
@@ -409,17 +412,13 @@ begin
       
          rtc_change <= '0';
          
-         if (vblank_trigger = '1') then
-            framecount <= framecount + 1;
-         end if;
+         secondcount <= secondcount + 1;
          
          RTC_saveLoaded_1 <= RTC_saveLoaded;
          if (RTC_saveLoaded_1 = '0' and  RTC_saveLoaded = '1') then
          
-            RTC_timestamp <= RTC_timestampSaved;
-            
-            if (unsigned(RTC_timestampIn) > unsigned(RTC_timestampSaved)) then
-               diffSeconds <= unsigned(RTC_timestampIn) - unsigned(RTC_timestampSaved);
+            if (unsigned(RTC_timestamp) > unsigned(RTC_timestampSaved)) then
+               diffSeconds <= unsigned(RTC_timestamp) - unsigned(RTC_timestampSaved);
             end if;
          
             tm_year <= unsigned(RTC_savedtimeIn(41 downto 34));
@@ -480,18 +479,22 @@ begin
             if (tm_sec(6 downto 4) > 5)  then tm_sec(6 downto 4)  <= (others => '0'); tm_min(3 downto 0)  <= tm_min(3 downto 0) + 1;  rtc_change <= '1'; end if;    
             if (tm_sec(3 downto 0) > 9)  then tm_sec(3 downto 0)  <= (others => '0'); tm_sec(6 downto 4)  <= tm_sec(6 downto 4) + 1;  rtc_change <= '1'; end if;
             
-            if (framecount > 59) then 
-               framecount         <= 0; 
+            if (secondcount >= 99999999) then 
+               secondcount        <= 0; 
                RTC_timestamp      <= std_logic_vector(unsigned(RTC_timestamp) + 1);
                tm_sec(3 downto 0) <= tm_sec(3 downto 0) + 1;  
                rtc_change         <= '1'; 
             elsif (diffSeconds > 0 and rtc_change = '0') then   
                diffSeconds        <= diffSeconds - 1; 
-               RTC_timestamp      <= std_logic_vector(unsigned(RTC_timestamp) + 1);
                tm_sec(3 downto 0) <= tm_sec(3 downto 0) + 1;  
                rtc_change         <= '1'; 
             end if;
    
+         end if;
+         
+         RTC_timestampNew_1 <= RTC_timestampNew;
+         if (RTC_timestampNew /= RTC_timestampNew_1) then
+            RTC_timestamp <= RTC_timestampIn;
          end if;
    
       end if;

@@ -36,9 +36,10 @@ As the BIOS is already replaced at boot time, you must save this settings and ha
 - Cheats
 - Color optimizations: shader colors and desaturate
 - Rewind: go back up to 60 seconds in time
-- Tilt: enable in OSD and use analog stick (map stick in Mister Main before)
-- Solar Sensor: enable in OSD and Set brightness in OSD
-- Gyro: enable in OSD and use analog stick (map stick in Mister Main before)
+- Tilt: use analog stick (map stick in Mister Main before)
+- Solar Sensor: Set brightness in OSD
+- Gyro: use analog stick (map stick in Mister Main before)
+- RTC: automatically used, works with RTC board or internet connection
 
 # Savestates
 Core provides 4 slots to save the state. The first slot gets saved to disk and automatically loaded (but not applied)
@@ -61,9 +62,15 @@ Currently there are only few games known that produce glitches without sprite pi
 - Gunstar Super Heroes
 - Famicon Mini Series Vol21 - Vol30
 
+# Cartridge Hardware supported games
+- RTC : Pokemon Sapphire+Ruby+Emerald, Boktai 1+2
+- Gyro: Wario Ware Twisted
+- Tilt: Yoshi Topsy Turvy/Universal Gravitation
+
+If there is a game you want to play that also uses one of these features, but is not listed, please open a bug request.
+
 # Not included
-- Multiplayer features like Serial
-- RTC(fixed time is provided so games don't hang)
+- Multiplayer features like Serials
 - E-Reader support
 - other cartridge hardware
 

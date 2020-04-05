@@ -43,6 +43,7 @@ entity gba_top is
       rewind_active      : in     std_logic;
       savestate_number   : in     integer;
       -- RTC
+      RTC_timestampNew   : in     std_logic;                     -- new current timestamp from system
       RTC_timestampIn    : in     std_logic_vector(31 downto 0); -- timestamp in seconds, current time
       RTC_timestampSaved : in     std_logic_vector(31 downto 0); -- timestamp in seconds, saved time
       RTC_savedtimeIn    : in     std_logic_vector(41 downto 0); -- time structure, loaded
@@ -542,6 +543,7 @@ begin
       GPIO_addr            => GPIO_addr,
       
       vblank_trigger       => vblank_trigger,
+      RTC_timestampNew     => RTC_timestampNew,
       RTC_timestampIn      => RTC_timestampIn,   
       RTC_timestampSaved   => RTC_timestampSaved,
       RTC_savedtimeIn      => RTC_savedtimeIn,   
