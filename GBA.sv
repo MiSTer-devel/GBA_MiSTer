@@ -598,7 +598,7 @@ always @(posedge clk_sys) begin
 				if(cart_id == {"BOKTAI2", 40'h0000000000} ) 	begin gpio_quirk <= 1; solar_quirk <= 1;        end // Boktai 2         - US/EU
 				if(cart_id == {"BOKTAI3", 40'h0000000000} ) 	begin gpio_quirk <= 1; solar_quirk <= 1;        end // Boktai 3         - JP
 				if(cart_id == {"WARIOTWISTED"} ) 	        begin gpio_quirk <= 1;                          end // WarioWareTwisted - US
-				if(cart_id == {"MAWARUWARIO, 8'h00"} ) 	        begin gpio_quirk <= 1;                          end // WarioWareTwisted - JP
+				if(cart_id == {"MAWARUWARIO", 8'h00} ) 	        begin gpio_quirk <= 1;                          end // WarioWareTwisted - JP
 				if(cart_id == {"HAPPYPANECHU"} ) 	        begin tilt_quirk <= 1;                          end // Koro Koro Puzzle - JP
 				if(cart_id == {"YOSHI'S U/G", 8'h00} ) 	        begin tilt_quirk <= 1;                          end // Yoshi Gravi      - JP/EU
 				if(cart_id == {"YOSHI TOPSY", 8'h00} ) 	        begin tilt_quirk <= 1;                          end // Yoshi Topsy      - US
