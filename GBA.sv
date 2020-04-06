@@ -586,18 +586,22 @@ always @(posedge clk_sys) begin
 				if(cart_id == {"WRECKINGCREW"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 14 - Wrecking Crew
 				if(cart_id == {"BALLOONFIGHT"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 13 - Balloon Fight
 				if(cart_id == {"CLU CLU LAND"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 12 - Clu Clu Land
-				if(cart_id == {"MARIO BROS.", 8'h00} )      	   begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 11 - Mario Bros.
+				if(cart_id == {"MARIO BROS.", 8'h00} )      	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 11 - Mario Bros.
 				if(cart_id == {"STAR SOLDIER"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 10 - Star Soldier
 				if(cart_id == {"MAPPY", 56'h00000000000000} ) 	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 08 - Mappy
-				if(cart_id == {"POKEMON EMER"} ) 	            begin gpio_quirk <= 1;                          end // POKEMON Emerald  - All regions
-				if(cart_id == {"POKEMON RUBY"} ) 	            begin gpio_quirk <= 1;                          end // POKEMON Ruby     - All regions
-				if(cart_id == {"POKEMON SAPP"} ) 	            begin gpio_quirk <= 1;                          end // POKEMON Sapphire - All regions
-				if(cart_id == {"BOKTAI", 48'h000000000000} ) 	begin gpio_quirk <= 1; solar_quirk <= 1;        end // Boktai 1         - All regions
-				if(cart_id == {"BOKTAI2", 40'h0000000000} ) 	   begin gpio_quirk <= 1; solar_quirk <= 1;        end // Boktai 2         - All regions
-				if(cart_id == {"WARIOTWISTED"} ) 	            begin gpio_quirk <= 1;                          end // WarioWareTwisted - US
-				if(cart_id == {"HAPPYPANECHU"} ) 	            begin tilt_quirk <= 1;                          end // Koro Koro Puzzle
-				if(cart_id == {"YOSHI'S U/G", 8'h00} ) 	      begin tilt_quirk <= 1;                          end // Yoshi Gravi EU    - All regions
-				if(cart_id == {"YOSHI TOPSY", 8'h00} ) 	      begin tilt_quirk <= 1;                          end // Yoshi Topsy US    - All regions
+				if(cart_id == {"POKEMON EMER"} ) 	        begin gpio_quirk <= 1;                          end // POKEMON Emerald  - All regions
+				if(cart_id == {"POKEMON RUBY"} ) 	        begin gpio_quirk <= 1;                          end // POKEMON Ruby     - All regions
+				if(cart_id == {"POKEMON SAPP"} ) 	        begin gpio_quirk <= 1;                          end // POKEMON Sapphire - All regions
+				if(cart_id == {"BOKUTAI", 40'h0000000000} ) 	begin gpio_quirk <= 1; solar_quirk <= 1;        end // Boktai 1         - JP
+				if(cart_id == {"BOKTAI", 48'h000000000000} ) 	begin gpio_quirk <= 1; solar_quirk <= 1;        end // Boktai 1         - US/EU
+				if(cart_id == {"ZOKTAI", 48'h000000000000} ) 	begin gpio_quirk <= 1; solar_quirk <= 1;        end // Boktai 2         - JP
+				if(cart_id == {"BOKTAI2", 40'h0000000000} ) 	begin gpio_quirk <= 1; solar_quirk <= 1;        end // Boktai 2         - US/EU
+				if(cart_id == {"BOKTAI3", 40'h0000000000} ) 	begin gpio_quirk <= 1; solar_quirk <= 1;        end // Boktai 3         - JP
+				if(cart_id == {"WARIOTWISTED"} ) 	        begin gpio_quirk <= 1;                          end // WarioWareTwisted - US
+				if(cart_id == {"MAWARUWARIO, 8'h00"} ) 	        begin gpio_quirk <= 1;                          end // WarioWareTwisted - JP
+				if(cart_id == {"HAPPYPANECHU"} ) 	        begin tilt_quirk <= 1;                          end // Koro Koro Puzzle - JP
+				if(cart_id == {"YOSHI'S U/G", 8'h00} ) 	        begin tilt_quirk <= 1;                          end // Yoshi Gravi      - JP/EU
+				if(cart_id == {"YOSHI TOPSY", 8'h00} ) 	        begin tilt_quirk <= 1;                          end // Yoshi Topsy      - US
 			end
 		end
 	end
