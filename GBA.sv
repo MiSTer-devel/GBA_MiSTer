@@ -602,6 +602,8 @@ always @(posedge clk_sys) begin
 				if(cart_id == {"HAPPYPANECHU"} ) 	        begin tilt_quirk <= 1;                          end // Koro Koro Puzzle - JP
 				if(cart_id == {"YOSHI'S U/G", 8'h00} ) 	        begin tilt_quirk <= 1;                          end // Yoshi Gravi      - JP/EU
 				if(cart_id == {"YOSHI TOPSY", 8'h00} ) 	        begin tilt_quirk <= 1;                          end // Yoshi Topsy      - US
+				if(cart_id == {"SENNENKAZOKU"} ) 	        begin gpio_quirk <= 1;                          end // Sennen Kazoku    - JP
+				if(cart_id == {"ROCKEXE4.5RO"} ) 	        begin gpio_quirk <= 1;                          end // Rockman EXE 4.5  - JP
 			end
 		end
 	end

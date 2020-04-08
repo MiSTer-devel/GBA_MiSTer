@@ -63,7 +63,8 @@ Currently there are only few games known that produce glitches without sprite pi
 - Famicon Mini Series Vol21 - Vol30
 
 # Cartridge Hardware supported games
-- RTC : Pokemon Sapphire+Ruby+Emerald, Boktai 1+2+3
+- RTC: Pokemon Sapphire+Ruby+Emerald, Boktai 1+2+3, Sennen Kazoku, Rockman EXE 4.5
+- Solar Sensor: Boktai 1+2+3
 - Gyro: Wario Ware Twisted
 - Tilt: Yoshi Topsy Turvy/Universal Gravitation, Koro Koro Puzzle - Happy Panechu!
 
