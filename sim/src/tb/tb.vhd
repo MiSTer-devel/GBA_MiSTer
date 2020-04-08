@@ -253,13 +253,14 @@ begin
       interframe_blend   => '0', --GBA_FrameBlend(GBA_FrameBlend'left),
       maxpixels          => '0',
       shade_mode         => GBA_Pixelshade,
-      specialmodule      => '1',
+      specialmodule      => '0',
       solar_in           => "000",
       tilt               => '0',
       rewind_on          => GBA_Rewind_on(GBA_Rewind_on'left),
       rewind_active      => GBA_Rewind_active(GBA_Rewind_active'left),
       savestate_number   => 0,
       -- RTC
+      RTC_timestampNew   => '0',
       RTC_timestampIn    => x"00001E10", -- one hour
       RTC_timestampSaved => x"00001000",
       RTC_savedtimeIn    => x"19" & "10010" & "110001" & "110" & "100011" & "1011001" & "1011001",

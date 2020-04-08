@@ -937,6 +937,7 @@ begin
       clk100               => clk100,
       
       hblank               => hblank_trigger,
+      lockspeed            => lockspeed,
       busy                 => busy_modeobj,
       
       drawline             => drawline_obj,

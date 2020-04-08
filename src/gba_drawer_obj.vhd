@@ -6,9 +6,10 @@ entity gba_drawer_obj is
    port 
    (
       clk100               : in  std_logic;                     
-                           
+       
       hblank               : in  std_logic;
-      busy                 : out std_logic := '0';
+      lockspeed            : in  std_logic;      
+      busy                 : buffer std_logic := '0';
       
       drawline             : in  std_logic;
       ypos                 : in  integer range 0 to 159;
@@ -240,7 +241,7 @@ begin
             maxpixeltime <= 1210;
          end if;
 
-         if (hblank = '1') then -- immidiatly stop drawing when hblank is reached
+         if (hblank = '1' and lockspeed = '1') then -- immidiatly stop drawing with hblank, ignore in fastforward mode
          
             output_ok <= '0';
             OAMFetch  <= IDLE;
@@ -643,7 +644,7 @@ begin
    begin
       if rising_edge(clk100) then
       
-         if (hblank = '1') then
+         if (busy = '0') then
             pixelarray <= (others => ('1', "11", '0', '0'));
          end if;
          
