@@ -60,32 +60,35 @@ architecture arch of gba_drawer_mode2 is
    );
    signal palettefetch : tPALETTEState := IDLE;
   
-   signal VRAM_byteaddr    : unsigned(16 downto 0) := (others => '0'); 
-   signal vram_readwait    : integer range 0 to 2;
-   signal vram_data        : std_logic_vector(15 downto 0) := (others => '0');
-   signal vram_data_ack    : std_logic := '0';
-   
-   signal PALETTE_byteaddr : std_logic_vector(8 downto 0) := (others => '0');
-   signal palette_readwait : integer range 0 to 2;
-   signal palette_data     : std_logic_vector(15 downto 0) := (others => '0');
-  
-   signal mapbaseaddr      : integer;
-   signal tilebaseaddr     : integer;
-   
-   signal realX            : signed(27 downto 0);
-   signal realY            : signed(27 downto 0);
-   signal xxx              : signed(19 downto 0);
-   signal yyy              : signed(19 downto 0);
-   signal xxx_pre          : signed(19 downto 0);
-   signal yyy_pre          : signed(19 downto 0);
-   
-   signal x_cnt            : integer range 0 to 239;
-   signal scroll_mod       : integer range 128 to 1024; 
-   signal tileinfo         : std_logic_vector(7 downto 0) := (others => '0');
-   
-   signal colordata        : std_logic_vector(7 downto 0) := (others => '0');
-   
-   signal mosaik_cnt       : integer range 0 to 15 := 0;
+   signal VRAM_byteaddr        : unsigned(16 downto 0) := (others => '0'); 
+   signal vram_readwait        : integer range 0 to 2;
+   signal VRAM_lasttile_addr   : unsigned(14 downto 0) := (others => '0');
+   signal VRAM_lasttile_data   : std_logic_vector(31 downto 0) := (others => '0');
+   signal VRAM_lasttile_valid  : std_logic := '0';
+                               
+   signal PALETTE_byteaddr     : std_logic_vector(8 downto 0) := (others => '0');
+   signal palette_readwait     : integer range 0 to 2;
+                               
+   signal mapbaseaddr          : integer;
+   signal tilebaseaddr         : integer;
+                               
+   signal realX                : signed(27 downto 0);
+   signal realY                : signed(27 downto 0);
+   signal xxx                  : signed(19 downto 0);
+   signal yyy                  : signed(19 downto 0);
+   signal xxx_pre              : signed(19 downto 0);
+   signal yyy_pre              : signed(19 downto 0);
+                               
+   signal x_cnt                : integer range 0 to 239;
+   signal scroll_mod           : integer range 128 to 1024; 
+   signal tileinfo             : std_logic_vector(7 downto 0) := (others => '0');
+                               
+   signal colordata            : std_logic_vector(7 downto 0) := (others => '0');
+   signal VRAM_lastcolor_addr  : unsigned(14 downto 0) := (others => '0');
+   signal VRAM_lastcolor_data  : std_logic_vector(31 downto 0) := (others => '0');
+   signal VRAM_lastcolor_valid : std_logic := '0';
+      
+   signal mosaik_cnt           : integer range 0 to 15 := 0;
    
 begin 
 
@@ -127,6 +130,8 @@ begin
                      when others => null;
                   end case;
                   x_cnt     <= 0;
+                  VRAM_lasttile_valid  <= '0'; -- invalidate fetch cache
+                  VRAM_lastcolor_valid <= '0';
                elsif (palettefetch = IDLE) then
                   busy         <= '0';
                end if;
@@ -169,15 +174,27 @@ begin
                vram_readwait <= 2;
             
             when WAITREAD_TILE =>
-               if (vram_readwait > 0) then
+               if (VRAM_lasttile_valid = '1' and VRAM_lasttile_addr = VRAM_byteaddr(VRAM_byteaddr'left downto 2)) then
+                  case (to_integer(VRAM_byteaddr(1 downto 0))) is
+                     when 0 => tileinfo <= VRAM_lasttile_data( 7 downto  0);
+                     when 1 => tileinfo <= VRAM_lasttile_data(15 downto  8);
+                     when 2 => tileinfo <= VRAM_lasttile_data(23 downto 16);
+                     when 3 => tileinfo <= VRAM_lasttile_data(31 downto 24);
+                     when others => null;
+                  end case;
+                  vramfetch  <= EVALTILE;
+               elsif (vram_readwait > 0) then
                   vram_readwait <= vram_readwait - 1;
                elsif (VRAM_Drawer_valid = '1') then
+                  VRAM_lasttile_addr  <= VRAM_byteaddr(VRAM_byteaddr'left downto 2);
+                  VRAM_lasttile_data  <= VRAM_Drawer_data;
+                  VRAM_lasttile_valid <= '1';
                   case (to_integer(VRAM_byteaddr(1 downto 0))) is
                      when 0 => tileinfo <= VRAM_Drawer_data( 7 downto  0);
                      when 1 => tileinfo <= VRAM_Drawer_data(15 downto  8);
                      when 2 => tileinfo <= VRAM_Drawer_data(23 downto 16);
                      when 3 => tileinfo <= VRAM_Drawer_data(31 downto 24);
-                  when others => null;
+                     when others => null;
                   end case;
                   vramfetch  <= EVALTILE;
                end if;
@@ -190,9 +207,21 @@ begin
                vram_readwait <= 2;
                
             when WAITREAD_COLOR =>
-               if (vram_readwait > 0) then
+               if (VRAM_lastcolor_valid = '1' and VRAM_lastcolor_addr = VRAM_byteaddr(VRAM_byteaddr'left downto 2)) then
+                  case (VRAM_byteaddr(1 downto 0)) is
+                     when "00" => colordata <= VRAM_lastcolor_data(7  downto 0);
+                     when "01" => colordata <= VRAM_lastcolor_data(15 downto 8);
+                     when "10" => colordata <= VRAM_lastcolor_data(23 downto 16);
+                     when "11" => colordata <= VRAM_lastcolor_data(31 downto 24);
+                     when others => null;
+                  end case;
+                  vramfetch  <= FETCHDONE;
+               elsif (vram_readwait > 0) then
                   vram_readwait <= vram_readwait - 1;
                elsif (VRAM_Drawer_valid = '1') then
+                  VRAM_lastcolor_addr  <= VRAM_byteaddr(VRAM_byteaddr'left downto 2);
+                  VRAM_lastcolor_data  <= VRAM_Drawer_data;
+                  VRAM_lastcolor_valid <= '1';
                   case (VRAM_byteaddr(1 downto 0)) is
                      when "00" => colordata <= VRAM_Drawer_data(7  downto 0);
                      when "01" => colordata <= VRAM_Drawer_data(15 downto 8);
@@ -204,7 +233,7 @@ begin
                end if;
             
             when FETCHDONE =>
-               if (vram_data_ack = '1') then
+               if (palettefetch = IDLE) then
                   if (x_cnt < 239) then
                      vramfetch <= CALCADDR1;
                      x_cnt     <= x_cnt + 1;
@@ -218,12 +247,11 @@ begin
       end if;
    end process;
    
-   -- palette
+   -- palette -> convert to pipeline and remove fetchdone state for further speedup
    process (clk100)
    begin
       if rising_edge(clk100) then
       
-         vram_data_ack <= '0';
          pixel_we      <= '0';
          
          if (drawline = '1') then
@@ -234,9 +262,8 @@ begin
          case (palettefetch) is
          
             when IDLE =>
-               if (vramfetch = FETCHDONE and vram_data_ack = '0') then
+               if (vramfetch = FETCHDONE) then
                
-                  vram_data_ack    <= '1';
                   pixel_x          <= x_cnt;
                
                   if (mosaik_cnt < Mosaic_H_Size and mosaic = '1') then

@@ -1300,19 +1300,22 @@ begin
          hblank_trigger_1 <= hblank_trigger;
          start_draw <= '0';
          
+         -- count and track if all lines have been drawn for fastforward mode
          if (vblank_trigger = '1') then
             if (linesDrawn = 160) then
                lineUpToDate <= (others => '0');
             end if;
             linesDrawn      <= 0;
          end if;  
+         if (drawline_1 = '1' and linesDrawn < 160 and (drawstate = IDLE or nextLineDrawn = '1')) then
+            linesDrawn <= linesDrawn + 1;
+         end if;
          
          clear_trigger <= '0';
 
          case (drawstate) is
             when IDLE =>
                if (drawline_1 = '1' and linesDrawn < 160) then
-                  linesDrawn <= linesDrawn + 1;
                   if (nextLineDrawn = '0') then
                      drawstate       <= WAITHBLANK;
                      start_draw      <= '1';

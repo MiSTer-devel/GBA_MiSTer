@@ -50,12 +50,11 @@ architecture arch of gba_drawer_mode345 is
       FETCHDONE
    );
    signal vramfetch    : tFetchState := IDLE;
-   signal palettefetch : tFetchState := IDLE;
    
    type tDrawState is
    (
       NEXTPIXEL,
-      READPALETTE
+      WAITREAD
    );
    signal DrawState : tDrawState := NEXTPIXEL;
   
@@ -68,13 +67,12 @@ architecture arch of gba_drawer_mode345 is
    signal VRAM_byteaddr    : unsigned(16 downto 0); 
    signal vram_readwait    : integer range 0 to 2;
    signal vram_data        : std_logic_vector(15 downto 0);
-   signal vram_data_ack    : std_logic := '0';
+   signal VRAM_last_addr   : unsigned(14 downto 0) := (others => '0');
+   signal VRAM_last_data   : std_logic_vector(31 downto 0) := (others => '0');
+   signal VRAM_last_valid  : std_logic := '0';
    
    signal PALETTE_byteaddr : unsigned(8 downto 0); 
    signal palette_readwait : integer range 0 to 2;
-   signal palette_data     : std_logic_vector(15 downto 0);
-   signal palette_data_req : std_logic := '0';
-   signal palette_data_ack : std_logic := '0';
    
    signal mosaik_cnt       : integer range 0 to 15 := 0;
    
@@ -106,10 +104,11 @@ begin
                      realY     <= refY;
                   end if;
                elsif (drawline = '1') then
-                  busy      <= '1';
-                  vramfetch <= STARTREAD;
-                  x_cnt     <= 0;
-               elsif (DrawState = NEXTPIXEL and palettefetch = IDLE) then
+                  busy            <= '1';
+                  vramfetch       <= STARTREAD;
+                  x_cnt           <= 0;
+                  VRAM_last_valid <= '0';
+               elsif (DrawState = NEXTPIXEL) then
                   busy      <= '0';
                end if;
                
@@ -140,10 +139,20 @@ begin
                end if;
             
             when WAITREAD =>
-               if (vram_readwait > 0) then
+               if (VRAM_last_valid = '1' and VRAM_last_addr = VRAM_byteaddr(VRAM_byteaddr'left downto 2)) then
+                  if (VRAM_byteaddr(1) = '1') then
+                     vram_data <= VRAM_last_data(31 downto 16);
+                  else
+                     vram_data <= VRAM_last_data(15 downto 0);
+                  end if;
+                  vramfetch  <= FETCHDONE;
+               elsif (vram_readwait > 0) then
                   vram_readwait <= vram_readwait - 1;
                else
                   if (VRAM_byteaddr(16) = '1' and VRAM_Drawer_valid_Hi = '1') then
+                     VRAM_last_addr  <= VRAM_byteaddr(VRAM_byteaddr'left downto 2);
+                     VRAM_last_valid <= '1';
+                     VRAM_last_data  <= VRAM_Drawer_data_Hi;
                      if (VRAM_byteaddr(1) = '1') then
                         vram_data <= VRAM_Drawer_data_Hi(31 downto 16);
                      else
@@ -151,6 +160,9 @@ begin
                      end if;
                      vramfetch  <= FETCHDONE;
                   elsif (VRAM_byteaddr(16) = '0' and VRAM_Drawer_valid_Lo = '1') then
+                     VRAM_last_addr  <= VRAM_byteaddr(VRAM_byteaddr'left downto 2);
+                     VRAM_last_valid <= '1';
+                     VRAM_last_data  <= VRAM_Drawer_data_Lo;
                      if (VRAM_byteaddr(1) = '1') then
                         vram_data <= VRAM_Drawer_data_Lo(31 downto 16);
                      else
@@ -161,7 +173,7 @@ begin
                end if;
             
             when FETCHDONE =>
-               if (vram_data_ack = '1') then
+               if (DrawState = NEXTPIXEL) then
                   if (x_cnt < 239) then
                      vramfetch <= STARTREAD;
                      x_cnt     <= x_cnt + 1;
@@ -176,54 +188,12 @@ begin
       
       end if;
    end process;
-   
-   -- palette
-   process (clk100)
-   begin
-      if rising_edge(clk100) then
-      
-         case (palettefetch) is
-         
-            when IDLE =>
-               if (palette_data_req = '1') then
-                  palettefetch <= STARTREAD;
-               end if;
-               
-            when STARTREAD => 
-               palettefetch     <= WAITREAD;
-               palette_readwait <= 2;
-            
-            when WAITREAD =>
-               if (palette_readwait > 0) then
-                  palette_readwait <= palette_readwait - 1;
-               elsif (PALETTE_Drawer_valid = '1') then
-                  if (PALETTE_byteaddr(1) = '1') then
-                     palette_data <= PALETTE_Drawer_data(31 downto 16);
-                  else
-                     palette_data <= PALETTE_Drawer_data(15 downto 0);
-                  end if;
-                  palettefetch  <= FETCHDONE;
-               end if;
-            
-            when FETCHDONE =>
-               if (palette_data_ack = '1') then
-                     palettefetch <= IDLE;
-               end if;
-         
-         end case;
-      
-      end if;
-   end process;
-   
+ 
    
    -- draw
    process (clk100)
    begin
       if rising_edge(clk100) then
-      
-         vram_data_ack    <= '0';
-         palette_data_req <= '0';
-         palette_data_ack <= '0';
          
          pixel_we <= '0';
          
@@ -235,9 +205,8 @@ begin
          case (DrawState) is
          
             when NEXTPIXEL =>
-               if (vramfetch = FETCHDONE and vram_data_ack = '0') then
+               if (vramfetch = FETCHDONE) then
                
-                  vram_data_ack <= '1';
                   pixel_x       <= x_cnt;
                
                   if (mosaik_cnt < Mosaic_H_Size and mosaic = '1') then
@@ -245,10 +214,9 @@ begin
                      pixel_we   <= not pixeldata(15);
                   else
                      mosaik_cnt <= 0;
-                     
                      if (BG_Mode = "100") then
-                        palette_data_req <= '1';
-                        DrawState        <= READPALETTE; 
+                        DrawState        <= WAITREAD; 
+                        palette_readwait <= 2;
                         if (VRAM_byteaddr(0) = '1') then
                            PALETTE_byteaddr <= unsigned(vram_data(15 downto 8)) & '0';
                         else
@@ -256,21 +224,25 @@ begin
                         end if;
                      else
                         pixel_we   <= '1';
-                        
                         pixeldata  <= '0' & vram_data(14 downto 0);
                      end if;
                   end if;
                end if;
                
-            when READPALETTE => 
-               if (palettefetch = FETCHDONE) then
-                  palette_data_ack <= '1';
-                  DrawState        <= NEXTPIXEL;
-                  pixel_we         <= '1';
-                  pixeldata        <= '0' & palette_data(14 downto 0);
+            when WAITREAD =>
+               if (palette_readwait > 0) then
+                  palette_readwait <= palette_readwait - 1;
+               elsif (PALETTE_Drawer_valid = '1') then
+                  if (PALETTE_byteaddr(1) = '1') then
+                     pixeldata        <= '0' & PALETTE_Drawer_data(30 downto 16);
+                  else
+                     pixeldata        <= '0' & PALETTE_Drawer_data(14 downto 0);
+                  end if;
                   if (PALETTE_byteaddr = 0) then
                      pixeldata(15) <= '1';
                   end if;
+                  pixel_we         <= '1';
+                  DrawState       <= NEXTPIXEL;
                end if;
 
          end case;
