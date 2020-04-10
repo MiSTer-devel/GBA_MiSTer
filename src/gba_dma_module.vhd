@@ -247,9 +247,10 @@ begin
    
                   waiting <= '1';
                   
-                  if (CNT_H_DMA_Start_Timing = "11" and (index = 1 or index = 2)) then
+                  if (CNT_H_DMA_Start_Timing = "11" and (index = 1 or index = 2)) then -- sound dma
                      count             <= to_unsigned(4, 17);
                      dest_Addr_Control <= 3;
+                     Transfer_Type_DW  <= '1';
                   end if;
             
                end if;
@@ -268,7 +269,7 @@ begin
                      waiting    <= '0';
                      first      <= '1';
                      fullcount  <= count;
-                  end if ;
+                  end if ;   
                end if;
                --if (DMAs[index].dMA_Start_Timing = 3 and index = 3) -- video dma not implemented"
       
