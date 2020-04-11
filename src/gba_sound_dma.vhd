@@ -160,13 +160,10 @@ begin
                   fifo_Wr  <= '1';
                end if;
                
-               if (FIFO_WRITE_ENABLES(2) = '1') then -- 32bit write
-                  fifo_Din <= FIFO_REGISTER;
-               elsif (FIFO_WRITE_ENABLES(2) = '1') then -- 16bit write
-                  fifo_Din(31 downto 16) <= FIFO_REGISTER(15 downto 0);
-               else
-                  fifo_Din(31 downto 8) <= FIFO_REGISTER(7 downto 0) & FIFO_REGISTER(7 downto 0)  & FIFO_REGISTER(7 downto 0) ; -- 8 bit write
-               end if;
+               if (FIFO_WRITE_ENABLES(0) = '1') then fifo_Din( 7 downto  0) <= FIFO_REGISTER( 7 downto  0); end if;
+               if (FIFO_WRITE_ENABLES(1) = '1') then fifo_Din(15 downto  8) <= FIFO_REGISTER(15 downto  8); end if;
+               if (FIFO_WRITE_ENABLES(2) = '1') then fifo_Din(23 downto 16) <= FIFO_REGISTER(23 downto 16); end if;
+               if (FIFO_WRITE_ENABLES(3) = '1') then fifo_Din(31 downto 24) <= FIFO_REGISTER(31 downto 24); end if;
                
             elsif (new_sample_request = '1') then -- get sample from fifo
                
