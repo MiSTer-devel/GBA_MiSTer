@@ -718,19 +718,19 @@ wire        bram_ack = sdram_en ? sdr_bram_ack : ddr_bram_ack;
 assign sd_buff_din = extra_data_addr ? (time_din_h[{sd_buff_addr[2:0], 4'b0000} +: 16]) : bram_buff_out;
 wire [15:0] bram_buff_out;
 
-dpram #(8,16) bram
+SyncRamDual #(16,8) bram
 (
-	.clock(clk_sys),
+	.clk(clk_sys),
 
-	.address_a(bram_addr),
-	.wren_a(~bk_loading & bram_ack),
-	.data_a(bram_din),
-	.q_a(bram_dout),
+	.addr_a(bram_addr),
+	.we_a(~bk_loading & bram_ack),
+	.datain_a(bram_din),
+	.dataout_a(bram_dout),
 
-	.address_b(sd_buff_addr),
-	.wren_b(sd_buff_wr && ~extra_data_addr),
-	.data_b(sd_buff_dout),
-	.q_b(bram_buff_out)
+	.addr_b(sd_buff_addr),
+	.we_b(sd_buff_wr && ~extra_data_addr),
+	.datain_b(sd_buff_dout),
+	.dataout_b(bram_buff_out)
 );
 
 reg [7:0] bram_addr;
@@ -776,20 +776,12 @@ always @(posedge clk_sys) begin
 	vsync <= |sync;
 end
 
-dpram_n #(16,18,38400) vram
-(
-	.clock_a(clk_sys),
-	.address_a(pixel_addr),
-	.data_a(pixel_data),
-	.wren_a(pixel_we),
-
-	.clock_b(CLK_VIDEO),
-	.address_b(px_addr),
-	.q_b(rgb)
-);
+reg [17:0] vram[38400];
+always @(posedge clk_sys) if(pixel_we) vram[pixel_addr] <= pixel_data;
+always @(posedge CLK_VIDEO) rgb <= vram[px_addr];
 
 wire [15:0] px_addr;
-wire [17:0] rgb;
+reg  [17:0] rgb;
 wire sync_core = status[11];
 
 reg hs, vs, hbl, vbl, ce_pix;
