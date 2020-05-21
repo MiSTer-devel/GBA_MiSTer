@@ -117,6 +117,10 @@ begin
          
             sound_raw <= (others => '0');
             sound_out <= (others => '0');
+            
+            fifo_reset    <= '1';
+            fifo_cnt      <= 0;
+            afterfifo_cnt <= 0;
          
          else
          
@@ -144,8 +148,9 @@ begin
             FIFO_WRITE_ENABLES <= gb_bus.bEna;
             
             if (settings_new = '1' and Reset_FIFO = '1') then
-               fifo_reset <= '1';
-               fifo_cnt   <= 0;
+               fifo_reset    <= '1';
+               fifo_cnt      <= 0;
+               afterfifo_cnt <= 0;
             end if;
             
             -- keep new request if fifo is not idling to make sure the sample counter works correct
