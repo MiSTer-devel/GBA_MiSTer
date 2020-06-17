@@ -3,6 +3,12 @@ use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;   
 
 entity gba_drawer_mode2 is
+   generic
+   (
+      DXYBITS      : integer := 16;
+      ACCURACYBITS : integer := 28;
+      PIXELCOUNT   : integer := 240
+   );
    port 
    (
       clk100               : in  std_logic;                     
@@ -17,16 +23,16 @@ entity gba_drawer_mode2 is
       wrapping             : in  std_logic;
       mosaic               : in  std_logic;
       Mosaic_H_Size        : in  unsigned(3 downto 0);
-      refX                 : in  signed(27 downto 0);
-      refY                 : in  signed(27 downto 0);      
+      refX                 : in  signed;
+      refY                 : in  signed;      
       refX_mosaic          : in  signed(27 downto 0);
       refY_mosaic          : in  signed(27 downto 0);
-      dx                   : in  signed(15 downto 0);
-      dy                   : in  signed(15 downto 0);
+      dx                   : in  signed(DXYBITS - 1 downto 0);
+      dy                   : in  signed(DXYBITS - 1 downto 0);
       
       pixel_we             : out std_logic := '0';
       pixeldata            : buffer std_logic_vector(15 downto 0) := (others => '0');
-      pixel_x              : out integer range 0 to 239;
+      pixel_x              : out integer range 0 to (PIXELCOUNT - 1);
       
       PALETTE_Drawer_addr  : out integer range 0 to 127;
       PALETTE_Drawer_data  : in  std_logic_vector(31 downto 0);
@@ -72,14 +78,14 @@ architecture arch of gba_drawer_mode2 is
    signal mapbaseaddr          : integer;
    signal tilebaseaddr         : integer;
                                
-   signal realX                : signed(27 downto 0);
-   signal realY                : signed(27 downto 0);
+   signal realX                : signed(ACCURACYBITS - 1 downto 0);
+   signal realY                : signed(ACCURACYBITS - 1 downto 0);
    signal xxx                  : signed(19 downto 0);
    signal yyy                  : signed(19 downto 0);
    signal xxx_pre              : signed(19 downto 0);
    signal yyy_pre              : signed(19 downto 0);
                                
-   signal x_cnt                : integer range 0 to 239;
+   signal x_cnt                : integer range 0 to (PIXELCOUNT - 1);
    signal scroll_mod           : integer range 128 to 1024; 
    signal tileinfo             : std_logic_vector(7 downto 0) := (others => '0');
                                
@@ -98,8 +104,8 @@ begin
    VRAM_Drawer_addr <= to_integer(VRAM_byteaddr(15 downto 2));
    PALETTE_Drawer_addr <= to_integer(unsigned(PALETTE_byteaddr(8 downto 2)));
   
-   xxx_pre <= realX(27 downto 8);
-   yyy_pre <= realY(27 downto 8);
+   xxx_pre <= realX(realX'left downto realX'left  - 19);
+   yyy_pre <= realY(realY'left downto realY'left  - 19);
   
    -- vramfetch
    process (clk100)
@@ -112,12 +118,14 @@ begin
          
             when IDLE =>
                if (line_trigger = '1') then
-                  if (mosaic = '1') then
-                     realX     <= refX_mosaic;
-                     realY     <= refY_mosaic;
+                  realX <= (others => '0');
+                  realY <= (others => '0');
+                  if (mosaic = '1' and unsigned(Mosaic_H_Size) > 0) then
+                     realX(realX'left downto realX'left - refX_mosaic'length + 1) <= refX_mosaic;
+                     realY(realY'left downto realY'left - refY_mosaic'length + 1) <= refY_mosaic;
                   else
-                     realX     <= refX;
-                     realY     <= refY;
+                     realX(realX'left downto realX'left - refX'length + 1) <= refX;
+                     realY(realY'left downto realY'left - refY'length + 1) <= refY;
                   end if;
                elsif (drawline = '1') then
                   busy         <= '1';
@@ -150,7 +158,7 @@ begin
                   xxx <= xxx_pre; 
                   yyy <= yyy_pre;
                   if (xxx_pre < 0 or yyy_pre < 0 or xxx_pre >= scroll_mod or yyy_pre >= scroll_mod) then
-                     if (x_cnt < 239) then
+                     if (x_cnt < (PIXELCOUNT - 1)) then
                         vramfetch <= CALCADDR1;
                         x_cnt     <= x_cnt + 1;
                      else
@@ -234,7 +242,7 @@ begin
             
             when FETCHDONE =>
                if (palettefetch = IDLE) then
-                  if (x_cnt < 239) then
+                  if (x_cnt < (PIXELCOUNT - 1)) then
                      vramfetch <= CALCADDR1;
                      x_cnt     <= x_cnt + 1;
                   else

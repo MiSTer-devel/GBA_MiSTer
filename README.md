@@ -31,7 +31,7 @@ As the BIOS is already replaced at boot time, you must save this settings and ha
 - Savestates
 - FastForward - speed up game by factor 2-4
 - CPU Turbomode - give games additional CPU power
-- Flickerblend - turn on for games like F-Zero, Mario Kart or NES Classics to prevent flickering effects
+- Flickerblend - set to blend or 30Hz mode for games like F-Zero, Mario Kart or NES Classics to prevent flickering effects
 - Spritelimit - turn on to prevent wrong sprites for games that rely on the limit (opt-in)
 - Cheats
 - Color optimizations: shader colors and desaturate
@@ -40,6 +40,7 @@ As the BIOS is already replaced at boot time, you must save this settings and ha
 - Solar Sensor: Set brightness in OSD
 - Gyro: use analog stick (map stick in Mister Main before)
 - RTC: automatically used, works with RTC board or internet connection
+- 2x Resolution: game is rendered at 480x320 instead of 240x160 pixels
 
 # Savestates
 Core provides 4 slots to save the state. The first slot gets saved to disk and automatically loaded (but not applied)
@@ -61,6 +62,14 @@ Rewind capture is not compatible to "Pause when OSD is open", so pause is disabl
 Currently there are only few games known that produce glitches without sprite pixel limit:
 - Gunstar Super Heroes
 - Famicon Mini Series Vol21 - Vol30
+
+# 2x Resolution
+Improved rendering resolution for:
+- Affine background: "Mode7" games, typically racing games like Mario Kart
+- Affine sprites: games that scale or rotate sprites
+This rendering is experimental and can cause glitches, as not all game behavior can be supported.
+Those glitches can not be fixed without gamespecific hacks and therefore will not be fixed. 
+Please don't add bugs in such cases.
 
 # Cartridge Hardware supported games
 - RTC: Pokemon Sapphire+Ruby+Emerald, Boktai 1+2+3, Sennen Kazoku, Rockman EXE 4.5

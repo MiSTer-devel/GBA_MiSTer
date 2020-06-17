@@ -7,6 +7,7 @@ set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_dma_mo
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_drawer_merge.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_drawer_mode0.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_drawer_mode2.vhd ]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_drawer_mode2_2x.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_drawer_mode345.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_drawer_obj.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) gba_gpu.vhd ]

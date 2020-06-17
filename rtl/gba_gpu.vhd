@@ -23,17 +23,24 @@ entity gba_gpu is
       gb_bus               : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
                       
       lockspeed            : in    std_logic;
-      interframe_blend     : in    std_logic;
+      interframe_blend     : in    std_logic_vector(1 downto 0);
       maxpixels            : in    std_logic;
       shade_mode           : in    std_logic_vector(2 downto 0);
+      hdmode2x_bg          : in    std_logic;
+      hdmode2x_obj         : in    std_logic;
       
       bitmapdrawmode       : out   std_logic;
                   
       pixel_out_x          : out   integer range 0 to 239;
+      pixel_out_2x         : out   integer range 0 to 479;  
       pixel_out_y          : out   integer range 0 to 159;
       pixel_out_addr       : out   integer range 0 to 38399;
       pixel_out_data       : out   std_logic_vector(17 downto 0);  
       pixel_out_we         : out   std_logic := '0';
+      
+      pixel2_out_x         : out   integer range 0 to 479;
+      pixel2_out_data      : out   std_logic_vector(17 downto 0);  
+      pixel2_out_we        : out   std_logic := '0';               
                            
       new_cycles           : in    unsigned(7 downto 0);
       new_cycles_valid     : in    std_logic;
@@ -86,11 +93,15 @@ architecture arch of gba_gpu is
    signal pixelpos             : integer range 0 to 511;
    
    signal pixel_x              : integer range 0 to 239;
+   signal pixel_2x             : integer range 0 to 479;
    signal pixel_y              : integer range 0 to 159;
    signal pixel_addr           : integer range 0 to 38399;
    signal pixel_data           : std_logic_vector(14 downto 0);  
    signal pixel_we             : std_logic := '0';
-
+   
+   signal pixel2_2x            : integer range 0 to 479;
+   signal pixel2_data          : std_logic_vector(14 downto 0);  
+   signal pixel2_we            : std_logic := '0';
 
    signal vram_block_mode      : std_logic;
 begin 
@@ -147,15 +158,22 @@ begin
       lockspeed              => lockspeed,
       interframe_blend       => interframe_blend,
       maxpixels              => maxpixels,
+      hdmode2x_bg            => hdmode2x_bg ,
+      hdmode2x_obj           => hdmode2x_obj,
       
       bitmapdrawmode         => bitmapdrawmode,
       vram_block_mode        => vram_block_mode,
       
-      pixel_out_x            => pixel_x,   
+      pixel_out_x            => pixel_x, 
+      pixel_out_2x           => pixel_2x,        
       pixel_out_y            => pixel_y,   
       pixel_out_addr         => pixel_addr,
       pixel_out_data         => pixel_data,
       pixel_out_we           => pixel_we, 
+      
+      pixel2_out_x           => pixel2_2x,   
+      pixel2_out_data        => pixel2_data,
+      pixel2_out_we          => pixel2_we,  
                              
       linecounter            => linecounter_drawer,    
       drawline               => drawline,
@@ -190,8 +208,8 @@ begin
       PALETTE_OAM_datain     => PALETTE_OAM_datain, 
       PALETTE_OAM_dataout    => PALETTE_OAM_dataout,
       PALETTE_OAM_we         => PALETTE_OAM_we     
-   );         
-   
+   ); 
+
    igba_gpu_colorshade : entity work.gba_gpu_colorshade
    port map
    (
@@ -200,16 +218,40 @@ begin
       shade_mode           => shade_mode,
                            
       pixel_in_x           => pixel_x,   
+      pixel_in_2x          => pixel_2x,   
       pixel_in_y           => pixel_y,   
       pixel_in_addr        => pixel_addr,
       pixel_in_data        => pixel_data,
       pixel_in_we          => pixel_we,
                   
       pixel_out_x          => pixel_out_x,   
+      pixel_out_2x         => pixel_out_2x,   
       pixel_out_y          => pixel_out_y,  
       pixel_out_addr       => pixel_out_addr,
       pixel_out_data       => pixel_out_data,
       pixel_out_we         => pixel_out_we  
+   );   
+   
+   igba_gpu_colorshade2 : entity work.gba_gpu_colorshade
+   port map
+   (
+      clk100               => clk100,
+                           
+      shade_mode           => shade_mode,
+                           
+      pixel_in_x           => 0,   
+      pixel_in_2x          => pixel2_2x,   
+      pixel_in_y           => 0,   
+      pixel_in_addr        => 0,
+      pixel_in_data        => pixel2_data,
+      pixel_in_we          => pixel2_we,
+                  
+      pixel_out_x          => open,   
+      pixel_out_2x         => pixel2_out_x,   
+      pixel_out_y          => open,  
+      pixel_out_addr       => open,
+      pixel_out_data       => pixel2_out_data,
+      pixel_out_we         => pixel2_out_we  
    );
 
 end architecture;

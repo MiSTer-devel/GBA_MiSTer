@@ -148,6 +148,7 @@ ENTITY ascal IS
     o_hs  : OUT std_logic; -- H sync
     o_vs  : OUT std_logic; -- V sync
     o_de  : OUT std_logic; -- Display Enable
+    o_vbl : OUT std_logic; -- V blank
     o_ce  : IN  std_logic; -- Clock Enable
     o_clk : IN  std_logic; -- Output clock
     
@@ -430,7 +431,7 @@ ARCHITECTURE rtl OF ascal IS
 
   SIGNAL o_vfrac,o_hfrac,o_hfrac1,o_hfrac2,o_hfrac3,o_hfrac4 : unsigned(11 DOWNTO 0);
   SIGNAL o_hacc,o_hacc_ini,o_hacc_next,o_vacc,o_vacc_next,o_vacc_ini : natural RANGE 0 TO 4*OHRES-1;
-  SIGNAL o_hsv,o_vsv,o_dev,o_pev : unsigned(0 TO 5);
+  SIGNAL o_hsv,o_vsv,o_dev,o_pev,o_end : unsigned(0 TO 5);
   SIGNAL o_hsp,o_vss : std_logic;
   SIGNAL o_read,o_read_pre : std_logic;
   SIGNAL o_readlev,o_copylev : natural RANGE 0 TO 2;
@@ -2152,7 +2153,7 @@ BEGIN
       o_copyv(1 TO 8)<=o_copyv(0 TO 7);
       
       o_dcptv(1)<=o_dcpt;
-      IF o_dcptv(1)>o_hsize THEN
+      IF o_dcptv(1)>=o_hsize THEN
         o_copyv(2)<='0';
       END IF;
       o_dcptv(2)<=o_dcptv(1) MOD OHRES;
@@ -2283,6 +2284,7 @@ BEGIN
           o_vcpt<=o_vcpt_pre;
         END IF;
         
+        o_end(0)<=to_std_logic(o_vcpt>=o_vdisp);
         o_dev(0)<=to_std_logic(o_hcpt<o_hdisp AND o_vcpt<o_vdisp);
         o_pev(0)<=to_std_logic(o_hcpt>=o_hmin AND o_hcpt<=o_hmax AND
                                o_vcpt>=o_vmin AND o_vcpt<=o_vmax);
@@ -2296,12 +2298,14 @@ BEGIN
         o_vsv(1 TO 5)<=o_vsv(0 TO 4);
         o_dev(1 TO 5)<=o_dev(0 TO 4);
         o_pev(1 TO 5)<=o_pev(0 TO 4);
+        o_end(1 TO 5)<=o_end(0 TO 4);
         
         IF o_run='0' THEN
           o_hsv(2)<='0';
           o_vsv(2)<='0';
           o_dev(2)<='0';
           o_pev(2)<='0';
+          o_end(2)<='0';
         END IF;
         
       END IF;
@@ -2401,6 +2405,7 @@ BEGIN
         o_hs<=o_hsv(5);
         o_vs<=o_vsv(5);
         o_de<=o_dev(5);
+        o_vbl<=o_end(5);
         o_r<=x"00";
         o_g<=x"00";
         o_b<=x"00";

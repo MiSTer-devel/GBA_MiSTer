@@ -65,6 +65,7 @@ module emu
 	// b[0]: osd button
 	output  [1:0] BUTTONS,
 
+   input         CLK_AUDIO, // 24.576 MHz
 	output [15:0] AUDIO_L,
 	output [15:0] AUDIO_R,
 	output        AUDIO_S, // 1 - signed audio samples, 0 - unsigned
@@ -121,7 +122,22 @@ module emu
 	input   [6:0] USER_IN,
 	output  [6:0] USER_OUT,
 
-	input         OSD_STATUS
+	input         OSD_STATUS,
+   
+	// Use framebuffer from DDRAM (USE_FB=1 in qsf)
+	// FB_FORMAT:
+	//    [2:0] : 011=8bpp(palette) 100=16bpp 101=24bpp 110=32bpp
+	//    [3]   : 0=16bits 565 1=16bits 1555
+	//    [4]   : 0=RGB  1=BGR (for 16/24/32 modes)
+	//
+	// stride is modulo 256 of bytes
+	output        FB_EN,
+	output  [4:0] FB_FORMAT,
+	output [11:0] FB_WIDTH,
+	output [11:0] FB_HEIGHT,
+	output [31:0] FB_BASE,
+	input         FB_VBL,
+	input         FB_LL
 );
 
 assign ADC_BUS  = 'Z;
@@ -140,6 +156,12 @@ assign VIDEO_ARX = status[1] ? 8'd16 : 8'd3;
 assign VIDEO_ARY = status[1] ? 8'd9  : 8'd2;
 
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
+
+assign FB_EN      = status[21] || status[22];
+assign FB_FORMAT  = 5'b00110;
+assign FB_WIDTH   = 12'd480;
+assign FB_HEIGHT  = 12'd320;
+
 
 ///////////////////////  CLOCK/RESET  ///////////////////////////////////
 
@@ -163,7 +185,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3         4         5         6
 // 0123456789012345678901234567890123456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXX  XXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -183,8 +205,9 @@ parameter CONF_STR = {
 	"O1,Aspect Ratio,3:2,16:9;",
 	"O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
    "OOQ,Modify Colors,Off,GBA 2.2,GBA 1.6,NDS 1.6,VBA 1.4,75%,50%,25%;",
-   "OJ,Flickerblend,Off,On;",
+   "O9A,Flickerblend,Off,Blend,30Hz;",
    "OK,Spritelimit,Off,On;",
+   "OLM,2XResolution,Off,Background,Sprites,Both;",
 	"O78,Stereo Mix,None,25%,50%,100%;",
 	"-;",
 	"OEF,Storage,Auto,SDRAM,DDR3;",
@@ -445,8 +468,10 @@ gba
 	.memory_remap(memory_remap_quirk),
    .save_state(ss_save),
    .load_state(ss_load),
-   .interframe_blend(status[19]),
+   .interframe_blend(status[10:9]),
    .maxpixels(status[20]),
+   .hdmode2x_bg(status[21]),
+   .hdmode2x_obj(status[22]),
    .shade_mode(shadercolors),
 	.specialmodule(gpio_quirk),
 	.solar_in(status[31:29]),
@@ -515,6 +540,14 @@ gba
 	.pixel_out_addr(pixel_addr),      // integer range 0 to 38399;       -- address for framebuffer
 	.pixel_out_data(pixel_data),      // RGB data for framebuffer
 	.pixel_out_we(pixel_we),          // new pixel for framebuffer
+
+   .largeimg_out_base(FB_BASE),
+   .largeimg_out_addr(fb_addr),
+   .largeimg_out_data(fb_din),
+   .largeimg_out_req(fb_req),
+   .largeimg_out_done(fb_ack),
+   .largeimg_newframe(FB_VBL),
+   .largeimg_singlebuf(FB_LL),
 
 	.sound_out_left(AUDIO_L),
 	.sound_out_right(AUDIO_R)
@@ -633,6 +666,11 @@ wire [31:0] sdr_sdram_dout1, sdr_sdram_dout2, sdr_bus_dout;
 wire [15:0] sdr_bram_din;
 wire        sdr_sdram_ack, sdr_bus_ack, sdr_bram_ack;
 
+wire [27:2] fb_addr;
+wire [63:0] fb_din;
+wire        fb_req;
+wire        fb_ack;
+
 sdram sdram
 (
 	.*,
@@ -708,7 +746,13 @@ ddram ddram
 	.ch4_dout(ss_dout),
 	.ch4_req(ss_req),
 	.ch4_rnw(ss_rnw),
-	.ch4_ready(ss_ack)
+	.ch4_ready(ss_ack),
+   
+   .ch5_addr({fb_addr, 1'b0}),
+   .ch5_din(fb_din),
+   .ch5_req(fb_req),
+   .ch5_ready(fb_ack)
+   
 );
 
 wire [127:0] time_din_h = {32'd0, time_din, "RT"};
@@ -718,20 +762,51 @@ wire        bram_ack = sdram_en ? sdr_bram_ack : ddr_bram_ack;
 assign sd_buff_din = extra_data_addr ? (time_din_h[{sd_buff_addr[2:0], 4'b0000} +: 16]) : bram_buff_out;
 wire [15:0] bram_buff_out;
 
-SyncRamDual #(16,8) bram
+altsyncram	altsyncram_component
 (
-	.clk(clk_sys),
-
-	.addr_a(bram_addr),
-	.we_a(~bk_loading & bram_ack),
-	.datain_a(bram_din),
-	.dataout_a(bram_dout),
-
-	.addr_b(sd_buff_addr),
-	.we_b(sd_buff_wr && ~extra_data_addr),
-	.datain_b(sd_buff_dout),
-	.dataout_b(bram_buff_out)
+	.address_a (bram_addr),
+	.address_b (sd_buff_addr),
+	.clock0 (clk_sys),
+	.clock1 (clk_sys),
+	.data_a (bram_din),
+	.data_b (sd_buff_dout),
+	.wren_a (~bk_loading & bram_ack),
+	.wren_b (sd_buff_wr && ~extra_data_addr),
+	.q_a (bram_dout),
+	.q_b (bram_buff_out),
+	.byteena_a (1'b1),
+	.byteena_b (1'b1),
+	.clocken0 (1'b1),
+	.clocken1 (1'b1),
+	.rden_a (1'b1),
+	.rden_b (1'b1)
 );
+defparam
+	altsyncram_component.address_reg_b = "CLOCK1",
+	altsyncram_component.clock_enable_input_a = "BYPASS",
+	altsyncram_component.clock_enable_input_b = "BYPASS",
+	altsyncram_component.clock_enable_output_a = "BYPASS",
+	altsyncram_component.clock_enable_output_b = "BYPASS",
+	altsyncram_component.indata_reg_b = "CLOCK1",
+	altsyncram_component.intended_device_family = "Cyclone V",
+	altsyncram_component.lpm_type = "altsyncram",
+	altsyncram_component.numwords_a = 256,
+	altsyncram_component.numwords_b = 256,
+	altsyncram_component.operation_mode = "BIDIR_DUAL_PORT",
+	altsyncram_component.outdata_aclr_a = "NONE",
+	altsyncram_component.outdata_aclr_b = "NONE",
+	altsyncram_component.outdata_reg_a = "UNREGISTERED",
+	altsyncram_component.outdata_reg_b = "UNREGISTERED",
+	altsyncram_component.power_up_uninitialized = "FALSE",
+	altsyncram_component.read_during_write_mode_port_a = "NEW_DATA_NO_NBE_READ",
+	altsyncram_component.read_during_write_mode_port_b = "NEW_DATA_NO_NBE_READ",
+	altsyncram_component.widthad_a = 8,
+	altsyncram_component.widthad_b = 8,
+	altsyncram_component.width_a = 16,
+	altsyncram_component.width_b = 16,
+	altsyncram_component.width_byteena_a = 1,
+	altsyncram_component.width_byteena_b = 1,
+	altsyncram_component.wrcontrol_wraddress_reg_b = "CLOCK1";
 
 reg [7:0] bram_addr;
 reg bram_tx_start;

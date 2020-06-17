@@ -19,17 +19,24 @@ entity gba_gpu_drawer is
       gb_bus               : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');                  
         
       lockspeed            : in    std_logic;
-      interframe_blend     : in    std_logic;
+      interframe_blend     : in    std_logic_vector(1 downto 0);
       maxpixels            : in    std_logic;
+      hdmode2x_bg          : in    std_logic;
+      hdmode2x_obj         : in    std_logic;
       
       bitmapdrawmode       : out   std_logic;
       vram_block_mode      : out   std_logic;
         
       pixel_out_x          : out   integer range 0 to 239;
+      pixel_out_2x         : out   integer range 0 to 479; 
       pixel_out_y          : out   integer range 0 to 159;
       pixel_out_addr       : out   integer range 0 to 38399;
       pixel_out_data       : out   std_logic_vector(14 downto 0);  
       pixel_out_we         : out   std_logic := '0';
+                                   
+      pixel2_out_x         : out   integer range 0 to 479;
+      pixel2_out_data      : out   std_logic_vector(14 downto 0);  
+      pixel2_out_we        : out   std_logic := '0';                     
                            
       linecounter          : in    unsigned(7 downto 0);
       pixelpos             : in    integer range 0 to 511;
@@ -221,10 +228,18 @@ architecture arch of gba_gpu_drawer is
    signal enables_wndout : std_logic_vector(5 downto 0);
    
    -- ram wiring
-   signal OAMRAM_Drawer_addr       : integer range 0 to 255;
-   signal OAMRAM_Drawer_data       : std_logic_vector(31 downto 0);
-   signal PALETTE_OAM_Drawer_addr  : integer range 0 to 127;
-   signal PALETTE_OAM_Drawer_data  : std_logic_vector(31 downto 0);
+   signal OAMRAM_Drawer_addr           : integer range 0 to 255;
+   signal OAMRAM_Drawer_addr_hd0       : integer range 0 to 255;
+   signal OAMRAM_Drawer_addr_hd1       : integer range 0 to 255;
+   signal OAMRAM_Drawer_data           : std_logic_vector(31 downto 0);
+   signal OAMRAM_Drawer_data_hd0       : std_logic_vector(31 downto 0);
+   signal OAMRAM_Drawer_data_hd1       : std_logic_vector(31 downto 0);
+   signal PALETTE_OAM_Drawer_addr      : integer range 0 to 127;
+   signal PALETTE_OAM_Drawer_addr_hd0  : integer range 0 to 127;
+   signal PALETTE_OAM_Drawer_addr_hd1  : integer range 0 to 127;
+   signal PALETTE_OAM_Drawer_data      : std_logic_vector(31 downto 0);
+   signal PALETTE_OAM_Drawer_data_hd0  : std_logic_vector(31 downto 0);
+   signal PALETTE_OAM_Drawer_data_hd1  : std_logic_vector(31 downto 0);
    
    signal PALETTE_BG_Drawer_addr   : integer range 0 to 127;
    signal PALETTE_BG_Drawer_addr0  : integer range 0 to 127;
@@ -249,6 +264,7 @@ architecture arch of gba_gpu_drawer is
    signal VRAM_Drawer_cnt_Hi   : std_logic := '0';
    
    -- background multiplexing
+   signal line_trigger_1       : std_logic := '0';  
    signal drawline_1           : std_logic := '0';
    signal hblank_trigger_1     : std_logic := '0';
    
@@ -257,109 +273,204 @@ architecture arch of gba_gpu_drawer is
    signal drawline_mode0_2     : std_logic;
    signal drawline_mode0_3     : std_logic;
    signal drawline_mode2_2     : std_logic;
+   signal drawline_mode2_2_hd0 : std_logic;
+   signal drawline_mode2_2_hd1 : std_logic;
    signal drawline_mode2_3     : std_logic;
+   signal drawline_mode2_3_hd0 : std_logic;
+   signal drawline_mode2_3_hd1 : std_logic;
    signal drawline_mode345     : std_logic;
    signal drawline_obj         : std_logic;
+   signal drawline_obj_hd0     : std_logic;
+   signal drawline_obj_hd1     : std_logic;
        
-   signal pixel_we_mode0_0          : std_logic;
-   signal pixel_we_mode0_1          : std_logic;
-   signal pixel_we_mode0_2          : std_logic;
-   signal pixel_we_mode0_3          : std_logic;
-   signal pixel_we_mode2_2          : std_logic;
-   signal pixel_we_mode2_3          : std_logic;
-   signal pixel_we_mode345          : std_logic;
-   signal pixel_we_modeobj_color    : std_logic;
-   signal pixel_we_modeobj_settings : std_logic;
-   signal pixel_we_bg0              : std_logic;
-   signal pixel_we_bg1              : std_logic;
-   signal pixel_we_bg2              : std_logic;
-   signal pixel_we_bg3              : std_logic;
-   signal pixel_we_obj_color        : std_logic;
-   signal pixel_we_obj_settings     : std_logic;
+   signal pixel_we_mode0_0               : std_logic;
+   signal pixel_we_mode0_1               : std_logic;
+   signal pixel_we_mode0_2               : std_logic;
+   signal pixel_we_mode0_3               : std_logic;
+   signal pixel_we_mode2_2               : std_logic;
+   signal pixel_we_mode2_2_hd0           : std_logic;
+   signal pixel_we_mode2_2_hd1           : std_logic;
+   signal pixel_we_mode2_3               : std_logic;
+   signal pixel_we_mode2_3_hd0           : std_logic;
+   signal pixel_we_mode2_3_hd1           : std_logic;
+   signal pixel_we_mode345               : std_logic;
+   signal pixel_we_modeobj_color         : std_logic;
+   signal pixel_we_modeobj_color_hd0     : std_logic;
+   signal pixel_we_modeobj_color_hd1     : std_logic;
+   signal pixel_we_modeobj_settings      : std_logic;
+   signal pixel_we_modeobj_settings_hd0  : std_logic;
+   signal pixel_we_modeobj_settings_hd1  : std_logic;
+   signal pixel_we_bg0                   : std_logic;
+   signal pixel_we_bg1                   : std_logic;
+   signal pixel_we_bg2                   : std_logic;
+   signal pixel_we_bg3                   : std_logic;
+   signal pixel_we_obj_color             : std_logic;
+   signal pixel_we_obj_color_hd0         : std_logic;
+   signal pixel_we_obj_color_hd1         : std_logic;
+   signal pixel_we_obj_settings          : std_logic;
+   signal pixel_we_obj_settings_hd0      : std_logic;
+   signal pixel_we_obj_settings_hd1      : std_logic;
    
-   signal pixeldata_mode0_0            : std_logic_vector(15 downto 0);
-   signal pixeldata_mode0_1            : std_logic_vector(15 downto 0);
-   signal pixeldata_mode0_2            : std_logic_vector(15 downto 0);
-   signal pixeldata_mode0_3            : std_logic_vector(15 downto 0);
-   signal pixeldata_mode2_2            : std_logic_vector(15 downto 0);
-   signal pixeldata_mode2_3            : std_logic_vector(15 downto 0);
-   signal pixeldata_mode345            : std_logic_vector(15 downto 0);
-   signal pixeldata_modeobj_color      : std_logic_vector(15 downto 0);
-   signal pixeldata_modeobj_settings   : std_logic_vector( 2 downto 0);
-   signal pixeldata_bg0                : std_logic_vector(15 downto 0);
-   signal pixeldata_bg1                : std_logic_vector(15 downto 0);
-   signal pixeldata_bg2                : std_logic_vector(15 downto 0);
-   signal pixeldata_bg3                : std_logic_vector(15 downto 0);
-   signal pixeldata_obj                : std_logic_vector(18 downto 0);
-   signal pixeldata_obj_color          : std_logic_vector(15 downto 0);
-   signal pixeldata_obj_settings       : std_logic_vector( 2 downto 0);
+   signal pixeldata_mode0_0              : std_logic_vector(15 downto 0);
+   signal pixeldata_mode0_1              : std_logic_vector(15 downto 0);
+   signal pixeldata_mode0_2              : std_logic_vector(15 downto 0);
+   signal pixeldata_mode0_3              : std_logic_vector(15 downto 0);
+   signal pixeldata_mode2_2              : std_logic_vector(15 downto 0);
+   signal pixeldata_mode2_2_hd0          : std_logic_vector(15 downto 0);
+   signal pixeldata_mode2_2_hd1          : std_logic_vector(15 downto 0);
+   signal pixeldata_mode2_3              : std_logic_vector(15 downto 0);
+   signal pixeldata_mode2_3_hd0          : std_logic_vector(15 downto 0);
+   signal pixeldata_mode2_3_hd1          : std_logic_vector(15 downto 0);
+   signal pixeldata_mode345              : std_logic_vector(15 downto 0);
+   signal pixeldata_modeobj_color        : std_logic_vector(15 downto 0);
+   signal pixeldata_modeobj_color_hd0    : std_logic_vector(15 downto 0);
+   signal pixeldata_modeobj_color_hd1    : std_logic_vector(15 downto 0);
+   signal pixeldata_modeobj_settings     : std_logic_vector( 2 downto 0);
+   signal pixeldata_modeobj_settings_hd0 : std_logic_vector( 2 downto 0);
+   signal pixeldata_modeobj_settings_hd1 : std_logic_vector( 2 downto 0);
+   signal pixeldata_bg0                  : std_logic_vector(15 downto 0);
+   signal pixeldata_bg1                  : std_logic_vector(15 downto 0);
+   signal pixeldata_bg2                  : std_logic_vector(15 downto 0);
+   signal pixeldata_bg3                  : std_logic_vector(15 downto 0);
+   signal pixeldata_obj                  : std_logic_vector(18 downto 0);
+   signal pixeldata_obj_color            : std_logic_vector(15 downto 0);
+   signal pixeldata_obj_color_hd0        : std_logic_vector(15 downto 0);
+   signal pixeldata_obj_color_hd1        : std_logic_vector(15 downto 0);
+   signal pixeldata_obj_settings         : std_logic_vector( 2 downto 0);
+   signal pixeldata_obj_settings_hd0     : std_logic_vector( 2 downto 0);
+   signal pixeldata_obj_settings_hd1     : std_logic_vector( 2 downto 0);
    
-   signal pixel_x_mode0_0 : integer range 0 to 239;
-   signal pixel_x_mode0_1 : integer range 0 to 239;
-   signal pixel_x_mode0_2 : integer range 0 to 239;
-   signal pixel_x_mode0_3 : integer range 0 to 239;
-   signal pixel_x_mode2_2 : integer range 0 to 239;
-   signal pixel_x_mode2_3 : integer range 0 to 239;
-   signal pixel_x_mode345 : integer range 0 to 239;
-   signal pixel_x_modeobj : integer range 0 to 239;
-   signal pixel_x_bg0     : integer range 0 to 239;
-   signal pixel_x_bg1     : integer range 0 to 239;
-   signal pixel_x_bg2     : integer range 0 to 239;
-   signal pixel_x_bg3     : integer range 0 to 239;
-   signal pixel_x_obj     : integer range 0 to 239;
+   signal pixel_x_mode0_0     : integer range 0 to 239;
+   signal pixel_x_mode0_1     : integer range 0 to 239;
+   signal pixel_x_mode0_2     : integer range 0 to 239;
+   signal pixel_x_mode0_3     : integer range 0 to 239;
+   signal pixel_x_mode2_2     : integer range 0 to 239;
+   signal pixel_x_mode2_2_hd0 : integer range 0 to 479;
+   signal pixel_x_mode2_2_hd1 : integer range 0 to 479;
+   signal pixel_x_mode2_3     : integer range 0 to 239;
+   signal pixel_x_mode2_3_hd0 : integer range 0 to 479;
+   signal pixel_x_mode2_3_hd1 : integer range 0 to 479;
+   signal pixel_x_mode345     : integer range 0 to 239;
+   signal pixel_x_modeobj     : integer range 0 to 239;
+   signal pixel_x_modeobj_hd0 : integer range 0 to 479;
+   signal pixel_x_modeobj_hd1 : integer range 0 to 479;
+   signal pixel_x_bg0         : integer range 0 to 239;
+   signal pixel_x_bg1         : integer range 0 to 239;
+   signal pixel_x_bg2         : integer range 0 to 239;
+   signal pixel_x_bg3         : integer range 0 to 239;
+   signal pixel_x_obj         : integer range 0 to 239;
+   signal pixel_x_obj_hd0     : integer range 0 to 479;
+   signal pixel_x_obj_hd1     : integer range 0 to 479;
    
-   signal pixel_objwnd    : std_logic;
+   signal pixel_objwnd      : std_logic;
+   signal pixel_objwnd_hd0  : std_logic;
+   signal pixel_objwnd_hd1  : std_logic;
+   
+   signal pixel_x_bg2_hd0   : integer range 0 to 479;
+   signal pixeldata_bg2_hd0 : std_logic_vector(15 downto 0);
+   signal pixel_we_bg2_hd0  : std_logic;
+   
+   signal pixel_x_bg2_hd1   : integer range 0 to 479;
+   signal pixeldata_bg2_hd1 : std_logic_vector(15 downto 0);
+   signal pixel_we_bg2_hd1  : std_logic;
+   
+   signal pixel_x_bg3_hd0   : integer range 0 to 479;
+   signal pixeldata_bg3_hd0 : std_logic_vector(15 downto 0);
+   signal pixel_we_bg3_hd0  : std_logic;
+   
+   signal pixel_x_bg3_hd1   : integer range 0 to 479;
+   signal pixeldata_bg3_hd1 : std_logic_vector(15 downto 0);
+   signal pixel_we_bg3_hd1  : std_logic;
 
-   signal PALETTE_Drawer_addr_mode0_0 : integer range 0 to 127;
-   signal PALETTE_Drawer_addr_mode0_1 : integer range 0 to 127;
-   signal PALETTE_Drawer_addr_mode0_2 : integer range 0 to 127;
-   signal PALETTE_Drawer_addr_mode0_3 : integer range 0 to 127;
-   signal PALETTE_Drawer_addr_mode2_2 : integer range 0 to 127;
-   signal PALETTE_Drawer_addr_mode2_3 : integer range 0 to 127;
-   signal PALETTE_Drawer_addr_mode345 : integer range 0 to 127;
+   signal PALETTE_Drawer_addr_mode0_0     : integer range 0 to 127;
+   signal PALETTE_Drawer_addr_mode0_1     : integer range 0 to 127;
+   signal PALETTE_Drawer_addr_mode0_2     : integer range 0 to 127;
+   signal PALETTE_Drawer_addr_mode0_3     : integer range 0 to 127;
+   signal PALETTE_Drawer_addr_mode2_2     : integer range 0 to 127;
+   signal PALETTE_Drawer_addr_mode2_2_hd0 : integer range 0 to 127;
+   signal PALETTE_Drawer_addr_mode2_2_hd1 : integer range 0 to 127;
+   signal PALETTE_Drawer_addr_mode2_3     : integer range 0 to 127;
+   signal PALETTE_Drawer_addr_mode2_3_hd0 : integer range 0 to 127;
+   signal PALETTE_Drawer_addr_mode2_3_hd1 : integer range 0 to 127;
+   signal PALETTE_Drawer_addr_mode345     : integer range 0 to 127;
    
-   signal VRAM_Drawer_addr_mode0_0 : integer range 0 to 16383;
-   signal VRAM_Drawer_addr_mode0_1 : integer range 0 to 16383;
-   signal VRAM_Drawer_addr_mode0_2 : integer range 0 to 16383;
-   signal VRAM_Drawer_addr_mode0_3 : integer range 0 to 16383;
-   signal VRAM_Drawer_addr_mode2_2 : integer range 0 to 16383;
-   signal VRAM_Drawer_addr_mode2_3 : integer range 0 to 16383;
-   signal VRAM_Drawer_addr_345_Lo  : integer range 0 to 16383;
-   signal VRAM_Drawer_addr_345_Hi  : integer range 0 to 8191;
-   signal VRAM_Drawer_addrobj      : integer range 0 to 8191;
+   signal VRAM_Drawer_addr_mode0_0     : integer range 0 to 16383;
+   signal VRAM_Drawer_addr_mode0_1     : integer range 0 to 16383;
+   signal VRAM_Drawer_addr_mode0_2     : integer range 0 to 16383;
+   signal VRAM_Drawer_addr_mode0_3     : integer range 0 to 16383;
+   signal VRAM_Drawer_addr_mode2_2     : integer range 0 to 16383;
+   signal VRAM_Drawer_addr_mode2_2_hd0 : integer range 0 to 16383;
+   signal VRAM_Drawer_addr_mode2_2_hd1 : integer range 0 to 16383;
+   signal VRAM_Drawer_addr_mode2_3     : integer range 0 to 16383;
+   signal VRAM_Drawer_addr_mode2_3_hd0 : integer range 0 to 16383;
+   signal VRAM_Drawer_addr_mode2_3_hd1 : integer range 0 to 16383;
+   signal VRAM_Drawer_addr_345_Lo      : integer range 0 to 16383;
+   signal VRAM_Drawer_addr_345_Hi      : integer range 0 to 8191;
+   signal VRAM_Drawer_addrobj          : integer range 0 to 8191;
+   signal VRAM_Drawer_addrobj_hd0      : integer range 0 to 8191;
+   signal VRAM_Drawer_addrobj_hd1      : integer range 0 to 8191;
    
-   signal busy_mode0_0 : std_logic;
-   signal busy_mode0_1 : std_logic;
-   signal busy_mode0_2 : std_logic;
-   signal busy_mode0_3 : std_logic;
-   signal busy_mode2_2 : std_logic;
-   signal busy_mode2_3 : std_logic;
-   signal busy_mode345 : std_logic;
-   signal busy_modeobj : std_logic;
+   signal busy_mode0_0     : std_logic;
+   signal busy_mode0_1     : std_logic;
+   signal busy_mode0_2     : std_logic;
+   signal busy_mode0_3     : std_logic;
+   signal busy_mode2_2     : std_logic;
+   signal busy_mode2_2_hd0 : std_logic;
+   signal busy_mode2_2_hd1 : std_logic;
+   signal busy_mode2_3     : std_logic;
+   signal busy_mode2_3_hd0 : std_logic;
+   signal busy_mode2_3_hd1 : std_logic;
+   signal busy_mode345     : std_logic;
+   signal busy_modeobj     : std_logic;
+   signal busy_modeobj_hd0 : std_logic;
+   signal busy_modeobj_hd1 : std_logic;
    
    signal draw_allmod   : std_logic_vector(7 downto 0);
    signal busy_allmod   : std_logic_vector(7 downto 0);
    
    -- linebuffers
-   signal clear_enable           : std_logic := '0';
-   signal clear_addr             : integer range 0 to 239;
-   signal clear_trigger          : std_logic := '0';
-   signal clear_trigger_1        : std_logic := '0';
-                                 
-   signal linecounter_int        : integer range 0 to 159;
-   signal linebuffer_addr        : integer range 0 to 239;
-   signal linebuffer_addr_1      : integer range 0 to 239;
+   signal clear_enable               : std_logic := '0';
+   signal clear_addr                 : integer range 0 to 479;
+   signal clear_trigger              : std_logic := '0';
+   signal clear_trigger_1            : std_logic := '0';
+                                     
+   signal linecounter_int            : integer range 0 to 159;
+   signal linebuffer_addr            : integer range 0 to 239;
+   signal linebuffer_addr_1          : integer range 0 to 239;
+   signal pixelmult                  : std_logic := '0';
+   signal linebuffer_addr_hd         : integer range 0 to 479;
+                                     
+   signal linebuffer_bg0_data        : std_logic_vector(15 downto 0);
+   signal linebuffer_bg1_data        : std_logic_vector(15 downto 0);
+   signal linebuffer_bg2_data        : std_logic_vector(15 downto 0);
+   signal linebuffer_bg3_data        : std_logic_vector(15 downto 0);
+   signal linebuffer_obj_data        : std_logic_vector(18 downto 0);
+   signal linebuffer_obj_color       : std_logic_vector(15 downto 0);
+   signal linebuffer_obj_setting     : std_logic_vector( 2 downto 0);
+                                     
+   signal linebuffer_objwindow       : std_logic_vector(0 to 239) := (others => '0');
+   signal linebuffer_objwindow_hd0   : std_logic_vector(0 to 479) := (others => '0');
+   signal linebuffer_objwindow_hd1   : std_logic_vector(0 to 479) := (others => '0');
+           
+   signal linebuffer_bg2_data_hd0    : std_logic_vector(15 downto 0);
+   signal linebuffer_bg2_data_hd1    : std_logic_vector(15 downto 0);
+   signal linebuffer_bg3_data_hd0    : std_logic_vector(15 downto 0);
+   signal linebuffer_bg3_data_hd1    : std_logic_vector(15 downto 0);
    
-   signal linebuffer_bg0_data    : std_logic_vector(15 downto 0);
-   signal linebuffer_bg1_data    : std_logic_vector(15 downto 0);
-   signal linebuffer_bg2_data    : std_logic_vector(15 downto 0);
-   signal linebuffer_bg3_data    : std_logic_vector(15 downto 0);
-   signal linebuffer_obj_data    : std_logic_vector(18 downto 0);
-   signal linebuffer_obj_color   : std_logic_vector(15 downto 0);
-   signal linebuffer_obj_setting : std_logic_vector( 2 downto 0);
-                                 
-   signal linebuffer_objwindow   : std_logic_vector(0 to 239) := (others => '0');
-                                 
+   signal linebuffer_obj_data_hd0    : std_logic_vector(18 downto 0);
+   signal linebuffer_obj_color_hd0   : std_logic_vector(15 downto 0);
+   signal linebuffer_obj_setting_hd0 : std_logic_vector( 2 downto 0);
+   signal linebuffer_obj_data_hd1    : std_logic_vector(18 downto 0);
+   signal linebuffer_obj_color_hd1   : std_logic_vector(15 downto 0);
+   signal linebuffer_obj_setting_hd1 : std_logic_vector( 2 downto 0);
+   
+   signal merge_in_bg2           : std_logic_vector(15 downto 0);
+   signal merge_in_bg3           : std_logic_vector(15 downto 0);
+   signal merge_in_obj           : std_logic_vector(18 downto 0);
+   signal merge2_in_bg2          : std_logic_vector(15 downto 0);
+   signal merge2_in_bg3          : std_logic_vector(15 downto 0);
+   signal merge2_in_obj          : std_logic_vector(18 downto 0);
+           
    -- merge_pixel                
    signal pixeldata_back_next    : std_logic_vector(15 downto 0) := (others => '0');
    signal pixeldata_back         : std_logic_vector(15 downto 0) := (others => '0');
@@ -369,7 +480,15 @@ architecture arch of gba_gpu_drawer is
    signal merge_pixel_x          : integer range 0 to 239;
    signal merge_pixel_y          : integer range 0 to 159;
    signal merge_pixel_we         : std_logic := '0';
+   signal objwindow_merge        : std_logic := '0';
+   signal objwindow_merge_hd0    : std_logic := '0';
+   signal objwindow_merge_hd1    : std_logic := '0';
    signal objwindow_merge_in     : std_logic := '0';
+   signal objwindow_merge2_in    : std_logic := '0';
+   
+   signal merge2_pixeldata_out   : std_logic_vector(15 downto 0);
+   signal merge2_pixel_x         : integer range 0 to 239;
+   signal merge2_pixel_we        : std_logic := '0';
                                  
    signal pixel_out_x_1          : integer range 0 to 239;
    signal pixel_out_y_1          : integer range 0 to 159;                   
@@ -403,6 +522,38 @@ architecture arch of gba_gpu_drawer is
    signal ref3_x : signed(27 downto 0) := (others => '0'); 
    signal ref3_y : signed(27 downto 0) := (others => '0'); 
    
+   signal ref2_x_last : signed(27 downto 0) := (others => '0'); 
+   signal ref2_y_last : signed(27 downto 0) := (others => '0'); 
+   signal ref3_x_last : signed(27 downto 0) := (others => '0'); 
+   signal ref3_y_last : signed(27 downto 0) := (others => '0'); 
+   
+   signal ref2_x_hd0 : signed(28 downto 0) := (others => '0'); 
+   signal ref2_y_hd0 : signed(28 downto 0) := (others => '0'); 
+   signal ref2_x_hd1 : signed(28 downto 0) := (others => '0'); 
+   signal ref2_y_hd1 : signed(28 downto 0) := (others => '0');
+   signal ref3_x_hd0 : signed(28 downto 0) := (others => '0'); 
+   signal ref3_y_hd0 : signed(28 downto 0) := (others => '0'); 
+   signal ref3_x_hd1 : signed(28 downto 0) := (others => '0'); 
+   signal ref3_y_hd1 : signed(28 downto 0) := (others => '0');
+   
+   signal dx2_last : signed(15 downto 0) := (others => '0'); 
+   signal dx2_hd0  : signed(16 downto 0) := (others => '0'); 
+   signal dx2_hd1  : signed(16 downto 0) := (others => '0'); 
+   signal dy2_last : signed(15 downto 0) := (others => '0'); 
+   signal dy2_hd0  : signed(16 downto 0) := (others => '0'); 
+   signal dy2_hd1  : signed(16 downto 0) := (others => '0');
+   signal dx3_last : signed(15 downto 0) := (others => '0'); 
+   signal dx3_hd0  : signed(16 downto 0) := (others => '0'); 
+   signal dx3_hd1  : signed(16 downto 0) := (others => '0'); 
+   signal dy3_last : signed(15 downto 0) := (others => '0'); 
+   signal dy3_hd0  : signed(16 downto 0) := (others => '0'); 
+   signal dy3_hd1  : signed(16 downto 0) := (others => '0');   
+   
+   signal new_dx2 : std_logic := '0';
+   signal new_dy2 : std_logic := '0';
+   signal new_dx3 : std_logic := '0';
+   signal new_dy3 : std_logic := '0';
+   
    signal mosaik_vcnt_bg  : integer range 0 to 15 := 0;
    signal mosaik_vcnt_obj : integer range 0 to 15 := 0;
        
@@ -414,11 +565,13 @@ architecture arch of gba_gpu_drawer is
    signal mosaic_ref3_x : signed(27 downto 0) := (others => '0'); 
    signal mosaic_ref3_y : signed(27 downto 0) := (others => '0'); 
    
-   -- framesmoothing buffer
+   -- interframe_blend options
    type tPixelArray is array(0 to (240 * 160) - 1) of std_logic_vector(14 downto 0);
    signal PixelArraySmooth : tPixelArray := (others => (others => '0'));
    
    signal pixel_smooth : std_logic_vector(14 downto 0);
+   
+   signal frameselect : std_logic := '0';
    
 begin 
    
@@ -655,6 +808,70 @@ begin
       OAMRAM_PROC_dataout(((i+1) * 8) - 1 downto (i * 8)) <= ram_dout_single1;
       OAMRAM_Drawer_data(((i+1) * 8) - 1 downto (i * 8)) <= ram_dout_single2;
    end generate;  
+   goamram_hd0 : for i in 0 to 3 generate
+      signal ram_dout_single1 : std_logic_vector(7 downto 0);
+      signal ram_dout_single2 : std_logic_vector(7 downto 0);
+      signal ram_din_single  : std_logic_vector(7 downto 0);
+   begin
+      
+      ibyteram: entity MEM.SyncRamDualNotPow2
+      generic map
+      (
+         DATA_WIDTH => 8,
+         DATA_COUNT => 256
+      )
+      port map
+      (
+         clk        => clk100,
+         
+         addr_a     => OAMRAM_PROC_addr,
+         datain_a   => ram_din_single,
+         dataout_a  => open,
+         we_a       => OAMRAM_PROC_we(i),
+         re_a       => '1',
+                  
+         addr_b     => OAMRAM_Drawer_addr_hd0,
+         datain_b   => x"00",
+         dataout_b  => ram_dout_single2,
+         we_b       => '0',
+         re_b       => '1'
+      );
+      
+      ram_din_single <= OAMRAM_PROC_datain(((i+1) * 8) - 1 downto (i * 8));
+      OAMRAM_Drawer_data_hd0(((i+1) * 8) - 1 downto (i * 8)) <= ram_dout_single2;
+   end generate; 
+   goamram_hd1 : for i in 0 to 3 generate
+      signal ram_dout_single1 : std_logic_vector(7 downto 0);
+      signal ram_dout_single2 : std_logic_vector(7 downto 0);
+      signal ram_din_single  : std_logic_vector(7 downto 0);
+   begin
+      
+      ibyteram: entity MEM.SyncRamDualNotPow2
+      generic map
+      (
+         DATA_WIDTH => 8,
+         DATA_COUNT => 256
+      )
+      port map
+      (
+         clk        => clk100,
+         
+         addr_a     => OAMRAM_PROC_addr,
+         datain_a   => ram_din_single,
+         dataout_a  => open,
+         we_a       => OAMRAM_PROC_we(i),
+         re_a       => '1',
+                  
+         addr_b     => OAMRAM_Drawer_addr_hd1,
+         datain_b   => x"00",
+         dataout_b  => ram_dout_single2,
+         we_b       => '0',
+         re_b       => '1'
+      );
+      
+      ram_din_single <= OAMRAM_PROC_datain(((i+1) * 8) - 1 downto (i * 8));
+      OAMRAM_Drawer_data_hd1(((i+1) * 8) - 1 downto (i * 8)) <= ram_dout_single2;
+   end generate;     
     
    gpaletteram_bg : for i in 0 to 3 generate
       signal ram_dout_single1 : std_logic_vector(7 downto 0);
@@ -722,6 +939,70 @@ begin
       ram_din_single <= PALETTE_OAM_datain(((i+1) * 8) - 1 downto (i * 8));
       PALETTE_OAM_dataout(((i+1) * 8) - 1 downto (i * 8)) <= ram_dout_single1;
       PALETTE_OAM_Drawer_data(((i+1) * 8) - 1 downto (i * 8)) <= ram_dout_single2; 
+   end generate; 
+   gpaletteram_oam_hd0 : for i in 0 to 3 generate
+      signal ram_dout_single1 : std_logic_vector(7 downto 0);
+      signal ram_dout_single2 : std_logic_vector(7 downto 0);
+      signal ram_din_single  : std_logic_vector(7 downto 0);
+   begin
+      
+      ibyteram: entity MEM.SyncRamDualNotPow2
+      generic map
+      (
+         DATA_WIDTH => 8,
+         DATA_COUNT => 128
+      )
+      port map
+      (
+         clk        => clk100,
+         
+         addr_a     => PALETTE_OAM_addr,
+         datain_a   => ram_din_single,
+         dataout_a  => open,
+         we_a       => PALETTE_OAM_we(i),
+         re_a       => '1',
+                  
+         addr_b     => PALETTE_OAM_Drawer_addr_hd0,
+         datain_b   => x"00",
+         dataout_b  => ram_dout_single2,
+         we_b       => '0',
+         re_b       => '1'
+      );
+      
+      ram_din_single <= PALETTE_OAM_datain(((i+1) * 8) - 1 downto (i * 8));
+      PALETTE_OAM_Drawer_data_hd0(((i+1) * 8) - 1 downto (i * 8)) <= ram_dout_single2; 
+   end generate; 
+   gpaletteram_oam_hd1 : for i in 0 to 3 generate
+      signal ram_dout_single1 : std_logic_vector(7 downto 0);
+      signal ram_dout_single2 : std_logic_vector(7 downto 0);
+      signal ram_din_single  : std_logic_vector(7 downto 0);
+   begin
+      
+      ibyteram: entity MEM.SyncRamDualNotPow2
+      generic map
+      (
+         DATA_WIDTH => 8,
+         DATA_COUNT => 128
+      )
+      port map
+      (
+         clk        => clk100,
+         
+         addr_a     => PALETTE_OAM_addr,
+         datain_a   => ram_din_single,
+         dataout_a  => open,
+         we_a       => PALETTE_OAM_we(i),
+         re_a       => '1',
+                  
+         addr_b     => PALETTE_OAM_Drawer_addr_hd1,
+         datain_b   => x"00",
+         dataout_b  => ram_dout_single2,
+         we_b       => '0',
+         re_b       => '1'
+      );
+      
+      ram_din_single <= PALETTE_OAM_datain(((i+1) * 8) - 1 downto (i * 8));
+      PALETTE_OAM_Drawer_data_hd1(((i+1) * 8) - 1 downto (i * 8)) <= ram_dout_single2; 
    end generate; 
    
    igba_drawer_mode0_0 : entity work.gba_drawer_mode0
@@ -857,8 +1138,8 @@ begin
       refY                 => ref2_y,
       refX_mosaic          => mosaic_ref2_x,
       refY_mosaic          => mosaic_ref2_y,
-      dx                   => signed(REG_BG2RotScaleParDX),
-      dy                   => signed(REG_BG2RotScaleParDY),  
+      dx                   => signed(REG_BG2RotScaleParDX(15 downto 0)),
+      dy                   => signed(REG_BG2RotScaleParDY(15 downto 0)),  
       pixel_we             => pixel_we_mode2_2,
       pixeldata            => pixeldata_mode2_2,
       pixel_x              => pixel_x_mode2_2,
@@ -868,6 +1149,76 @@ begin
       VRAM_Drawer_addr     => VRAM_Drawer_addr_mode2_2,
       VRAM_Drawer_data     => VRAM_Drawer_data_Lo,
       VRAM_Drawer_valid    => VRAM_Drawer_valid_Lo(2)
+   );
+   igba_drawer_mode2_2_hd0 : entity work.gba_drawer_mode2
+   generic map
+   (
+      DXYBITS      => 17,
+      ACCURACYBITS => 30,
+      PIXELCOUNT   => 480
+   )
+   port map
+   (
+      clk100               => clk100,
+      line_trigger         => line_trigger_1,
+      drawline             => drawline_mode2_2_hd0,
+      busy                 => busy_mode2_2_hd0,
+      mapbase              => unsigned(REG_BG2CNT_Screen_Base_Block),
+      tilebase             => unsigned(REG_BG2CNT_Character_Base_Block),
+      screensize           => unsigned(REG_BG2CNT_Screen_Size),
+      wrapping             => REG_BG2CNT_Display_Area_Overflow(REG_BG2CNT_Display_Area_Overflow'left),
+      mosaic               => REG_BG2CNT_Mosaic(REG_BG2CNT_Mosaic'left),
+      Mosaic_H_Size        => unsigned(REG_MOSAIC_BG_Mosaic_H_Size),
+      refX                 => ref2_x_hd0,
+      refY                 => ref2_y_hd0,
+      refX_mosaic          => mosaic_ref2_x,
+      refY_mosaic          => mosaic_ref2_y,
+      dx                   => dx2_hd0,
+      dy                   => dy2_hd0,  
+      pixel_we             => pixel_we_mode2_2_hd0,
+      pixeldata            => pixeldata_mode2_2_hd0,
+      pixel_x              => pixel_x_mode2_2_hd0,
+      PALETTE_Drawer_addr  => PALETTE_Drawer_addr_mode2_2_hd0,
+      PALETTE_Drawer_data  => PALETTE_BG_Drawer_data,
+      PALETTE_Drawer_valid => PALETTE_BG_Drawer_valid(2),
+      VRAM_Drawer_addr     => VRAM_Drawer_addr_mode2_2_hd0,
+      VRAM_Drawer_data     => VRAM_Drawer_data_Lo,
+      VRAM_Drawer_valid    => VRAM_Drawer_valid_Lo(2)
+   );
+   igba_drawer_mode2_2_hd1 : entity work.gba_drawer_mode2
+   generic map
+   (
+      DXYBITS      => 17,
+      ACCURACYBITS => 30,
+      PIXELCOUNT   => 480
+   )
+   port map
+   (
+      clk100               => clk100,
+      line_trigger         => line_trigger_1,
+      drawline             => drawline_mode2_2_hd1,
+      busy                 => busy_mode2_2_hd1,
+      mapbase              => unsigned(REG_BG2CNT_Screen_Base_Block),
+      tilebase             => unsigned(REG_BG2CNT_Character_Base_Block),
+      screensize           => unsigned(REG_BG2CNT_Screen_Size),
+      wrapping             => REG_BG2CNT_Display_Area_Overflow(REG_BG2CNT_Display_Area_Overflow'left),
+      mosaic               => REG_BG2CNT_Mosaic(REG_BG2CNT_Mosaic'left),
+      Mosaic_H_Size        => unsigned(REG_MOSAIC_BG_Mosaic_H_Size),
+      refX                 => ref2_x_hd1,
+      refY                 => ref2_y_hd1,
+      refX_mosaic          => mosaic_ref2_x,
+      refY_mosaic          => mosaic_ref2_y,
+      dx                   => dx2_hd1,
+      dy                   => dy2_hd1,  
+      pixel_we             => pixel_we_mode2_2_hd1,
+      pixeldata            => pixeldata_mode2_2_hd1,
+      pixel_x              => pixel_x_mode2_2_hd1,
+      PALETTE_Drawer_addr  => PALETTE_Drawer_addr_mode2_2_hd1,
+      PALETTE_Drawer_data  => PALETTE_BG_Drawer_data,
+      PALETTE_Drawer_valid => PALETTE_BG_Drawer_valid(3),
+      VRAM_Drawer_addr     => VRAM_Drawer_addr_mode2_2_hd1,
+      VRAM_Drawer_data     => VRAM_Drawer_data_Lo,
+      VRAM_Drawer_valid    => VRAM_Drawer_valid_Lo(3)
    );
    
    igba_drawer_mode2_3 : entity work.gba_drawer_mode2
@@ -898,6 +1249,76 @@ begin
       VRAM_Drawer_addr     => VRAM_Drawer_addr_mode2_3,
       VRAM_Drawer_data     => VRAM_Drawer_data_Lo,
       VRAM_Drawer_valid    => VRAM_Drawer_valid_Lo(3)
+   );
+   igba_drawer_mode2_3_hd0 : entity work.gba_drawer_mode2
+   generic map
+   (
+      DXYBITS      => 17,
+      ACCURACYBITS => 30,
+      PIXELCOUNT   => 480
+   )
+   port map
+   (
+      clk100               => clk100,
+      line_trigger         => line_trigger_1,
+      drawline             => drawline_mode2_3_hd0,
+      busy                 => busy_mode2_3_hd0,
+      mapbase              => unsigned(REG_BG3CNT_Screen_Base_Block),
+      tilebase             => unsigned(REG_BG3CNT_Character_Base_Block),
+      screensize           => unsigned(REG_BG3CNT_Screen_Size),
+      wrapping             => REG_BG3CNT_Display_Area_Overflow(REG_BG3CNT_Display_Area_Overflow'left),
+      mosaic               => REG_BG3CNT_Mosaic(REG_BG3CNT_Mosaic'left),
+      Mosaic_H_Size        => unsigned(REG_MOSAIC_BG_Mosaic_H_Size),
+      refX                 => ref3_x_hd0,
+      refY                 => ref3_y_hd0,
+      refX_mosaic          => mosaic_ref3_x,
+      refY_mosaic          => mosaic_ref3_y,
+      dx                   => dx3_hd0,
+      dy                   => dy3_hd0,  
+      pixel_we             => pixel_we_mode2_3_hd0,
+      pixeldata            => pixeldata_mode2_3_hd0,
+      pixel_x              => pixel_x_mode2_3_hd0,
+      PALETTE_Drawer_addr  => PALETTE_Drawer_addr_mode2_3_hd0,
+      PALETTE_Drawer_data  => PALETTE_BG_Drawer_data,
+      PALETTE_Drawer_valid => PALETTE_BG_Drawer_valid(0),
+      VRAM_Drawer_addr     => VRAM_Drawer_addr_mode2_3_hd0,
+      VRAM_Drawer_data     => VRAM_Drawer_data_Lo,
+      VRAM_Drawer_valid    => VRAM_Drawer_valid_Lo(0)
+   );
+   igba_drawer_mode2_3_hd1 : entity work.gba_drawer_mode2
+   generic map
+   (
+      DXYBITS      => 17,
+      ACCURACYBITS => 30,
+      PIXELCOUNT   => 480
+   )
+   port map
+   (
+      clk100               => clk100,
+      line_trigger         => line_trigger_1,
+      drawline             => drawline_mode2_3_hd1,
+      busy                 => busy_mode2_3_hd1,
+      mapbase              => unsigned(REG_BG3CNT_Screen_Base_Block),
+      tilebase             => unsigned(REG_BG3CNT_Character_Base_Block),
+      screensize           => unsigned(REG_BG3CNT_Screen_Size),
+      wrapping             => REG_BG3CNT_Display_Area_Overflow(REG_BG3CNT_Display_Area_Overflow'left),
+      mosaic               => REG_BG3CNT_Mosaic(REG_BG3CNT_Mosaic'left),
+      Mosaic_H_Size        => unsigned(REG_MOSAIC_BG_Mosaic_H_Size),
+      refX                 => ref3_x_hd1,
+      refY                 => ref3_y_hd1,
+      refX_mosaic          => mosaic_ref3_x,
+      refY_mosaic          => mosaic_ref3_y,
+      dx                   => dx3_hd1,
+      dy                   => dy3_hd1,  
+      pixel_we             => pixel_we_mode2_3_hd1,
+      pixeldata            => pixeldata_mode2_3_hd1,
+      pixel_x              => pixel_x_mode2_3_hd1,
+      PALETTE_Drawer_addr  => PALETTE_Drawer_addr_mode2_3_hd1,
+      PALETTE_Drawer_data  => PALETTE_BG_Drawer_data,
+      PALETTE_Drawer_valid => PALETTE_BG_Drawer_valid(1),
+      VRAM_Drawer_addr     => VRAM_Drawer_addr_mode2_3_hd1,
+      VRAM_Drawer_data     => VRAM_Drawer_data_Lo,
+      VRAM_Drawer_valid    => VRAM_Drawer_valid_Lo(1)
    );
    
    igba_drawer_mode345 : entity work.gba_drawer_mode345
@@ -968,25 +1389,116 @@ begin
       VRAM_Drawer_data     => VRAM_Drawer_data_Hi,
       VRAM_Drawer_valid    => VRAM_Drawer_valid_Hi(1)
    );
+   igba_drawer_obj_hd0 : entity work.gba_drawer_obj
+   generic map
+   (
+      RESMULT      => 2,
+      PIXELCOUNT   => 480
+   )
+   port map
+   (
+      clk100               => clk100,
+      
+      hblank               => hblank_trigger,
+      lockspeed            => lockspeed,
+      busy                 => busy_modeobj_hd0,
+      
+      drawline             => drawline_obj_hd0,
+      ypos                 => linecounter_int,
+      ypos_mosaic          => linecounter_mosaic_obj,
+      
+      BG_Mode              => BG_Mode,
+      one_dim_mapping      => REG_DISPCNT_OBJ_Char_VRAM_Map(REG_DISPCNT_OBJ_Char_VRAM_Map'left),
+      Mosaic_H_Size        => unsigned(REG_MOSAIC_OBJ_Mosaic_H_Size),
+      
+      hblankfree           => REG_DISPCNT_H_Blank_IntervalFree(REG_DISPCNT_H_Blank_IntervalFree'left),
+      maxpixels            => maxpixels,
+      
+      pixel_we_color       => pixel_we_modeobj_color_hd0,
+      pixeldata_color      => pixeldata_modeobj_color_hd0,
+      pixel_we_settings    => pixel_we_modeobj_settings_hd0,
+      pixeldata_settings   => pixeldata_modeobj_settings_hd0,
+      pixel_x              => pixel_x_modeobj_hd0,
+      pixel_objwnd         => pixel_objwnd_hd0,
+      
+      OAMRAM_Drawer_addr   => OAMRAM_Drawer_addr_hd0,
+      OAMRAM_Drawer_data   => OAMRAM_Drawer_data_hd0,
+      
+      PALETTE_Drawer_addr  => PALETTE_OAM_Drawer_addr_hd0,
+      PALETTE_Drawer_data  => PALETTE_OAM_Drawer_data_hd0,
+      
+      VRAM_Drawer_addr     => VRAM_Drawer_addrobj_hd0,
+      VRAM_Drawer_data     => VRAM_Drawer_data_Hi,
+      VRAM_Drawer_valid    => VRAM_Drawer_valid_Hi(1)
+   );
+   igba_drawer_obj_hd1 : entity work.gba_drawer_obj
+   generic map
+   (
+      RESMULT      => 2,
+      PIXELCOUNT   => 480,
+      YMULTOFFSET  => 1
+   )
+   port map
+   (
+      clk100               => clk100,
+      
+      hblank               => hblank_trigger,
+      lockspeed            => lockspeed,
+      busy                 => busy_modeobj_hd1,
+      
+      drawline             => drawline_obj_hd1,
+      ypos                 => linecounter_int,
+      ypos_mosaic          => linecounter_mosaic_obj,
+      
+      BG_Mode              => BG_Mode,
+      one_dim_mapping      => REG_DISPCNT_OBJ_Char_VRAM_Map(REG_DISPCNT_OBJ_Char_VRAM_Map'left),
+      Mosaic_H_Size        => unsigned(REG_MOSAIC_OBJ_Mosaic_H_Size),
+      
+      hblankfree           => REG_DISPCNT_H_Blank_IntervalFree(REG_DISPCNT_H_Blank_IntervalFree'left),
+      maxpixels            => maxpixels,
+      
+      pixel_we_color       => pixel_we_modeobj_color_hd1,
+      pixeldata_color      => pixeldata_modeobj_color_hd1,
+      pixel_we_settings    => pixel_we_modeobj_settings_hd1,
+      pixeldata_settings   => pixeldata_modeobj_settings_hd1,
+      pixel_x              => pixel_x_modeobj_hd1,
+      pixel_objwnd         => pixel_objwnd_hd1,
+      
+      OAMRAM_Drawer_addr   => OAMRAM_Drawer_addr_hd1,
+      OAMRAM_Drawer_data   => OAMRAM_Drawer_data_hd1,
+      
+      PALETTE_Drawer_addr  => PALETTE_OAM_Drawer_addr_hd1,
+      PALETTE_Drawer_data  => PALETTE_OAM_Drawer_data_hd1,
+      
+      VRAM_Drawer_addr     => VRAM_Drawer_addrobj_hd1,
+      VRAM_Drawer_data     => VRAM_Drawer_data_Hi,
+      VRAM_Drawer_valid    => VRAM_Drawer_valid_Hi(0)
+   );
    
-   drawline_mode0_0 <= on_delay_bg0(2) and start_draw when BG_Mode = "000" or BG_Mode = "001" else '0';
-   drawline_mode0_1 <= on_delay_bg1(2) and start_draw when BG_Mode = "000" or BG_Mode = "001" else '0';
-   drawline_mode0_2 <= on_delay_bg2(2) and start_draw when BG_Mode = "000" else '0';
-   drawline_mode0_3 <= on_delay_bg3(2) and start_draw when BG_Mode = "000" else '0';
-   drawline_mode2_2 <= on_delay_bg2(2) and start_draw when BG_Mode = "001" or BG_Mode = "010" else '0';
-   drawline_mode2_3 <= on_delay_bg3(2) and start_draw when BG_Mode = "010" else '0';
-   drawline_mode345 <= on_delay_bg2(2) and start_draw when BG_Mode = "011" or BG_Mode = "100" or BG_Mode = "101" else '0';
-   drawline_obj     <= Screen_Display_OBJ(Screen_Display_OBJ'left) and start_draw;
+   drawline_mode0_0     <= on_delay_bg0(2) and start_draw when BG_Mode = "000" or BG_Mode = "001" else '0';
+   drawline_mode0_1     <= on_delay_bg1(2) and start_draw when BG_Mode = "000" or BG_Mode = "001" else '0';
+   drawline_mode0_2     <= on_delay_bg2(2) and start_draw when BG_Mode = "000" else '0';
+   drawline_mode0_3     <= on_delay_bg3(2) and start_draw when BG_Mode = "000" else '0';
+   drawline_mode2_2     <= on_delay_bg2(2) and start_draw when (hdmode2x_bg = '0' and (BG_Mode = "001" or BG_Mode = "010")) else '0';
+   drawline_mode2_2_hd0 <= on_delay_bg2(2) and start_draw when (hdmode2x_bg = '1' and (BG_Mode = "001" or BG_Mode = "010")) else '0';
+   drawline_mode2_2_hd1 <= on_delay_bg2(2) and start_draw when (hdmode2x_bg = '1' and (BG_Mode = "001" or BG_Mode = "010")) else '0';
+   drawline_mode2_3     <= on_delay_bg3(2) and start_draw when (hdmode2x_bg = '0' and BG_Mode = "010") else '0';
+   drawline_mode2_3_hd0 <= on_delay_bg3(2) and start_draw when (hdmode2x_bg = '1' and BG_Mode = "010") else '0';
+   drawline_mode2_3_hd1 <= on_delay_bg3(2) and start_draw when (hdmode2x_bg = '1' and BG_Mode = "010") else '0';
+   drawline_mode345     <= on_delay_bg2(2) and start_draw when BG_Mode = "011" or BG_Mode = "100" or BG_Mode = "101" else '0';
+   drawline_obj         <= Screen_Display_OBJ(Screen_Display_OBJ'left) and start_draw when hdmode2x_obj = '0' else '0';
+   drawline_obj_hd0     <= Screen_Display_OBJ(Screen_Display_OBJ'left) and start_draw when hdmode2x_obj = '1' else '0';
+   drawline_obj_hd1     <= Screen_Display_OBJ(Screen_Display_OBJ'left) and start_draw when hdmode2x_obj = '1' and unsigned(BG_Mode) < 3 else '0';
 
-   PALETTE_BG_Drawer_addr0 <= PALETTE_Drawer_addr_mode0_0;
-   PALETTE_BG_Drawer_addr1 <= PALETTE_Drawer_addr_mode0_1;
-   PALETTE_BG_Drawer_addr2 <= PALETTE_Drawer_addr_mode0_2 when BG_Mode = "000" else PALETTE_Drawer_addr_mode2_2 when BG_Mode = "001" or BG_Mode = "010" else PALETTE_Drawer_addr_mode345;
-   PALETTE_BG_Drawer_addr3 <= PALETTE_Drawer_addr_mode0_3 when BG_Mode = "000" else PALETTE_Drawer_addr_mode2_3;
+   PALETTE_BG_Drawer_addr0 <= PALETTE_Drawer_addr_mode2_3_hd0 when (hdmode2x_bg = '1' and BG_Mode = "010") else PALETTE_Drawer_addr_mode0_0;
+   PALETTE_BG_Drawer_addr1 <= PALETTE_Drawer_addr_mode2_3_hd1 when (hdmode2x_bg = '1' and BG_Mode = "010") else PALETTE_Drawer_addr_mode0_1;
+   PALETTE_BG_Drawer_addr2 <= PALETTE_Drawer_addr_mode0_2 when BG_Mode = "000" else PALETTE_Drawer_addr_mode2_2 when ((BG_Mode = "001" or BG_Mode = "010") and hdmode2x_bg = '0') else PALETTE_Drawer_addr_mode2_2_hd0 when BG_Mode = "001" or BG_Mode = "010" else PALETTE_Drawer_addr_mode345;
+   PALETTE_BG_Drawer_addr3 <= PALETTE_Drawer_addr_mode0_3 when BG_Mode = "000" else PALETTE_Drawer_addr_mode2_2_hd1 when hdmode2x_bg = '1' else PALETTE_Drawer_addr_mode2_3;
 
-   VRAM_Drawer_addr0 <= VRAM_Drawer_addr_mode0_0;
-   VRAM_Drawer_addr1 <= VRAM_Drawer_addr_mode0_1;
-   VRAM_Drawer_addr2 <= VRAM_Drawer_addr_mode0_2 when BG_Mode = "000" else VRAM_Drawer_addr_mode2_2 when BG_Mode = "001" or BG_Mode = "010" else VRAM_Drawer_addr_345_Lo;
-   VRAM_Drawer_addr3 <= VRAM_Drawer_addr_mode0_3 when BG_Mode = "000" else VRAM_Drawer_addr_mode2_3;
+   VRAM_Drawer_addr0 <= VRAM_Drawer_addr_mode2_3_hd0 when (hdmode2x_bg = '1' and BG_Mode = "010") else VRAM_Drawer_addr_mode0_0;
+   VRAM_Drawer_addr1 <= VRAM_Drawer_addr_mode2_3_hd1 when (hdmode2x_bg = '1' and BG_Mode = "010") else VRAM_Drawer_addr_mode0_1;
+   VRAM_Drawer_addr2 <= VRAM_Drawer_addr_mode0_2 when BG_Mode = "000" else VRAM_Drawer_addr_mode2_2 when ((BG_Mode = "001" or BG_Mode = "010") and hdmode2x_bg = '0') else VRAM_Drawer_addr_mode2_2_hd0 when BG_Mode = "001" or BG_Mode = "010" else VRAM_Drawer_addr_345_Lo;
+   VRAM_Drawer_addr3 <= VRAM_Drawer_addr_mode0_3 when BG_Mode = "000" else VRAM_Drawer_addr_mode2_2_hd1 when hdmode2x_bg = '1' else VRAM_Drawer_addr_mode2_3;
    
    draw_allmod(0) <= drawline_mode0_0;
    draw_allmod(1) <= drawline_mode0_1;
@@ -1001,10 +1513,10 @@ begin
    busy_allmod(1) <= busy_mode0_1;
    busy_allmod(2) <= busy_mode0_2;
    busy_allmod(3) <= busy_mode0_3;
-   busy_allmod(4) <= busy_mode2_2;
-   busy_allmod(5) <= busy_mode2_3;
+   busy_allmod(4) <= busy_mode2_2 or busy_mode2_2_hd0 or busy_mode2_2_hd1;
+   busy_allmod(5) <= busy_mode2_3 or busy_mode2_3_hd0 or busy_mode2_3_hd1;
    busy_allmod(6) <= busy_mode345;
-   busy_allmod(7) <= busy_modeobj;
+   busy_allmod(7) <= busy_modeobj or busy_modeobj_hd0 or busy_modeobj_hd1;
    
    -- memory mapping
    process (clk100)
@@ -1045,8 +1557,21 @@ begin
          
          VRAM_Drawer_cnt_Hi <= not VRAM_Drawer_cnt_Hi;
          case (VRAM_Drawer_cnt_Hi) is
-            when '0' => VRAM_Drawer_addr_Hi <= VRAM_Drawer_addr_345_Hi; VRAM_Drawer_valid_Hi <= "10";
-            when '1' => VRAM_Drawer_addr_Hi <= VRAM_Drawer_addrobj;     VRAM_Drawer_valid_Hi <= "01";
+            when '0' => 
+               VRAM_Drawer_valid_Hi <= "10";
+               if (hdmode2x_obj = '1' and unsigned(BG_Mode) < 3) then
+                  VRAM_Drawer_addr_Hi <= VRAM_Drawer_addrobj_hd1;     
+               else
+                  VRAM_Drawer_addr_Hi <= VRAM_Drawer_addr_345_Hi;     
+               end if;
+               
+            when '1' =>
+               VRAM_Drawer_valid_Hi <= "01";
+               if (hdmode2x_obj = '1') then
+                  VRAM_Drawer_addr_Hi <= VRAM_Drawer_addrobj_hd0;     
+               else
+                  VRAM_Drawer_addr_Hi <= VRAM_Drawer_addrobj;     
+               end if;
             when others => null;
          end case;
          
@@ -1058,56 +1583,97 @@ begin
          end if;
          
          if (clear_enable = '1') then
-            if (clear_addr < 239) then
+            if (((hdmode2x_bg = '1' or hdmode2x_obj = '1') and clear_addr < 479) or (hdmode2x_bg = '0' and hdmode2x_obj = '0' and clear_addr < 239)) then
                clear_addr <= clear_addr + 1;
             else
                clear_enable     <= '0';
             end if;
             
-            pixel_we_bg0          <= '1';
-            pixel_we_bg1          <= '1';
-            pixel_we_bg2          <= '1';
-            pixel_we_bg3          <= '1';
-            pixel_we_obj_color    <= '1';
-            pixel_we_obj_settings <= '1';
+            pixel_we_bg0               <= '1';
+            pixel_we_bg1               <= '1';
+            pixel_we_bg2               <= '1';
+            pixel_we_bg2_hd0           <= '1';
+            pixel_we_bg2_hd1           <= '1';
+            pixel_we_bg3               <= '1';
+            pixel_we_bg3_hd0           <= '1';
+            pixel_we_bg3_hd1           <= '1';
+            pixel_we_obj_color         <= '1';
+            pixel_we_obj_color_hd0     <= '1';
+            pixel_we_obj_color_hd1     <= '1';
+            pixel_we_obj_settings      <= '1';
+            pixel_we_obj_settings_hd0  <= '1';
+            pixel_we_obj_settings_hd1  <= '1';
+                                       
+            pixeldata_bg0              <= x"8000";
+            pixeldata_bg1              <= x"8000";
+            pixeldata_bg2              <= x"8000";
+            pixeldata_bg2_hd0          <= x"8000";
+            pixeldata_bg2_hd1          <= x"8000";
+            pixeldata_bg3              <= x"8000";
+            pixeldata_bg3_hd0          <= x"8000";
+            pixeldata_bg3_hd1          <= x"8000";
+            pixeldata_obj_color        <= x"8000";
+            pixeldata_obj_color_hd0    <= x"8000";
+            pixeldata_obj_color_hd1    <= x"8000";
+            pixeldata_obj_settings     <= "000";
+            pixeldata_obj_settings_hd0 <= "000";
+            pixeldata_obj_settings_hd1 <= "000";
             
-            pixeldata_bg0          <= x"8000";
-            pixeldata_bg1          <= x"8000";
-            pixeldata_bg2          <= x"8000";
-            pixeldata_bg3          <= x"8000";
-            pixeldata_obj_color    <= x"8000";
-            pixeldata_obj_settings <= "000";
-         
-            pixel_x_bg0 <= clear_addr;
-            pixel_x_bg1 <= clear_addr;
-            pixel_x_bg2 <= clear_addr;
-            pixel_x_bg3 <= clear_addr;
-            pixel_x_obj <= clear_addr;
+            if (clear_addr <= 239) then
+               pixel_x_bg0 <= clear_addr;
+               pixel_x_bg1 <= clear_addr;
+               pixel_x_bg2 <= clear_addr;
+               pixel_x_bg3 <= clear_addr;
+               pixel_x_obj <= clear_addr;
+            end if;
+            
+            pixel_x_bg2_hd0 <= clear_addr;
+            pixel_x_bg2_hd1 <= clear_addr;
+            pixel_x_bg3_hd0 <= clear_addr;
+            pixel_x_bg3_hd1 <= clear_addr;
+            pixel_x_obj_hd0 <= clear_addr;
+            pixel_x_obj_hd1 <= clear_addr;
          
          else         
          
-            pixel_we_bg0          <= pixel_we_mode0_0;
-            pixel_we_bg1          <= pixel_we_mode0_1;
-            pixel_we_obj_color    <= pixel_we_modeobj_color;
-            pixel_we_obj_settings <= pixel_we_modeobj_settings;
+            pixel_we_bg0              <= pixel_we_mode0_0;
+            pixel_we_bg1              <= pixel_we_mode0_1;
+            pixel_we_obj_color        <= pixel_we_modeobj_color;
+            pixel_we_obj_color_hd0    <= pixel_we_modeobj_color_hd0;
+            pixel_we_obj_color_hd1    <= pixel_we_modeobj_color_hd1;
+            pixel_we_obj_settings     <= pixel_we_modeobj_settings;
+            pixel_we_obj_settings_hd0 <= pixel_we_modeobj_settings_hd0;
+            pixel_we_obj_settings_hd1 <= pixel_we_modeobj_settings_hd1;
             
-            pixeldata_bg0          <= pixeldata_mode0_0;
-            pixeldata_bg1          <= pixeldata_mode0_1;
-            pixeldata_obj_color    <= pixeldata_modeobj_color;
-            pixeldata_obj_settings <= pixeldata_modeobj_settings;
+            pixeldata_bg0              <= pixeldata_mode0_0;
+            pixeldata_bg1              <= pixeldata_mode0_1;
+            pixeldata_obj_color        <= pixeldata_modeobj_color;
+            pixeldata_obj_color_hd0    <= pixeldata_modeobj_color_hd0;
+            pixeldata_obj_color_hd1    <= pixeldata_modeobj_color_hd1;
+            pixeldata_obj_settings     <= pixeldata_modeobj_settings;
+            pixeldata_obj_settings_hd0 <= pixeldata_modeobj_settings_hd0;
+            pixeldata_obj_settings_hd1 <= pixeldata_modeobj_settings_hd1;
             
-            pixel_x_bg0 <= pixel_x_mode0_0;
-            pixel_x_bg1 <= pixel_x_mode0_1;
-            pixel_x_obj <= pixel_x_modeobj;
+            pixel_x_bg0     <= pixel_x_mode0_0;
+            pixel_x_bg1     <= pixel_x_mode0_1;
+            pixel_x_obj     <= pixel_x_modeobj;
+            pixel_x_obj_hd0 <= pixel_x_modeobj_hd0;
+            pixel_x_obj_hd1 <= pixel_x_modeobj_hd1;
          
             if (BG_Mode = "000") then
                pixel_we_bg2  <= pixel_we_mode0_2;
                pixeldata_bg2 <= pixeldata_mode0_2;
                pixel_x_bg2   <= pixel_x_mode0_2;
             elsif (BG_Mode = "001" or BG_Mode = "010") then
-               pixel_we_bg2  <= pixel_we_mode2_2;
-               pixeldata_bg2 <= pixeldata_mode2_2;
-               pixel_x_bg2   <= pixel_x_mode2_2;
+               pixel_we_bg2      <= pixel_we_mode2_2;
+               pixel_we_bg2_hd0  <= pixel_we_mode2_2_hd0;
+               pixel_we_bg2_hd1  <= pixel_we_mode2_2_hd1;
+               pixeldata_bg2     <= pixeldata_mode2_2;
+               pixeldata_bg2_hd0 <= pixeldata_mode2_2_hd0;
+               pixeldata_bg2_hd1 <= pixeldata_mode2_2_hd1;
+               pixel_x_bg2       <= pixel_x_mode2_2;
+               pixel_x_bg2_hd0   <= pixel_x_mode2_2_hd0;
+               pixel_x_bg2_hd1   <= pixel_x_mode2_2_hd1;
             else
                pixel_we_bg2  <= pixel_we_mode345;
                pixeldata_bg2 <= pixeldata_mode345;
@@ -1119,9 +1685,15 @@ begin
                pixeldata_bg3 <= pixeldata_mode0_3;
                pixel_x_bg3   <= pixel_x_mode0_3;
             else 
-               pixel_we_bg3   <= pixel_we_mode2_3;
-               pixeldata_bg3 <= pixeldata_mode2_3;
-               pixel_x_bg3   <= pixel_x_mode2_3;
+               pixel_we_bg3      <= pixel_we_mode2_3;
+               pixel_we_bg3_hd0  <= pixel_we_mode2_3_hd0;
+               pixel_we_bg3_hd1  <= pixel_we_mode2_3_hd1;
+               pixeldata_bg3     <= pixeldata_mode2_3;
+               pixeldata_bg3_hd0 <= pixeldata_mode2_3_hd0;
+               pixeldata_bg3_hd1 <= pixeldata_mode2_3_hd1;
+               pixel_x_bg3       <= pixel_x_mode2_3;
+               pixel_x_bg3_hd0   <= pixel_x_mode2_3_hd0;
+               pixel_x_bg3_hd1   <= pixel_x_mode2_3_hd1;
             end if;
             
          end if;
@@ -1196,6 +1768,50 @@ begin
       we_b       => '0',
       re_b       => '1'
    );
+   ilinebuffer_bg2_hd0: entity MEM.SyncRamDual
+   generic map
+   (
+      DATA_WIDTH => 16,
+      ADDR_WIDTH => 9
+   )
+   port map
+   (
+      clk        => clk100,
+      
+      addr_a     => pixel_x_bg2_hd0,
+      datain_a   => pixeldata_bg2_hd0,
+      dataout_a  => open,
+      we_a       => pixel_we_bg2_hd0,
+      re_a       => '0',
+               
+      addr_b     => linebuffer_addr_hd,
+      datain_b   => x"0000",
+      dataout_b  => linebuffer_bg2_data_hd0,
+      we_b       => '0',
+      re_b       => '1'
+   );
+   ilinebuffer_bg2_hd1: entity MEM.SyncRamDual
+   generic map
+   (
+      DATA_WIDTH => 16,
+      ADDR_WIDTH => 9
+   )
+   port map
+   (
+      clk        => clk100,
+      
+      addr_a     => pixel_x_bg2_hd1,
+      datain_a   => pixeldata_bg2_hd1,
+      dataout_a  => open,
+      we_a       => pixel_we_bg2_hd1,
+      re_a       => '0',
+               
+      addr_b     => linebuffer_addr_hd,
+      datain_b   => x"0000",
+      dataout_b  => linebuffer_bg2_data_hd1,
+      we_b       => '0',
+      re_b       => '1'
+   );
    ilinebuffer_bg3: entity MEM.SyncRamDual
    generic map
    (
@@ -1215,6 +1831,50 @@ begin
       addr_b     => linebuffer_addr,
       datain_b   => x"0000",
       dataout_b  => linebuffer_bg3_data,
+      we_b       => '0',
+      re_b       => '1'
+   );
+   ilinebuffer_bg3_hd0: entity MEM.SyncRamDual
+   generic map
+   (
+      DATA_WIDTH => 16,
+      ADDR_WIDTH => 9
+   )
+   port map
+   (
+      clk        => clk100,
+      
+      addr_a     => pixel_x_bg3_hd0,
+      datain_a   => pixeldata_bg3_hd0,
+      dataout_a  => open,
+      we_a       => pixel_we_bg3_hd0,
+      re_a       => '0',
+               
+      addr_b     => linebuffer_addr_hd,
+      datain_b   => x"0000",
+      dataout_b  => linebuffer_bg3_data_hd0,
+      we_b       => '0',
+      re_b       => '1'
+   );
+   ilinebuffer_bg3_hd1: entity MEM.SyncRamDual
+   generic map
+   (
+      DATA_WIDTH => 16,
+      ADDR_WIDTH => 9
+   )
+   port map
+   (
+      clk        => clk100,
+      
+      addr_a     => pixel_x_bg3_hd1,
+      datain_a   => pixeldata_bg3_hd1,
+      dataout_a  => open,
+      we_a       => pixel_we_bg3_hd1,
+      re_a       => '0',
+               
+      addr_b     => linebuffer_addr_hd,
+      datain_b   => x"0000",
+      dataout_b  => linebuffer_bg3_data_hd1,
       we_b       => '0',
       re_b       => '1'
    );
@@ -1240,6 +1900,51 @@ begin
       we_b       => '0',
       re_b       => '1'
    );
+   ilinebuffer_obj_color_hd0: entity MEM.SyncRamDual
+   generic map
+   (
+      DATA_WIDTH => 16,
+      ADDR_WIDTH => 9
+   )
+   port map
+   (
+      clk        => clk100,
+      
+      addr_a     => pixel_x_obj_hd0,
+      datain_a   => pixeldata_obj_color_hd0,
+      dataout_a  => open,
+      we_a       => pixel_we_obj_color_hd0,
+      re_a       => '0',
+               
+      addr_b     => linebuffer_addr_hd,
+      datain_b   => (15 downto 0 => '0'),
+      dataout_b  => linebuffer_obj_color_hd0,
+      we_b       => '0',
+      re_b       => '1'
+   );
+   ilinebuffer_obj_color_hd1: entity MEM.SyncRamDual
+   generic map
+   (
+      DATA_WIDTH => 16,
+      ADDR_WIDTH => 9
+   )
+   port map
+   (
+      clk        => clk100,
+      
+      addr_a     => pixel_x_obj_hd1,
+      datain_a   => pixeldata_obj_color_hd1,
+      dataout_a  => open,
+      we_a       => pixel_we_obj_color_hd1,
+      re_a       => '0',
+               
+      addr_b     => linebuffer_addr_hd,
+      datain_b   => (15 downto 0 => '0'),
+      dataout_b  => linebuffer_obj_color_hd1,
+      we_b       => '0',
+      re_b       => '1'
+   );
+   
    ilinebuffer_obj_settings: entity MEM.SyncRamDual
    generic map
    (
@@ -1262,17 +1967,63 @@ begin
       we_b       => '0',
       re_b       => '1'
    );
+   ilinebuffer_obj_settings_hd0: entity MEM.SyncRamDual
+   generic map
+   (
+      DATA_WIDTH => 3,
+      ADDR_WIDTH => 9
+   )
+   port map
+   (
+      clk        => clk100,
+      
+      addr_a     => pixel_x_obj_hd0,
+      datain_a   => pixeldata_obj_settings_hd0,
+      dataout_a  => open,
+      we_a       => pixel_we_obj_settings_hd0,
+      re_a       => '0',
+               
+      addr_b     => linebuffer_addr_hd,
+      datain_b   => (2 downto 0 => '0'),
+      dataout_b  => linebuffer_obj_setting_hd0,
+      we_b       => '0',
+      re_b       => '1'
+   );
+   ilinebuffer_obj_settings_hd1: entity MEM.SyncRamDual
+   generic map
+   (
+      DATA_WIDTH => 3,
+      ADDR_WIDTH => 9
+   )
+   port map
+   (
+      clk        => clk100,
+      
+      addr_a     => pixel_x_obj_hd1,
+      datain_a   => pixeldata_obj_settings_hd1,
+      dataout_a  => open,
+      we_a       => pixel_we_obj_settings_hd1,
+      re_a       => '0',
+               
+      addr_b     => linebuffer_addr_hd,
+      datain_b   => (2 downto 0 => '0'),
+      dataout_b  => linebuffer_obj_setting_hd1,
+      we_b       => '0',
+      re_b       => '1'
+   );
    
-   linebuffer_obj_data <= linebuffer_obj_setting & linebuffer_obj_color;
+   linebuffer_obj_data     <= linebuffer_obj_setting     & linebuffer_obj_color;
+   linebuffer_obj_data_hd0 <= linebuffer_obj_setting_hd0 & linebuffer_obj_color_hd0;
+   linebuffer_obj_data_hd1 <= linebuffer_obj_setting_hd1 & linebuffer_obj_color_hd1;
    
    -- line buffer readout
    process (clk100)
    begin
       if rising_edge(clk100) then
       
-         if (pixel_objwnd = '1') then
-            linebuffer_objwindow(pixel_x_obj) <= '1';
-         end if;
+         if (pixel_objwnd     = '1') then linebuffer_objwindow(pixel_x_obj) <= '1'; end if;
+         if (pixel_objwnd_hd0 = '1') then linebuffer_objwindow_hd0(pixel_x_obj_hd0) <= '1'; end if;
+         if (pixel_objwnd_hd1 = '1') then linebuffer_objwindow_hd1(pixel_x_obj_hd1) <= '1'; end if;
          
          -- synthesis translate_off
          if (to_integer(linecounter) < 160) then
@@ -1312,6 +2063,8 @@ begin
          end if;
          
          clear_trigger <= '0';
+         
+         pixelmult <= not pixelmult;
 
          case (drawstate) is
             when IDLE =>
@@ -1321,7 +2074,9 @@ begin
                      start_draw      <= '1';
                      linecounter_int <= to_integer(linecounter);
                      lineUpToDate(to_integer(linecounter)) <= '1';
-                     linebuffer_objwindow <= (others => '0');
+                     linebuffer_objwindow     <= (others => '0');
+                     linebuffer_objwindow_hd0 <= (others => '0');
+                     linebuffer_objwindow_hd1 <= (others => '0');
                   end if;
                end if;
                
@@ -1332,18 +2087,30 @@ begin
 
             when DRAWING =>
                if (busy_allmod = x"00") then
-                  drawstate        <= MERGING;
-                  linebuffer_addr  <= 0;
-                  merge_enable     <= '1';
-                  clear_trigger    <= '1';
+                  drawstate          <= MERGING;
+                  linebuffer_addr    <= 0;
+                  linebuffer_addr_hd <= 0;
+                  pixelmult          <= '0';
+                  merge_enable       <= '1';
+                  if (hdmode2x_bg = '0' and hdmode2x_obj = '0') then
+                     clear_trigger    <= '1';
+                  end if;
                end if;
             
             when MERGING =>
-               if (linebuffer_addr < 239) then
-                  linebuffer_addr <= linebuffer_addr + 1;
-               else
-                  merge_enable    <= '0';
-                  drawstate       <= IDLE;
+               if (linebuffer_addr_hd < 479) then
+                  linebuffer_addr_hd <= linebuffer_addr_hd + 1;
+               end if;
+               if (pixelmult = '1' or (hdmode2x_bg = '0' and hdmode2x_obj = '0')) then
+                  if (linebuffer_addr < 239) then
+                     linebuffer_addr <= linebuffer_addr + 1;
+                     if ((hdmode2x_bg = '1' or hdmode2x_obj = '1') and linebuffer_addr = 120) then 
+                        clear_trigger    <= '1';
+                     end if;
+                  else
+                     merge_enable    <= '0';
+                     drawstate       <= IDLE;
+                  end if;
                end if;
             
          end case; 
@@ -1351,13 +2118,18 @@ begin
          linebuffer_addr_1 <= linebuffer_addr;
          merge_enable_1 <= merge_enable;
          
-         objwindow_merge_in <= linebuffer_objwindow(linebuffer_addr);
+         objwindow_merge     <= linebuffer_objwindow(linebuffer_addr);
+         objwindow_merge_hd0 <= linebuffer_objwindow_hd0(linebuffer_addr_hd);
+         objwindow_merge_hd1 <= linebuffer_objwindow_hd1(linebuffer_addr_hd);
                
+         --merger 1   
          -- cycle 1
          pixel_out_x_1         <= merge_pixel_x;
          pixel_out_y_1         <= merge_pixel_y;
          pixelout_addr_1       <= merge_pixel_x + merge_pixel_y * 240;
-         merge_pixel_we_1      <= merge_pixel_we;
+         if (frameselect = '0' or interframe_blend /= "10") then
+            merge_pixel_we_1   <= merge_pixel_we;
+         end if;
          if (Forced_Blank = "1") then
             merge_pixeldata_out_1 <= x"7FFF";
          else
@@ -1383,12 +2155,30 @@ begin
          pixel_out_we   <= merge_pixel_we_2;
          if (Forced_Blank = "1") then
             pixel_out_data <= "111" & x"FFF";
-         elsif (interframe_blend = '1') then
+         elsif (interframe_blend = "01") then
             pixel_out_data(14 downto 10) <= std_logic_vector(to_unsigned((to_integer(unsigned(merge_pixeldata_out_2(14 downto 10))) + to_integer(unsigned(pixel_smooth(14 downto 10)))) / 2, 5));
             pixel_out_data( 9 downto  5) <= std_logic_vector(to_unsigned((to_integer(unsigned(merge_pixeldata_out_2(9 downto 5)))   + to_integer(unsigned(pixel_smooth(9 downto 5))))   / 2, 5));
             pixel_out_data( 4 downto  0) <= std_logic_vector(to_unsigned((to_integer(unsigned(merge_pixeldata_out_2(4 downto 0)))   + to_integer(unsigned(pixel_smooth(4 downto 0))))   / 2, 5));
          else
             pixel_out_data <= merge_pixeldata_out_2(14 downto 0);
+         end if;
+         
+         --merger 2   
+         if (pixelmult = '0') then
+            pixel_out_2x       <= pixel_out_x_2 * 2;
+            pixel2_out_x       <= merge2_pixel_x * 2;
+         else
+            pixel_out_2x       <= pixel_out_x_2 * 2 + 1;
+            pixel2_out_x       <= merge2_pixel_x * 2 + 1;
+         end if;
+            
+         if (frameselect = '0' or interframe_blend /= "10") then
+            pixel2_out_we      <= merge2_pixel_we;
+         end if;
+         if (Forced_Blank = "1") then
+            pixel2_out_data <= "111" & x"FFF";
+         else
+            pixel2_out_data <= merge2_pixeldata_out(4 downto 0) & merge2_pixeldata_out(9 downto 5) & merge2_pixeldata_out(14 downto 10);
          end if;
       
       end if;
@@ -1398,6 +2188,12 @@ begin
    enables_wnd1   <= REG_WININ_Window_1_Special_Effect & REG_WININ_Window_1_OBJ_Enable & REG_WININ_Window_1_BG3_Enable & REG_WININ_Window_1_BG2_Enable & REG_WININ_Window_1_BG1_Enable & REG_WININ_Window_1_BG0_Enable;
    enables_wndobj <= REG_WINOUT_Objwnd_Special_Effect & REG_WINOUT_Objwnd_OBJ_Enable & REG_WINOUT_Objwnd_BG3_Enable & REG_WINOUT_Objwnd_BG2_Enable & REG_WINOUT_Objwnd_BG1_Enable & REG_WINOUT_Objwnd_BG0_Enable;
    enables_wndout <= REG_WINOUT_Outside_Special_Effect & REG_WINOUT_Outside_OBJ_Enable & REG_WINOUT_Outside_BG3_Enable & REG_WINOUT_Outside_BG2_Enable & REG_WINOUT_Outside_BG1_Enable & REG_WINOUT_Outside_BG0_Enable;
+   
+   merge_in_bg2 <= linebuffer_bg2_data when (hdmode2x_bg = '0' or BG_Mode = "000" or unsigned(BG_Mode) > 2) else linebuffer_bg2_data_hd0;
+   merge_in_bg3 <= linebuffer_bg3_data when (hdmode2x_bg = '0' or BG_Mode /= "010") else linebuffer_bg3_data_hd0;
+   merge_in_obj <= linebuffer_obj_data when hdmode2x_obj = '0' else linebuffer_obj_data_hd0;
+   
+   objwindow_merge_in <= objwindow_merge when hdmode2x_obj = '0' else objwindow_merge_hd0;
    
    igba_drawer_merge : entity work.gba_drawer_merge
    port map
@@ -1458,9 +2254,9 @@ begin
                            
       pixeldata_bg0        => linebuffer_bg0_data,
       pixeldata_bg1        => linebuffer_bg1_data,
-      pixeldata_bg2        => linebuffer_bg2_data,
-      pixeldata_bg3        => linebuffer_bg3_data,
-      pixeldata_obj        => linebuffer_obj_data,
+      pixeldata_bg2        => merge_in_bg2,
+      pixeldata_bg3        => merge_in_bg3,
+      pixeldata_obj        => merge_in_obj,
       pixeldata_back       => pixeldata_back,
       objwindow_in         => objwindow_merge_in,
                            
@@ -1470,16 +2266,193 @@ begin
       pixel_we             => merge_pixel_we     
    );
    
+   merge2_in_bg2 <= linebuffer_bg2_data when (hdmode2x_bg = '0' or BG_Mode = "000" or unsigned(BG_Mode) > 2) else linebuffer_bg2_data_hd1;
+   merge2_in_bg3 <= linebuffer_bg3_data when (hdmode2x_bg = '0' or BG_Mode /= "010") else linebuffer_bg3_data_hd1;
+   merge2_in_obj <= linebuffer_obj_data when hdmode2x_obj = '0' else linebuffer_obj_data_hd1 when unsigned(BG_Mode) < 3 else linebuffer_obj_data_hd0;
+   
+   objwindow_merge2_in <= objwindow_merge when hdmode2x_obj = '0' else objwindow_merge_hd1 when unsigned(BG_Mode) < 3 else objwindow_merge_hd0;
+   
+   igba_drawer_merge2 : entity work.gba_drawer_merge
+   port map
+   (
+      clk100               => clk100,                
+                           
+      enable               => merge_enable_1,                     
+      hblank               => hblank_trigger_1,   -- delayed 1 cycle because background is switched off at hblank                  
+      xpos                 => linebuffer_addr_1,
+      ypos                 => linecounter_int,
+      
+      in_WND0_on           => REG_DISPCNT_Window_0_Display_Flag(REG_DISPCNT_Window_0_Display_Flag'left),
+      in_WND1_on           => REG_DISPCNT_Window_1_Display_Flag(REG_DISPCNT_Window_1_Display_Flag'left),
+      in_WNDOBJ_on         => REG_DISPCNT_OBJ_Wnd_Display_Flag(REG_DISPCNT_OBJ_Wnd_Display_Flag'left),
+                        
+      in_WND0_X1           => unsigned(REG_WIN0H_X1),
+      in_WND0_X2           => unsigned(REG_WIN0H_X2),
+      in_WND0_Y1           => unsigned(REG_WIN0V_Y1),
+      in_WND0_Y2           => unsigned(REG_WIN0V_Y2),
+      in_WND1_X1           => unsigned(REG_WIN1H_X1),
+      in_WND1_X2           => unsigned(REG_WIN1H_X2),
+      in_WND1_Y1           => unsigned(REG_WIN1V_Y1),
+      in_WND1_Y2           => unsigned(REG_WIN1V_Y2),
+                 
+      in_enables_wnd0      => enables_wnd0,  
+      in_enables_wnd1      => enables_wnd1,  
+      in_enables_wndobj    => enables_wndobj,
+      in_enables_wndout    => enables_wndout,
+                  
+      in_special_effect_in => unsigned(REG_BLDCNT_Color_Special_Effect),
+      in_effect_1st_bg0    => REG_BLDCNT_BG0_1st_Target_Pixel(REG_BLDCNT_BG0_1st_Target_Pixel'left),
+      in_effect_1st_bg1    => REG_BLDCNT_BG1_1st_Target_Pixel(REG_BLDCNT_BG1_1st_Target_Pixel'left),
+      in_effect_1st_bg2    => REG_BLDCNT_BG2_1st_Target_Pixel(REG_BLDCNT_BG2_1st_Target_Pixel'left),
+      in_effect_1st_bg3    => REG_BLDCNT_BG3_1st_Target_Pixel(REG_BLDCNT_BG3_1st_Target_Pixel'left),
+      in_effect_1st_obj    => REG_BLDCNT_OBJ_1st_Target_Pixel(REG_BLDCNT_OBJ_1st_Target_Pixel'left),
+      in_effect_1st_BD     => REG_BLDCNT_BD_1st_Target_Pixel(REG_BLDCNT_BD_1st_Target_Pixel'left),
+      in_effect_2nd_bg0    => REG_BLDCNT_BG0_2nd_Target_Pixel(REG_BLDCNT_BG0_2nd_Target_Pixel'left),
+      in_effect_2nd_bg1    => REG_BLDCNT_BG1_2nd_Target_Pixel(REG_BLDCNT_BG1_2nd_Target_Pixel'left),
+      in_effect_2nd_bg2    => REG_BLDCNT_BG2_2nd_Target_Pixel(REG_BLDCNT_BG2_2nd_Target_Pixel'left),
+      in_effect_2nd_bg3    => REG_BLDCNT_BG3_2nd_Target_Pixel(REG_BLDCNT_BG3_2nd_Target_Pixel'left),
+      in_effect_2nd_obj    => REG_BLDCNT_OBJ_2nd_Target_Pixel(REG_BLDCNT_OBJ_2nd_Target_Pixel'left),
+      in_effect_2nd_BD     => REG_BLDCNT_BD_2nd_Target_Pixel(REG_BLDCNT_BD_2nd_Target_Pixel'left),
+                  
+      in_Prio_BG0          => unsigned(REG_BG0CNT_BG_Priority),
+      in_Prio_BG1          => unsigned(REG_BG1CNT_BG_Priority),
+      in_Prio_BG2          => unsigned(REG_BG2CNT_BG_Priority),
+      in_Prio_BG3          => unsigned(REG_BG3CNT_BG_Priority),
+                         
+      in_EVA               => unsigned(REG_BLDALPHA_EVA_Coefficient),
+      in_EVB               => unsigned(REG_BLDALPHA_EVB_Coefficient),
+      in_BLDY              => unsigned(REG_BLDY),
+      
+      in_ena_bg0           => on_delay_bg0(2),
+      in_ena_bg1           => on_delay_bg1(2),
+      in_ena_bg2           => on_delay_bg2(2),
+      in_ena_bg3           => on_delay_bg3(2),
+      in_ena_obj           => Screen_Display_OBJ(Screen_Display_OBJ'left),
+                           
+      pixeldata_bg0        => linebuffer_bg0_data,
+      pixeldata_bg1        => linebuffer_bg1_data,
+      pixeldata_bg2        => merge2_in_bg2,
+      pixeldata_bg3        => merge2_in_bg3,
+      pixeldata_obj        => merge2_in_obj,
+      pixeldata_back       => pixeldata_back,
+      objwindow_in         => objwindow_merge2_in,
+                           
+      pixeldata_out        => merge2_pixeldata_out,
+      pixel_x              => merge2_pixel_x,      
+      pixel_y              => open,      
+      pixel_we             => merge2_pixel_we     
+   );
+   
    -- affine + mosaik
    process (clk100)
    begin
       if rising_edge(clk100) then
 
-         if (refpoint_update = '1' or ref2_x_written = '1') then ref2_x <= signed(REG_BG2RefX); mosaic_ref2_x <= signed(REG_BG2RefX); end if;
-         if (refpoint_update = '1' or ref2_y_written = '1') then ref2_y <= signed(REG_BG2RefY); mosaic_ref2_y <= signed(REG_BG2RefY); end if;
-         if (refpoint_update = '1' or ref3_x_written = '1') then ref3_x <= signed(REG_BG3RefX); mosaic_ref3_x <= signed(REG_BG3RefX); end if;
-         if (refpoint_update = '1' or ref3_y_written = '1') then ref3_y <= signed(REG_BG3RefY); mosaic_ref3_y <= signed(REG_BG3RefY); end if;
+         -- ref point written
+         if (refpoint_update = '1' or ref2_x_written = '1') then 
+            ref2_x        <= signed(REG_BG2RefX); 
+            mosaic_ref2_x <= signed(REG_BG2RefX); 
+         end if;
+         if (refpoint_update = '1' or ref2_y_written = '1') then 
+            ref2_y        <= signed(REG_BG2RefY); 
+            mosaic_ref2_y <= signed(REG_BG2RefY);
+         end if;
+         if (refpoint_update = '1' or ref3_x_written = '1') then 
+            ref3_x        <= signed(REG_BG3RefX); 
+            mosaic_ref3_x <= signed(REG_BG3RefX); 
+         end if;
+         if (refpoint_update = '1' or ref3_y_written = '1') then 
+            ref3_y        <= signed(REG_BG3RefY); 
+            mosaic_ref3_y <= signed(REG_BG3RefY);           
+         end if;
+         
+         -- hd d(m)x/y
+         if (drawline_mode2_2_hd0 = '1' and (unsigned(REG_BG2RotScaleParDX) > 0 or unsigned(REG_BG2RotScaleParDY) > 0)) then
+            new_dx2 <= '0';
+            new_dy2 <= '0';
+            if (new_dx2 = '1') then
+               dx2_last      <= signed(REG_BG2RotScaleParDX);
+               dy2_last      <= signed(REG_BG2RotScaleParDY);
+            end if;
+         end if;
+         if (drawline_mode2_3_hd0 = '1' and (unsigned(REG_BG3RotScaleParDX) > 0 or unsigned(REG_BG3RotScaleParDY) > 0)) then
+            new_dx3 <= '0';
+            new_dy3 <= '0';
+            if (new_dx3 = '1') then
+               dx3_last      <= signed(REG_BG3RotScaleParDX);
+               dy3_last      <= signed(REG_BG3RotScaleParDY);
+            end if;
+         end if;
+         
+         line_trigger_1 <= line_trigger;
+         if (line_trigger = '1') then
+            ref2_x_last   <= ref2_x;
+            if (new_dx2 = '1') then
+               ref2_x_hd0    <= ref2_x & '0';
+            else
+               ref2_x_hd0    <= resize(ref2_x_last, 29) + resize(ref2_x, 29);
+            end if;
+            ref2_x_hd1    <= ref2_x & '0';
 
+            ref2_y_last   <= ref2_y;
+            if (new_dy2 = '1') then
+               ref2_y_hd0    <= ref2_y & '0';
+            else
+               ref2_y_hd0    <= resize(ref2_y_last, 29) + resize(ref2_y, 29);
+            end if;  
+            ref2_y_hd1    <= ref2_y & '0';
+
+            ref3_x_last   <= ref3_x;
+            if (new_dx3 = '1') then
+               ref3_x_hd0    <= ref3_x & '0';
+            else
+               ref3_x_hd0    <= resize(ref3_x_last, 29) + resize(ref3_x, 29);
+            end if;
+            ref3_x_hd1    <= ref3_x & '0';
+
+            ref3_y_last   <= ref3_y;
+            if (new_dy3 = '1') then
+               ref3_y_hd0    <= ref3_y & '0';
+            else
+               ref3_y_hd0    <= resize(ref3_y_last, 29) + resize(ref3_y, 29);
+            end if;  
+            ref3_y_hd1    <= ref3_y & '0';
+         end if;
+         
+         if (drawline = '1') then
+            dx2_last      <= signed(REG_BG2RotScaleParDX);
+            if (new_dx2 = '1') then
+               dx2_hd0       <= signed(REG_BG2RotScaleParDX) & '0';
+            else
+               dx2_hd0       <= resize(dx2_last, 17) + resize(signed(REG_BG2RotScaleParDX), 17);
+            end if;
+            dx2_hd1       <= signed(REG_BG2RotScaleParDX) & '0';
+
+            dy2_last      <= signed(REG_BG2RotScaleParDY);
+            if (new_dy2 = '1') then
+               dy2_hd0       <= signed(REG_BG2RotScaleParDY) & '0';
+            else
+               dy2_hd0       <= resize(dy2_last, 17) + resize(signed(REG_BG2RotScaleParDY), 17);
+            end if;  
+            dy2_hd1       <= signed(REG_BG2RotScaleParDY) & '0';
+
+            dx3_last      <= signed(REG_BG3RotScaleParDX);
+            if (new_dx3 = '1') then
+               dx3_hd0       <= signed(REG_BG3RotScaleParDX) & '0';
+            else
+               dx3_hd0       <= resize(dx3_last, 17) + resize(signed(REG_BG3RotScaleParDX), 17);
+            end if;
+            dx3_hd1       <= signed(REG_BG3RotScaleParDX) & '0';
+
+            dy3_last      <= signed(REG_BG3RotScaleParDY);
+            if (new_dy3 = '1') then
+               dy3_hd0       <= signed(REG_BG3RotScaleParDY) & '0';
+            else
+               dy3_hd0       <= resize(dy3_last, 17) + resize(signed(REG_BG3RotScaleParDY), 17);
+            end if;  
+            dy3_hd1       <= signed(REG_BG3RotScaleParDY) & '0';
+         end if;
+         
          if (hblank_trigger = '1') then
          
             pixeldata_back <= pixeldata_back_next;
@@ -1499,6 +2472,13 @@ begin
             mosaik_vcnt_obj        <= 0;
             linecounter_mosaic_bg  <= 0;
             linecounter_mosaic_obj <= 0;
+            new_dx2                <= '1';
+            new_dy2                <= '1';
+            new_dx3                <= '1';
+            new_dy3                <= '1';
+            if (interframe_blend = "10") then -- by toggling only when option is on, even/odd picture can be selected with multiple switch on/off
+               frameselect            <= not frameselect;
+            end if;
          elsif (drawline = '1') then
          
             -- background

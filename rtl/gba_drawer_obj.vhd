@@ -3,6 +3,12 @@ use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;   
 
 entity gba_drawer_obj is
+   generic
+   (
+      RESMULT      : integer := 1;
+      PIXELCOUNT   : integer := 240;
+      YMULTOFFSET  : integer := 0
+   );
    port 
    (
       clk100               : in  std_logic;                     
@@ -26,7 +32,7 @@ entity gba_drawer_obj is
       pixeldata_color      : out std_logic_vector(15 downto 0) := (others => '0');
       pixel_we_settings    : out std_logic := '0';
       pixeldata_settings   : out std_logic_vector(2 downto 0) := (others => '0');
-      pixel_x              : out integer range 0 to 239;
+      pixel_x              : out integer range 0 to (PIXELCOUNT - 1);
       pixel_objwnd         : out std_logic := '0';
       
       OAMRAM_Drawer_addr   : buffer integer range 0 to 255;
@@ -42,6 +48,8 @@ entity gba_drawer_obj is
 end entity;
 
 architecture arch of gba_drawer_obj is
+   
+   constant RESMULTACCDIV : integer := 256 * RESMULT;
    
    -- Atr0
    constant OAM_Y_HI         : integer := 7;
@@ -158,12 +166,15 @@ architecture arch of gba_drawer_obj is
    signal x                 : integer range 0 to 255;
    signal realX             : integer range -8388608 to 8388607;
    signal realY             : integer range -8388608 to 8388607;
-   signal target            : integer range 0 to 239;
+   signal target            : integer range 0 to (PIXELCOUNT - 1);
    signal second_pix        : std_logic;
    signal skippixel         : std_logic;
    signal issue_pixel       : std_logic;
    signal pixeladdr_x       : unsigned(14 downto 0) := (others => '0');
    signal pixeladdr_x_noaff : unsigned(14 downto 0);
+   
+   signal rescounter        : integer range 0 to RESMULT - 1;
+   signal rescounter_current: integer range 0 to RESMULT - 1;
    
    signal pixeladdr_x_aff0  : unsigned(14 downto 0);
    signal pixeladdr_x_aff1  : unsigned(14 downto 0);
@@ -182,17 +193,17 @@ architecture arch of gba_drawer_obj is
       objwnd      : std_logic;
    end record;
    
-   type t_pixelarray is array(0 to 239) of tpixel;
+   type t_pixelarray is array(0 to (PIXELCOUNT - 1)) of tpixel;
    signal pixelarray : t_pixelarray;
    
    signal Pixel_wait        : tpixel;
    signal Pixel_readback    : tpixel;
    signal Pixel_merge       : tpixel;
                             
-   signal target_start      : integer range 0 to 239;
-   signal target_eval       : integer range 0 to 239;
-   signal target_wait       : integer range 0 to 239;
-   signal target_merge      : integer range 0 to 239;    
+   signal target_start      : integer range 0 to (PIXELCOUNT - 1);
+   signal target_eval       : integer range 0 to (PIXELCOUNT - 1);
+   signal target_wait       : integer range 0 to (PIXELCOUNT - 1);
+   signal target_merge      : integer range 0 to (PIXELCOUNT - 1);    
                             
    signal enable_start      : std_logic;
    signal enable_eval       : std_logic;
@@ -367,6 +378,7 @@ begin
          case (PIXELGen) is
          
             when WAITOAM =>
+               rescounter <= 0;
                if (OAMFetch = DONE) then
                   PIXELGen        <= CALCMOSAIC;
                   Pixel_data0     <= OAM_data0;    
@@ -505,8 +517,12 @@ begin
                end if;
                
                -- affine
-               realX <= pixeladdr_pre_a0 - pixeladdr_pre_a1 - pixeladdr_pre_a2 + pixeladdr_pre_a3;
-               realY <= pixeladdr_pre_a4 - pixeladdr_pre_a5 - pixeladdr_pre_a6 + pixeladdr_pre_a7;
+               realX <= (pixeladdr_pre_a0 - pixeladdr_pre_a1 - pixeladdr_pre_a2 + pixeladdr_pre_a3) * resmult;
+               realY <= (pixeladdr_pre_a4 - pixeladdr_pre_a5 - pixeladdr_pre_a6 + pixeladdr_pre_a7) * resmult;
+               if (YMULTOFFSET = 1) then
+                  realX <= ((pixeladdr_pre_a0 - pixeladdr_pre_a1 - pixeladdr_pre_a2 + pixeladdr_pre_a3) * resmult) + dmx;
+                  realY <= ((pixeladdr_pre_a4 - pixeladdr_pre_a5 - pixeladdr_pre_a6 + pixeladdr_pre_a7) * resmult) + dmy;
+               end if;
                
                -- non affine
                if (Pixel_data1(OAM_VFLIP) = '1') then
@@ -529,7 +545,13 @@ begin
                elsif (x >= fieldX) then
                   PIXELGen <= WAITOAM;
                else
-                  x <= x + 1;
+                  rescounter_current <= rescounter;
+                  if (rescounter = RESMULT - 1) then
+                     x <= x + 1;
+                     rescounter <= 0;
+                  else
+                     rescounter <= rescounter + 1;
+                  end if;
                   if (x + posX > 239) then -- end of line already reached
                      PIXELGen  <= WAITOAM;
                   else
@@ -552,16 +574,16 @@ begin
                end if;
                
                if (Pixel_data0(OAM_AFFINE) = '1') then
-                  if (realX < 0 or (realX / 256) >= sizeX or realY < 0 or (realY / 256) >= sizeY) then
+                  if (realX < 0 or (realX / RESMULTACCDIV) >= sizeX or realY < 0 or (realY / RESMULTACCDIV) >= sizeY) then
                      skippixel <= '1';
                   end if;
                
                   -- synthesis translate_off
-                  if (realX >= 0 and (realX / 256) < sizeX and realY >= 0 and (realY / 256) < sizeY) then
+                  if (realX >= 0 and (realX / RESMULTACCDIV) < sizeX and realY >= 0 and (realY / RESMULTACCDIV) < sizeY) then
                   -- synthesis translate_on
                
-                     xxx := realX / 256;
-                     yyy := realY / 256;
+                     xxx := realX / RESMULTACCDIV;
+                     yyy := realY / RESMULTACCDIV;
                      if (xxx mod 2 = 1) then second_pix <= '1'; else second_pix <= '0'; end if;
                      
                      pixeladdr_x_aff0 <= to_unsigned(((yyy mod 8) * x_size), 15);
@@ -650,7 +672,7 @@ begin
          
          -- zero cycle - address for vram is written in this cycle
          enable_start     <= issue_pixel;
-         target_start     <= target;
+         target_start     <= (target * RESMULT) + rescounter_current;
          readaddr_mux     <= pixeladdr_x(1 downto 0);
          second_pix_start <= second_pix;
          

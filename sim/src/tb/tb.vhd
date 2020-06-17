@@ -117,6 +117,12 @@ architecture arch of etb is
    signal pixel_out_y        : integer range 0 to 159;
    signal pixel_out_data     : std_logic_vector(17 downto 0);  
    signal pixel_out_we       : std_logic;
+   
+   signal largeimg_out_addr  : std_logic_vector(25 downto 0);
+   signal largeimg_out_data  : std_logic_vector(63 downto 0);
+   signal largeimg_out_req   : std_logic;
+   signal largeimg_out_done  : std_logic;
+   signal largeimg_newframe  : std_logic;
                          
    signal sound_out_left     : std_logic_vector(15 downto 0);
    signal sound_out_right    : std_logic_vector(15 downto 0);
@@ -250,9 +256,11 @@ begin
       memory_remap       => GBA_MemoryRemap(GBA_MemoryRemap'left),
       save_state         => GBA_SaveState(GBA_SaveState'left),
       load_state         => GBA_LoadState(GBA_LoadState'left),
-      interframe_blend   => '0', --GBA_FrameBlend(GBA_FrameBlend'left),
+      interframe_blend   => "00",
       maxpixels          => '0',
-      shade_mode         => GBA_Pixelshade,
+      shade_mode         => "000",
+      hdmode2x_bg        => '1',
+      hdmode2x_obj       => '1',
       specialmodule      => '0',
       solar_in           => "000",
       tilt               => '0',
@@ -333,7 +341,14 @@ begin
       pixel_out_y        => pixel_out_y,
       pixel_out_addr     => open,
       pixel_out_data     => pixel_out_data,
-      pixel_out_we       => pixel_out_we,  
+      pixel_out_we       => pixel_out_we, 
+
+      largeimg_out_addr  => largeimg_out_addr,
+      largeimg_out_data  => largeimg_out_data,
+      largeimg_out_req   => largeimg_out_req, 
+      largeimg_out_done  => largeimg_out_done,
+      largeimg_newframe  => largeimg_newframe,
+      largeimg_singlebuf => '0',
       -- sound          
       sound_out_left     => sound_out_left,
       sound_out_right    => sound_out_right,
@@ -345,6 +360,7 @@ begin
       debug_mem          => open  --GBA_DEBUG_MEM      
    );
    
+   largeimg_newframe <= '1' when unsigned(largeimg_out_addr(19 downto 0)) = 0 else '0';
    
    ch1_addr <= '0' & sdram_read_addr & "0";
    ch1_req  <= sdram_read_ena;
@@ -406,7 +422,12 @@ begin
       ch4_din          => ch4_din,         
       ch4_req          => ch4_req,         
       ch4_rnw          => ch4_rnw,         
-      ch4_ready        => ch4_ready       
+      ch4_ready        => ch4_ready,       
+      
+      ch5_addr         => (27 downto 1 => '0'),        
+      ch5_din          => (63 downto 0 => '0'),               
+      ch5_req          => largeimg_out_req,                
+      ch5_ready        => largeimg_out_done  
    );
    
    iddrram_model : entity tb.ddrram_model
@@ -440,6 +461,21 @@ begin
       pixel_in_we        => pixel_out_we
    );
    
+   iframebuffer_large : entity work.framebuffer_large
+   generic map
+   (
+      FRAMESIZE_X => 480,
+      FRAMESIZE_Y => 320
+   )
+   port map
+   (
+      clk100             => clk100,
+                          
+      pixel_in_addr      => largeimg_out_addr,
+      pixel_in_data      => largeimg_out_data,
+      pixel_in_we        => largeimg_out_req,
+      pixel_in_done      => open
+   );
    
    iTestprocessor : entity procbus.eTestprocessor
    generic map

@@ -60,7 +60,13 @@ module ddram
 	input  [63:0] ch4_din,
 	input         ch4_req,
 	input         ch4_rnw,
-	output        ch4_ready
+	output        ch4_ready,
+   
+   // framebuffer
+	input  [27:1] ch5_addr,
+	input  [63:0] ch5_din,
+	input         ch5_req,
+	output        ch5_ready
 );
 
 reg  [7:0] ram_burst;
@@ -71,7 +77,7 @@ reg        ram_read = 0;
 reg        ram_write = 0;
 reg  [7:0] ram_be;
 
-reg  [4:1] ready;
+reg  [5:1] ready;
 
 assign DDRAM_BURSTCNT = ram_burst;
 assign DDRAM_BE       = ram_read ? 8'hFF : ram_be;
@@ -88,18 +94,19 @@ assign ch1_ready = ready[1];
 assign ch2_ready = ready[2];
 assign ch3_ready = ready[3];
 assign ch4_ready = ready[4];
+assign ch5_ready = ready[5];
 
 reg [63:0] next_q[2:1];
 reg [27:1] cache_addr[2:1];
 reg  [1:0] state  = 0;
 reg  [2:1] cached = 0;
 reg  [2:0] ch = 0; 
-reg  [4:1] ch_rq;
+reg  [5:1] ch_rq;
 
 always @(posedge DDRAM_CLK) begin
 
 
-	ch_rq <= ch_rq | {ch4_req, ch3_req, ch2_req, ch1_req};
+	ch_rq <= ch_rq | {ch5_req, ch4_req, ch3_req, ch2_req, ch1_req};
 	ready <= 0;
 
 	if(!DDRAM_BUSY) begin
@@ -107,7 +114,7 @@ always @(posedge DDRAM_CLK) begin
 		ram_read  <= 0;
 
 		case(state)
-			0: if(ch_rq[1]) begin
+			0: if(ch_rq[1] || ch1_req) begin
 					ch_rq[1]         <= 0;
 					ch               <= 1;
 					ram_data         <= {4{ch1_din}};
@@ -141,7 +148,7 @@ always @(posedge DDRAM_CLK) begin
 						state         <= 1;
 					end
 				end
-			   else if(ch_rq[2]) begin
+			   else if(ch_rq[2] || ch2_req) begin
 					ch_rq[2]         <= 0;
 					ch               <= 2;
 					ram_data         <= {2{ch2_din}};
@@ -175,7 +182,7 @@ always @(posedge DDRAM_CLK) begin
 						state         <= 1;
 					end
 				end
-			   else if(ch_rq[3]) begin
+			   else if(ch_rq[3] || ch3_req) begin
 					ch_rq[3]         <= 0;
 					ch               <= 3;
 					ram_address      <= {ch3_addr, 2'b00};
@@ -192,7 +199,7 @@ always @(posedge DDRAM_CLK) begin
 						state         <= 1;
 					end
 				end
-			   else if(ch_rq[4]) begin
+			   else if(ch_rq[4] || ch4_req) begin
 					ch_rq[4]         <= 0;
 					ch               <= 4;
 					ram_data         <= ch4_din;
@@ -207,6 +214,16 @@ always @(posedge DDRAM_CLK) begin
 						ram_read      <= 1;
 						state         <= 1;
 					end
+            end
+            else if(ch_rq[5] || ch5_req) begin
+					ch_rq[5]         <= 0;
+					ch               <= 5;
+					ram_data         <= ch5_din;
+					ram_be           <= 8'hFF;
+               ram_address      <= ch5_addr;
+               ram_write        <= 1;
+               ram_burst        <= 1;
+               ready[5]         <= 1;
 				end
 
 			1: if(DDRAM_DOUT_READY) begin

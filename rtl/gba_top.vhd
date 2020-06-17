@@ -2,6 +2,8 @@ library IEEE;
 use IEEE.std_logic_1164.all;  
 use IEEE.numeric_std.all;     
 
+library MEM;
+
 use work.pProc_bus_gba.all;
 use work.pReg_savestates.all;
 
@@ -33,9 +35,11 @@ entity gba_top is
       memory_remap       : in     std_logic;
       save_state         : in     std_logic;
       load_state         : in     std_logic;
-      interframe_blend   : in     std_logic;
+      interframe_blend   : in     std_logic_vector(1 downto 0); -- 0 = off, 1 = blend, 2 = 30hz
       maxpixels          : in     std_logic;                    -- limit pixels per line
       shade_mode         : in     std_logic_vector(2 downto 0); -- 0 = off, 1..4 modes
+      hdmode2x_bg        : in     std_logic;
+      hdmode2x_obj       : in     std_logic;
       specialmodule      : in     std_logic;                    -- 0 = off, 1 = use gamepak GPIO Port at address 0x080000C4..0x080000C8
       solar_in           : in     std_logic_vector(2 downto 0);
       tilt               : in     std_logic;                    -- 0 = off, 1 = use tilt at address 0x0E008200, 0x0E008300, 0x0E008400, 0x0E008500
@@ -108,20 +112,28 @@ entity gba_top is
       GBA_BusReadData    : out    std_logic_vector(31 downto 0);
       GBA_Bus_written    : in     std_logic;
       -- display data
-      pixel_out_x        : out   integer range 0 to 239;
-      pixel_out_y        : out   integer range 0 to 159;
-      pixel_out_addr     : out   integer range 0 to 38399;       -- address for framebuffer 
-      pixel_out_data     : out   std_logic_vector(17 downto 0);  -- RGB data for framebuffer 
-      pixel_out_we       : out   std_logic;                      -- new pixel for framebuffer 
-      -- sound                            
-      sound_out_left     : out   std_logic_vector(15 downto 0) := (others => '0');
-      sound_out_right    : out   std_logic_vector(15 downto 0) := (others => '0');
-      -- debug
-      debug_cpu_pc       : out   std_logic_vector(31 downto 0);
-      debug_cpu_mixed    : out   std_logic_vector(31 downto 0);
-      debug_irq          : out   std_logic_vector(31 downto 0);
-      debug_dma          : out   std_logic_vector(31 downto 0);
-      debug_mem          : out   std_logic_vector(31 downto 0)  
+      pixel_out_x        : buffer integer range 0 to 239;
+      pixel_out_y        : buffer integer range 0 to 159;
+      pixel_out_addr     : buffer integer range 0 to 38399;       -- address for framebuffer 
+      pixel_out_data     : buffer std_logic_vector(17 downto 0);  -- RGB data for framebuffer 
+      pixel_out_we       : buffer std_logic;                      -- new pixel for framebuffer 
+                                  
+      largeimg_out_base  : out    std_logic_vector(31 downto 0) := x"38000000";            
+      largeimg_out_addr  : buffer std_logic_vector(25 downto 0) := (others => '0');
+      largeimg_out_data  : out    std_logic_vector(63 downto 0);
+      largeimg_out_req   : out    std_logic := '0';
+      largeimg_out_done  : in     std_logic;
+      largeimg_newframe  : in     std_logic;
+      largeimg_singlebuf : in     std_logic;
+      -- sound                             
+      sound_out_left     : out    std_logic_vector(15 downto 0) := (others => '0');
+      sound_out_right    : out    std_logic_vector(15 downto 0) := (others => '0');
+      -- debug                    
+      debug_cpu_pc       : out    std_logic_vector(31 downto 0);
+      debug_cpu_mixed    : out    std_logic_vector(31 downto 0);
+      debug_irq          : out    std_logic_vector(31 downto 0);
+      debug_dma          : out    std_logic_vector(31 downto 0);
+      debug_mem          : out    std_logic_vector(31 downto 0)  
    );
 end entity;
 
@@ -321,6 +333,43 @@ architecture arch of gba_top is
    signal new_exact_cycle : std_logic := '0';
    signal CyclesVsync     : unsigned(31 downto 0) := (others => '0');
    signal bench_slow      : integer range 0 to 1685375 := 0;
+   
+   -- large image out
+   signal pixel_out_2x       : integer range 0 to 479; 
+   signal pixel_out_data2x   : std_logic_vector(17 downto 0);  
+   signal pixel_out_we2x     : std_logic := '0';   
+   signal pixel2_out_x       : integer range 0 to 479;
+   signal pixel2_out_data    : std_logic_vector(17 downto 0);  
+   signal pixel2_out_we      : std_logic;
+   
+   signal pixel_write_addr   : integer range 0 to 239;
+   signal pixel_write_data   : std_logic_vector(35 downto 0);
+   signal pixel_write_ena    : std_logic := '0';
+      
+   signal pixel2_write_addr  : integer range 0 to 239;
+   signal pixel2_write_data  : std_logic_vector(35 downto 0);
+   signal pixel2_write_ena   : std_logic := '0';
+   
+   type tstate is
+   (
+      IDLE,
+      READPIXEL,
+      WRITEPIXEL
+   );
+   signal state           : tstate := IDLE;
+                          
+   signal pixel_out_y_1    : integer range 0 to 159 := 0;
+   signal pixelpos         : integer range 0 to 240 := 0;
+   signal pixelpos2        : integer range 0 to 240 := 0;
+   signal pixelcnt         : integer range 0 to 3 := 0;
+   signal firstpixel       : std_logic := '0';
+   signal linebuffer_data  : std_logic_vector(35 downto 0);
+   signal linebuffer2_data : std_logic_vector(35 downto 0);
+   signal pixeladdress     : integer range 0 to 262143;
+   
+   signal newframe_sreg    : std_logic_vector(2 downto 0) := (others => '0');
+   signal current_frame    : integer range 0 to 2 := 0;
+   signal frameoffset      : integer range 0 to 2 := 0;
    
 begin 
 
@@ -770,14 +819,21 @@ begin
       interframe_blend     => interframe_blend,
       maxpixels            => maxpixels,
       shade_mode           => shade_mode,
+      hdmode2x_bg          => hdmode2x_bg,
+      hdmode2x_obj         => hdmode2x_obj,
       
       bitmapdrawmode       => bitmapdrawmode,
 
       pixel_out_x          => pixel_out_x,
+      pixel_out_2x         => pixel_out_2x, 
       pixel_out_y          => pixel_out_y,
       pixel_out_addr       => pixel_out_addr,
       pixel_out_data       => pixel_out_data,
       pixel_out_we         => pixel_out_we,  
+       
+      pixel2_out_x         => pixel2_out_x,   
+      pixel2_out_data      => pixel2_out_data,
+      pixel2_out_we        => pixel2_out_we,  
       
       new_cycles           => new_cycles,      
       new_cycles_valid     => new_cycles_valid,
@@ -1026,6 +1082,158 @@ begin
          elsif (new_cycles_valid = '1') then
             CyclesVsync <= CyclesVsync + new_cycles;
          end if;
+   
+      end if;
+   end process;
+   
+   -- large pixel out
+   process (clk100)
+   begin
+      if rising_edge(clk100) then
+         
+         pixel_write_ena <= '0';
+         if (pixel_out_we = '1') then
+            pixel_write_addr <= pixel_out_2x / 2;
+            if (pixel_out_2x mod 2 = 0) then
+               pixel_write_data(17 downto 0) <= pixel_out_data;
+            else
+               pixel_write_data(35 downto 18) <= pixel_out_data;
+               pixel_write_ena <= '1';
+            end if;
+         end if;
+         
+         pixel2_write_ena <= '0';
+         if (pixel2_out_we = '1') then
+            pixel2_write_addr <= pixel2_out_x / 2;
+            if (pixel2_out_x mod 2 = 0) then
+               pixel2_write_data(17 downto 0) <= pixel2_out_data;
+            else
+               pixel2_write_data(35 downto 18) <= pixel2_out_data;
+               pixel2_write_ena <= '1';
+            end if;
+         end if;
+   
+      end if;
+   end process;
+   
+   
+   ilinebuffer_hd0: entity MEM.SyncRamDual
+   generic map
+   (
+      DATA_WIDTH => 36,
+      ADDR_WIDTH => 8
+   )
+   port map
+   (
+      clk        => clk100,
+      
+      addr_a     => pixel_write_addr,
+      datain_a   => pixel_write_data,
+      dataout_a  => open,
+      we_a       => pixel_write_ena,
+      re_a       => '0',
+               
+      addr_b     => pixelpos,
+      datain_b   => (35 downto 0 => '0'),
+      dataout_b  => linebuffer_data,
+      we_b       => '0',
+      re_b       => '1'
+   );
+   
+   ilinebuffer_hd1: entity MEM.SyncRamDual
+   generic map
+   (
+      DATA_WIDTH => 36,
+      ADDR_WIDTH => 8
+   )
+   port map
+   (
+      clk        => clk100,
+      
+      addr_a     => pixel2_write_addr,
+      datain_a   => pixel2_write_data,
+      dataout_a  => open,
+      we_a       => pixel2_write_ena,
+      re_a       => '0',
+               
+      addr_b     => pixelpos2,
+      datain_b   => (35 downto 0 => '0'),
+      dataout_b  => linebuffer2_data,
+      we_b       => '0',
+      re_b       => '1'
+   );
+   
+   process (clk100)
+   begin
+      if rising_edge(clk100) then
+         
+         largeimg_out_req <= '0';
+         
+         newframe_sreg <= newframe_sreg(1 downto 0) & largeimg_newframe;
+         if (newframe_sreg(2 downto 1) = "01") then
+            largeimg_out_base <= (std_logic_vector(to_unsigned(16#38000000# + frameoffset * 16#400000#, 32)));
+         end if;
+         
+         case (state) is
+         
+            when IDLE =>
+               if (pixel_out_y_1 /= pixel_out_y and pixel_write_ena = '1' and (hdmode2x_bg = '1' or hdmode2x_obj = '1')) then
+                  pixel_out_y_1     <= pixel_out_y;
+                  state             <= READPIXEL;
+                  pixelpos          <= 0;
+                  pixelpos2         <= 0;
+                  pixeladdress      <= pixel_out_y * 1024;
+                  if (pixel_out_y = 0) then
+                     frameoffset <= current_frame;
+                     --if (largeimg_singlebuf = '0') then
+                        if (current_frame < 2) then
+                           current_frame <= current_frame + 1;
+                        else
+                           current_frame <= 0;
+                        end if;
+                     --end if;
+                  end if;
+               end if;
+               
+            when READPIXEL => 
+               state      <= WRITEPIXEL;
+               firstpixel <= '1';
+         
+            when WRITEPIXEL =>
+               firstpixel <= '0';
+               if (largeimg_out_done = '1' or firstpixel = '1') then
+                  
+                  if (pixelcnt = 0) then
+                     pixelcnt <= 1;
+                     pixelpos <= pixelpos + 1;
+                  else
+                     pixelcnt  <= 0;
+                     pixelpos2 <= pixelpos2 + 1;
+                     if (pixelpos2 < 239) then
+                        pixeladdress <= pixeladdress + 2;
+                     else
+                        state <= IDLE;
+                     end if;
+                  end if;
+
+                  largeimg_out_req  <= '1';
+                  case (pixelcnt) is
+                     when 0 => 
+                        largeimg_out_addr <= "1" & std_logic_vector(to_unsigned(pixeladdress + current_frame * 16#100000#, 25));
+                        largeimg_out_data(31 downto  0) <= x"00" & linebuffer_data( 5 downto  0) & "00" & linebuffer_data(11 downto  6) & "00" & linebuffer_data(17 downto 12) & "00";
+                        largeimg_out_data(63 downto 32) <= x"00" & linebuffer_data(23 downto 18) & "00" & linebuffer_data(29 downto 24) & "00" & linebuffer_data(35 downto 30) & "00";
+                     when 1 => 
+                        largeimg_out_addr <= "1" & std_logic_vector(to_unsigned(pixeladdress + 512 + current_frame * 16#100000#, 25));
+                        largeimg_out_data(31 downto  0) <= x"00" & linebuffer2_data( 5 downto  0) & "00" & linebuffer2_data(11 downto  6) & "00" & linebuffer2_data(17 downto 12) & "00";
+                        largeimg_out_data(63 downto 32) <= x"00" & linebuffer2_data(23 downto 18) & "00" & linebuffer2_data(29 downto 24) & "00" & linebuffer2_data(35 downto 30) & "00";
+                     when others => null;
+                  end case;
+                  
+               end if;
+         
+         end case;
+         
+         
    
       end if;
    end process;

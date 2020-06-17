@@ -96,7 +96,6 @@ begin
          cmd_burst_save   := DDRAM_BURSTCNT;
          cmd_din_save     := DDRAM_DIN;
          cmd_be_save      := DDRAM_BE;
-         wait until rising_edge(DDRAM_CLK);
          for i in 0 to (to_integer(unsigned(cmd_burst_save)) - 1) loop                                                         
             if (cmd_be_save(7 downto 4) = x"F") then                        
                data(to_integer(unsigned(cmd_address_save)) * 2 + (i * 2) + 1) := to_integer(signed(cmd_din_save(63 downto 32)));

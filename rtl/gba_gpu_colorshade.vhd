@@ -10,12 +10,14 @@ entity gba_gpu_colorshade is
       shade_mode           : in    std_logic_vector(2 downto 0); -- 0 = off, 1..4 modes
 
       pixel_in_x           : in    integer range 0 to 239;
+      pixel_in_2x          : in    integer range 0 to 479;
       pixel_in_y           : in    integer range 0 to 159;
       pixel_in_addr        : in    integer range 0 to 38399;
       pixel_in_data        : in    std_logic_vector(14 downto 0);  
       pixel_in_we          : in    std_logic := '0';
                   
       pixel_out_x          : out   integer range 0 to 239;
+      pixel_out_2x         : out   integer range 0 to 479;
       pixel_out_y          : out   integer range 0 to 159;
       pixel_out_addr       : out   integer range 0 to 38399;
       pixel_out_data       : out   std_logic_vector(17 downto 0);  
@@ -156,6 +158,7 @@ architecture arch of gba_gpu_colorshade is
    
    -- shade processing
    signal pixel_1_x      : integer range 0 to 239;
+   signal pixel_1_2x     : integer range 0 to 479;
    signal pixel_1_y      : integer range 0 to 159;
    signal pixel_1_addr   : integer range 0 to 38399;
    signal pixel_1_data   : std_logic_vector(14 downto 0); 
@@ -165,6 +168,7 @@ architecture arch of gba_gpu_colorshade is
    signal color_linear_3 : integer range 0 to 1023;
    
    signal pixel_2_x      : integer range 0 to 239;
+   signal pixel_2_2x     : integer range 0 to 479;
    signal pixel_2_y      : integer range 0 to 159;
    signal pixel_2_addr   : integer range 0 to 38399;
    signal pixel_2_we     : std_logic := '0';
@@ -172,6 +176,7 @@ architecture arch of gba_gpu_colorshade is
    signal shade_precalc : t_shade_precalc := (others => (others => 0));
    
    signal pixel_3_x      : integer range 0 to 239;
+   signal pixel_3_2x     : integer range 0 to 479;
    signal pixel_3_y      : integer range 0 to 159;
    signal pixel_3_addr   : integer range 0 to 38399;
    signal pixel_3_we     : std_logic := '0';
@@ -179,6 +184,7 @@ architecture arch of gba_gpu_colorshade is
    signal shade_linear : t_shade_linear;
    
    signal pixel_4_x     : integer range 0 to 239;
+   signal pixel_4_2x    : integer range 0 to 479;
    signal pixel_4_y     : integer range 0 to 159;
    signal pixel_4_addr  : integer range 0 to 38399;
    signal pixel_4_we    : std_logic := '0';
@@ -186,6 +192,7 @@ architecture arch of gba_gpu_colorshade is
    signal clip_linear : t_clip_linear;
    
    signal pixel_5_x     : integer range 0 to 239;
+   signal pixel_5_2x    : integer range 0 to 479;
    signal pixel_5_y     : integer range 0 to 159;
    signal pixel_5_addr  : integer range 0 to 38399;
    signal pixel_5_we    : std_logic := '0';
@@ -262,6 +269,7 @@ begin
 
          -- clock 1 - lookup linear color
          pixel_1_x    <= pixel_in_x;   
+         pixel_1_2x   <= pixel_in_2x;   
          pixel_1_y    <= pixel_in_y;   
          pixel_1_addr <= pixel_in_addr;
          pixel_1_we   <= pixel_in_we;
@@ -273,6 +281,7 @@ begin
          
          -- clock 2 - precalc shades
          pixel_2_x    <= pixel_1_x;   
+         pixel_2_2x   <= pixel_1_2x;   
          pixel_2_y    <= pixel_1_y;   
          pixel_2_addr <= pixel_1_addr;
          pixel_2_we   <= pixel_1_we;
@@ -303,6 +312,7 @@ begin
          
          -- clock 3 - apply shading
          pixel_3_x    <= pixel_2_x;   
+         pixel_3_2x   <= pixel_2_2x;   
          pixel_3_y    <= pixel_2_y;   
          pixel_3_addr <= pixel_2_addr;
          pixel_3_we   <= pixel_2_we;
@@ -313,6 +323,7 @@ begin
          
          -- clock 4 - clip
          pixel_4_x    <= pixel_3_x;   
+         pixel_4_2x   <= pixel_3_2x;   
          pixel_4_y    <= pixel_3_y;   
          pixel_4_addr <= pixel_3_addr;
          pixel_4_we   <= pixel_3_we;
@@ -329,6 +340,7 @@ begin
                    
          -- clock 5 - lookup upper 3 bits of color
          pixel_5_x     <= pixel_4_x;   
+         pixel_5_2x    <= pixel_4_2x;   
          pixel_5_y     <= pixel_4_y;   
          pixel_5_addr  <= pixel_4_addr;
          pixel_5_we    <= pixel_4_we; 
@@ -355,6 +367,7 @@ begin
          
             -- clock 6 - lookup lower 3 bits of color
             pixel_out_x    <= pixel_5_x;   
+            pixel_out_2x   <= pixel_5_2x;   
             pixel_out_y    <= pixel_5_y;   
             pixel_out_addr <= pixel_5_addr;
             pixel_out_we   <= pixel_5_we; 
@@ -372,6 +385,7 @@ begin
             
          else
             pixel_out_x    <= pixel_in_x;   
+            pixel_out_2x   <= pixel_in_2x;   
             pixel_out_y    <= pixel_in_y;   
             pixel_out_addr <= pixel_in_addr;
             pixel_out_we   <= pixel_in_we;
