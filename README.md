@@ -64,12 +64,16 @@ Currently there are only few games known that produce glitches without sprite pi
 - Famicon Mini Series Vol21 - Vol30
 
 # 2x Resolution
+Only works over HDMI, Analog output is not changed in 2x Resolution mode. 
+
 Improved rendering resolution for:
 - Affine background: "Mode7" games, typically racing games like Mario Kart
 - Affine sprites: games that scale or rotate sprites
+
 This rendering is experimental and can cause glitches, as not all game behavior can be supported.
 Those glitches can not be fixed without gamespecific hacks and therefore will not be fixed. 
 Please don't add bugs in such cases.
+
 
 # Cartridge Hardware supported games
 - RTC: Pokemon Sapphire+Ruby+Emerald, Boktai 1+2+3, Sennen Kazoku, Rockman EXE 4.5
