@@ -40,8 +40,8 @@ module emu
 	output        CE_PIXEL,
 
 	//Video aspect ratio for HDMI. Most retro systems have ratio 4:3.
-	output  [7:0] VIDEO_ARX,
-	output  [7:0] VIDEO_ARY,
+	output [11:0] VIDEO_ARX,
+	output [11:0] VIDEO_ARY,
 
 	output  [7:0] VGA_R,
 	output  [7:0] VGA_G,
@@ -51,6 +51,32 @@ module emu
 	output        VGA_DE,    // = ~(VBlank | HBlank)
 	output        VGA_F1,
 	output [1:0]  VGA_SL,
+	output        VGA_SCALER, // Force VGA scaler
+
+	// Use framebuffer from DDRAM (USE_FB=1 in qsf)
+	// FB_FORMAT:
+	//    [2:0] : 011=8bpp(palette) 100=16bpp 101=24bpp 110=32bpp
+	//    [3]   : 0=16bits 565 1=16bits 1555
+	//    [4]   : 0=RGB  1=BGR (for 16/24/32 modes)
+	//
+	// FB_STRIDE either 0 (rounded to 256 bytes) or multiple of 16 bytes.
+	output        FB_EN,
+	output  [4:0] FB_FORMAT,
+	output [11:0] FB_WIDTH,
+	output [11:0] FB_HEIGHT,
+	output [31:0] FB_BASE,
+	output [13:0] FB_STRIDE,
+	input         FB_VBL,
+	input         FB_LL,
+	output        FB_FORCE_BLANK,
+
+	// Palette control for 8bit modes.
+	// Ignored for other video modes.
+	output        FB_PAL_CLK,
+	output  [7:0] FB_PAL_ADDR,
+	output [23:0] FB_PAL_DOUT,
+	input  [23:0] FB_PAL_DIN,
+	output        FB_PAL_WR,
 
 	output        LED_USER,  // 1 - ON, 0 - OFF.
 
@@ -122,22 +148,7 @@ module emu
 	input   [6:0] USER_IN,
 	output  [6:0] USER_OUT,
 
-	input         OSD_STATUS,
-   
-	// Use framebuffer from DDRAM (USE_FB=1 in qsf)
-	// FB_FORMAT:
-	//    [2:0] : 011=8bpp(palette) 100=16bpp 101=24bpp 110=32bpp
-	//    [3]   : 0=16bits 565 1=16bits 1555
-	//    [4]   : 0=RGB  1=BGR (for 16/24/32 modes)
-	//
-	// stride is modulo 256 of bytes
-	output        FB_EN,
-	output  [4:0] FB_FORMAT,
-	output [11:0] FB_WIDTH,
-	output [11:0] FB_HEIGHT,
-	output [31:0] FB_BASE,
-	input         FB_VBL,
-	input         FB_LL
+	input         OSD_STATUS
 );
 
 assign ADC_BUS  = 'Z;
@@ -151,9 +162,11 @@ assign LED_USER  = cart_download | bk_pending;
 assign LED_DISK  = 0;
 assign LED_POWER = 0;
 assign BUTTONS   = 0;
+assign VGA_SCALER= 0;
 
-assign VIDEO_ARX = status[1] ? 8'd16 : 8'd3;
-assign VIDEO_ARY = status[1] ? 8'd9  : 8'd2;
+wire [1:0] ar = status[33:32];
+assign VIDEO_ARX = (!ar) ? 12'd3 : (ar - 1'd1);
+assign VIDEO_ARY = (!ar) ? 12'd2 : 12'd0;
 
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
@@ -161,6 +174,12 @@ assign FB_EN      = status[21] || status[22];
 assign FB_FORMAT  = 5'b00110;
 assign FB_WIDTH   = 12'd480;
 assign FB_HEIGHT  = 12'd320;
+assign FB_STRIDE  = 0;
+assign FB_FORCE_BLANK = 0;
+assign FB_PAL_CLK = 0;
+assign FB_PAL_ADDR= 0;
+assign FB_PAL_DOUT= 0;
+assign FB_PAL_WR  = 0;
 
 
 ///////////////////////  CLOCK/RESET  ///////////////////////////////////
@@ -182,17 +201,17 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 ////////////////////////////  HPS I/O  //////////////////////////////////
 
 // Status Bit Map: (0..31 => "O", 32..63 => "o")
-// 0         1         2         3         4         5         6
-// 0123456789012345678901234567890123456789012345678901234567890123
-// 0123456789ABCDEFGHIJKLMNOPQRSTUV0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXX
+// 0         1         2         3          4         5         6
+// 01234567890123456789012345678901 23456789012345678901234567890123
+// 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
+// X XXXXXXXXXXXXXXXXX XXXXXXXXXXXX XX
 
 `include "build_id.v"
 parameter CONF_STR = {
 	"GBA;;",
 	"FS,GBA;",
-   "-;",
-   "C,Cheats;",
+	"-;",
+	"C,Cheats;",
 	"H1O6,Cheats Enabled,Yes,No;",
 	"-;",
 	"D0RC,Reload Backup RAM;",
@@ -203,27 +222,27 @@ parameter CONF_STR = {
 	"h4H3RI,Restore state (F1);",
 	"h4H3-;",
 	"P1,Video & Audio;",
-	 "P1-;",
-	 "P1O1,Aspect Ratio,3:2,16:9;",
-	 "P1O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",	
-	 "P1O78,Stereo Mix,None,25%,50%,100%;",
-	 "P1OLM,2XResolution,Off,Background,Sprites,Both;",
-	 "P1O9A,Flickerblend,Off,Blend,30Hz;",
-	 "P1OOQ,Modify Colors,Off,GBA 2.2,GBA 1.6,NDS 1.6,VBA 1.4,75%,50%,25%;",
-	 "P1OK,Spritelimit,Off,On;",	 
-	 "P1OB,Sync core to video,Off,On;",
+	"P1-;",
+	"P1o01,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+	"P1O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",	
+	"P1O78,Stereo Mix,None,25%,50%,100%;",
+	"P1OLM,2XResolution,Off,Background,Sprites,Both;",
+	"P1O9A,Flickerblend,Off,Blend,30Hz;",
+	"P1OOQ,Modify Colors,Off,GBA 2.2,GBA 1.6,NDS 1.6,VBA 1.4,75%,50%,25%;",
+	"P1OK,Spritelimit,Off,On;",	 
+	"P1OB,Sync core to video,Off,On;",
 	"P2,Hardware;",
-	 "P2-;",
-    "H6P2OTV,Solar Sensor,0%,15%,30%,42%,55%,70%,85%,100%;",	
-	 "H2P2OG,Turbo,Off,On;",
-	 "P2OS,Homebrew BIOS(Reset!),Off,On;",
+	"P2-;",
+	"H6P2OTV,Solar Sensor,0%,15%,30%,42%,55%,70%,85%,100%;",	
+	"H2P2OG,Turbo,Off,On;",
+	"P2OS,Homebrew BIOS(Reset!),Off,On;",
 	"P3,Miscellaneous;",
-	 "P3-;",
-	 "P3OEF,Storage,Auto,SDRAM,DDR3;",
-	 "D5P3O5,Pause when OSD is open,Off,On;",
-	 "P3OR,Rewind Capture,Off,On;",
+	"P3-;",
+	"P3OEF,Storage,Auto,SDRAM,DDR3;",
+	"D5P3O5,Pause when OSD is open,Off,On;",
+	"P3OR,Rewind Capture,Off,On;",
 	"-;",
-    "R0,Reset;",
+	"R0,Reset;",
 	"J1,A,B,L,R,Select,Start,FastForward,Rewind;",
 	"jn,A,B,L,R,Select,Start,X,X;",
 	"I,",
@@ -283,7 +302,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.ps2_key(ps2_key),
 
 	.status(status),
-	.status_in({status[31:17],1'b0,status[15:10],1'b0,status[8:0]}),
+	.status_in({status[63:17],1'b0,status[15:10],1'b0,status[8:0]}),
 	.status_set(cart_download),
 	.status_menumask(status_menumask),
 	.info_req(ss_info_req),
@@ -1033,12 +1052,8 @@ reg  bk_ena      = 0;
 reg  bk_pending  = 0;
 reg  bk_loading  = 0;
 
-reg [7:0] bk_rtc_count = 0;
 reg bk_record_rtc = 0;
 
-wire [16:0] sd_addr_comb = {sd_lba[8:0], sd_buff_addr[7:0]};
-
-wire extra_sv_data = use_img && (save_sz < (img_size[17:9] - 1'd1));
 wire extra_data_addr = sd_lba[8:0] > save_sz;
 
 always @(posedge clk_sys) begin
@@ -1089,7 +1104,7 @@ always @(posedge clk_sys) begin
 		bram_tx_start <= 0;
 		state <= 0;
 		sd_lba <= 0;
-		time_dout <= {6'd0, RTC_time, 42'd0};
+		time_dout <= {5'd0, RTC_time, 42'd0};
 		bk_loading <= 0;
 		if(bk_ena & ((~old_load & bk_load) | (~old_save & bk_save) | (~old_save_a & bk_save_a & bk_pending) | (cart_download & img_mounted))) begin
 			bk_state <= 1;

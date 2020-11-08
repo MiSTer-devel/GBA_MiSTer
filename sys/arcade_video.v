@@ -180,6 +180,7 @@ module screen_rotate
 	output [11:0] FB_WIDTH,
 	output [11:0] FB_HEIGHT,
 	output [31:0] FB_BASE,
+	output [13:0] FB_STRIDE,
 	input         FB_VBL,
 	input         FB_LL,
 
@@ -193,9 +194,11 @@ module screen_rotate
 	output        DDRAM_RD
 );
 
+parameter MEM_BASE    = 7'b0010010; // buffer at 0x24000000, 3x8MB
+
 assign DDRAM_CLK      = CLK_VIDEO;
 assign DDRAM_BURSTCNT = 1;
-assign DDRAM_ADDR     = {6'b001001, i_fb, ram_addr[23:3]}; // RAM at 0x24000000 
+assign DDRAM_ADDR     = {MEM_BASE, i_fb, ram_addr[22:3]};
 assign DDRAM_BE       = ram_addr[2] ? 8'hF0 : 8'h0F;
 assign DDRAM_DIN      = {ram_data,ram_data};
 assign DDRAM_WE       = ram_wr;
@@ -203,9 +206,10 @@ assign DDRAM_RD       = 0;
 
 assign FB_EN     = ~no_rotate;
 assign FB_FORMAT = 5'b00110;
-assign FB_BASE   = {6'b001001,o_fb,24'd0};
+assign FB_BASE   = {MEM_BASE,o_fb,23'd0};
 assign FB_WIDTH  = vsz;
 assign FB_HEIGHT = hsz;
+assign FB_STRIDE = stride;
 
 function [1:0] buf_next;
 	input [1:0] a,b;
@@ -233,8 +237,8 @@ always @(posedge CLK_VIDEO) begin
 end
 
 reg [11:0] hsz = 320, vsz = 240;
-reg [13:0] bwidth;
-reg [23:0] bufsize;
+reg [11:0] bwidth;
+reg [22:0] bufsize;
 always @(posedge CLK_VIDEO) begin
 	reg [11:0] hcnt = 0, vcnt = 0;
 	reg old_vs, old_de;
@@ -251,17 +255,16 @@ always @(posedge CLK_VIDEO) begin
 		if(old_de & ~VGA_DE) hsz <= hcnt;
 		if(~old_vs & VGA_VS) begin
 			vsz <= vcnt;
+			bwidth <= vcnt + 2'd3;
 			vcnt <= 0;
 		end
-		bwidth <= {vsz, 2'b00} + 14'd255;
-
 		if(old_vs & ~VGA_VS) bufsize <= hsz * stride;
 	end
 end
 
-wire [13:0] stride = {bwidth[13:8], 8'h00};
+wire [13:0] stride = {bwidth[11:2], 4'd0};
 
-reg [23:0] ram_addr, next_addr;
+reg [22:0] ram_addr, next_addr;
 reg [31:0] ram_data;
 reg        ram_wr;
 always @(posedge CLK_VIDEO) begin
