@@ -1735,7 +1735,7 @@ begin
                      when others => report "should never happen" severity failure; 
                   end case;
                   
-                  if ((unsigned(opcode) < 8 or unsigned(opcode) >= 12) and Rdest = x"F" and updateflags = '1') then
+                  if (Rdest = x"F" and updateflags = '1') then
                      decode_leaveirp <= '1';
                      if (cpu_mode = CPUMODE_SYSTEM or cpu_mode = CPUMODE_USER) then
                         decode_leaveirp_user <= '1';

@@ -77,7 +77,7 @@ function transmit_rom(filename, baseaddress, transmit_dwords)
    
    reg_set(#filecontent_char, gameboy.Reg_GBA_MaxPakAddr)
    
-   reg_set_file("tests\\"..filename, baseaddress, 0, 0)
+   reg_set_file(filename, baseaddress, 0, 0)
 
 end
 
