@@ -116,6 +116,15 @@ begin
             
             if (new_cycles_valid = '1') then
                timer_on <= timer_on_next;
+               if (timer_on_next = '1' and new_cycles >= 2) then
+                  if ((H_Count_up = "0" or index = 0)) then
+                     if (H_Prescaler = "00") then
+                        counter <= counter + new_cycles - 2;
+                     else
+                        prescalecounter <= prescalecounter + new_cycles - 2;
+                     end if;
+                  end if;
+               end if;
             end if;
          
             if (timer_on = '1' and timer_on_next = '1') then
