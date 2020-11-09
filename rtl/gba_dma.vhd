@@ -34,6 +34,7 @@ entity gba_dma is
       dma_new_cycles      : out   std_logic := '0'; 
       dma_first_cycles    : out   std_logic := '0';
       dma_dword_cycles    : out   std_logic := '0';
+      dma_toROM           : out   std_logic := '0';
       dma_cycles_adrup    : out   std_logic_vector(3 downto 0) := (others => '0'); 
       
       dma_eepromcount     : out   unsigned(16 downto 0);
@@ -70,6 +71,7 @@ architecture arch of gba_dma is
    signal single_new_cycles   : std_logic_vector(3 downto 0);
    signal single_first_cycles : std_logic_vector(3 downto 0);
    signal single_dword_cycles : std_logic_vector(3 downto 0);
+   signal single_dword_toRom  : std_logic_vector(3 downto 0);
    signal single_cycles_adrup : std_logic_vector(15 downto 0);
    
              
@@ -139,6 +141,7 @@ begin
       dma_new_cycles    => single_new_cycles(0), 
       dma_first_cycles  => single_first_cycles(0),
       dma_dword_cycles  => single_dword_cycles(0),
+      dma_toROM         => single_dword_toRom(0),
       dma_cycles_adrup  => single_cycles_adrup(3 downto 0),
                         
       dma_eepromcount   => open,
@@ -202,6 +205,7 @@ begin
       dma_new_cycles    => single_new_cycles(1), 
       dma_first_cycles  => single_first_cycles(1),
       dma_dword_cycles  => single_dword_cycles(1),
+      dma_toROM         => single_dword_toRom(1),
       dma_cycles_adrup  => single_cycles_adrup(7 downto 4),
                         
       dma_eepromcount   => open,
@@ -265,6 +269,7 @@ begin
       dma_new_cycles    => single_new_cycles(2), 
       dma_first_cycles  => single_first_cycles(2),
       dma_dword_cycles  => single_dword_cycles(2),
+      dma_toROM         => single_dword_toRom(2),
       dma_cycles_adrup  => single_cycles_adrup(11 downto 8),
          
       dma_eepromcount   => open,
@@ -328,6 +333,7 @@ begin
       dma_new_cycles    => single_new_cycles(3), 
       dma_first_cycles  => single_first_cycles(3),
       dma_dword_cycles  => single_dword_cycles(3),
+      dma_toROM         => single_dword_toRom(3),
       dma_cycles_adrup  => single_cycles_adrup(15 downto 12),
          
       dma_eepromcount   => dma_eepromcount,
@@ -369,6 +375,7 @@ begin
    dma_new_cycles   <= single_new_cycles(0)            or single_new_cycles(1)            or single_new_cycles(2)             or single_new_cycles(3);
    dma_first_cycles <= single_first_cycles(0)          or single_first_cycles(1)          or single_first_cycles(2)           or single_first_cycles(3);
    dma_dword_cycles <= single_dword_cycles(0)          or single_dword_cycles(1)          or single_dword_cycles(2)           or single_dword_cycles(3);
+   dma_toROM        <= single_dword_toRom(0)           or single_dword_toRom(1)           or single_dword_toRom(2)            or single_dword_toRom(3);
    dma_cycles_adrup <= single_cycles_adrup(3 downto 0) or single_cycles_adrup(7 downto 4) or single_cycles_adrup(11 downto 8) or single_cycles_adrup(15 downto 12);
    
    dma_on   <= single_dma_on(0) or single_dma_on(1) or  single_dma_on(2) or single_dma_on(3);

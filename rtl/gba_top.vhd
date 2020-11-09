@@ -262,6 +262,7 @@ architecture arch of gba_top is
    signal dma_new_cycles   : std_logic; 
    signal dma_first_cycles : std_logic;
    signal dma_dword_cycles : std_logic;
+   signal dma_toROM        : std_logic;
    signal dma_cycles_adrup : std_logic_vector(3 downto 0); 
    
    signal gba_step : std_logic := '0';
@@ -759,6 +760,7 @@ begin
       dma_new_cycles      => dma_new_cycles,  
       dma_first_cycles    => dma_first_cycles,
       dma_dword_cycles    => dma_dword_cycles,
+      dma_toROM           => dma_toROM,
       dma_cycles_adrup    => dma_cycles_adrup,
       
       dma_eepromcount     => dma_eepromcount,
@@ -943,6 +945,7 @@ begin
       dma_new_cycles   => dma_new_cycles,  
       dma_first_cycles => dma_first_cycles,
       dma_dword_cycles => dma_dword_cycles,
+      dma_toROM        => dma_toROM,
       dma_cycles_adrup => dma_cycles_adrup,
       
       IRP_in           => IRPFLags,

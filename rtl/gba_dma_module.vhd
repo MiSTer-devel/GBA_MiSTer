@@ -50,6 +50,7 @@ entity gba_dma_module is
       dma_new_cycles      : out   std_logic := '0'; 
       dma_first_cycles    : out   std_logic := '0';
       dma_dword_cycles    : out   std_logic := '0';
+      dma_toROM           : out   std_logic := '0';
       dma_cycles_adrup    : out   std_logic_vector(3 downto 0) := (others => '0'); 
       
       dma_eepromcount     : out   unsigned(16 downto 0);
@@ -176,6 +177,7 @@ begin
          dma_new_cycles   <= '0';
          dma_first_cycles <= '0';
          dma_dword_cycles <= '0';
+         dma_toROM        <= '0';
          dma_cycles_adrup <= (others => '0');
          
          if (reset = '1') then
@@ -310,7 +312,10 @@ begin
                            dma_new_cycles   <= '1';
                            dma_first_cycles <= first;
                            dma_dword_cycles <= Transfer_Type_DW;
-                           dma_cycles_adrup <= std_logic_vector(addr_source(27 downto 24));   
+                           dma_cycles_adrup <= std_logic_vector(addr_source(27 downto 24)); 
+                           if ((addr_source(27) = '0') and (addr_target(27) = '1')) then
+                              dma_toROM <= '1';
+                           end if;
                         end if;
                      
                      when READING =>
