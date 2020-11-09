@@ -8,36 +8,37 @@ use work.pReg_gba_dma.all;
 entity gba_dma is
    port 
    (
-      clk100              : in    std_logic;  
-      reset               : in    std_logic;
+      clk100              : in     std_logic;  
+      reset               : in     std_logic;
+                                   
+      savestate_bus       : inout  proc_bus_gb_type;
+      loading_savestate   : in     std_logic;
+                                   
+      gb_bus              : inout  proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
+                                   
+      new_cycles          : in     unsigned(7 downto 0);
+      new_cycles_valid    : in     std_logic;
+                                   
+      IRP_DMA             : out    std_logic_vector(3 downto 0);
+      lastread_dma        : out    std_logic_vector(31 downto 0);
+                                   
+      dma_on              : out    std_logic;
+      CPU_bus_idle        : in     std_logic;
+      do_step             : in     std_logic;
+      dma_soon            : out    std_logic;
+                                   
+      sound_dma_req       : in     std_logic_vector(1 downto 0);
+      hblank_trigger      : in     std_logic;
+      vblank_trigger      : in     std_logic;
+                                   
+      dma_new_cycles      : out    std_logic := '0'; 
+      dma_first_cycles    : out    std_logic := '0';
+      dma_dword_cycles    : out    std_logic := '0';
+      dma_toROM           : out    std_logic := '0';
+      dma_init_cycles     : out    std_logic := '0';
+      dma_cycles_adrup    : out    std_logic_vector(3 downto 0) := (others => '0'); 
       
-      savestate_bus       : inout proc_bus_gb_type;
-      loading_savestate   : in    std_logic;
-      
-      gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
-      
-      new_cycles          : in    unsigned(7 downto 0);
-      new_cycles_valid    : in    std_logic;
-      
-      IRP_DMA             : out   std_logic_vector(3 downto 0);
-      lastread_dma        : out   std_logic_vector(31 downto 0);
-
-      dma_on              : out   std_logic;
-      CPU_bus_idle        : in    std_logic;
-      do_step             : in    std_logic;
-      dma_soon            : out   std_logic;
-      
-      sound_dma_req       : in    std_logic_vector(1 downto 0);
-      hblank_trigger      : in    std_logic;
-      vblank_trigger      : in    std_logic;
-      
-      dma_new_cycles      : out   std_logic := '0'; 
-      dma_first_cycles    : out   std_logic := '0';
-      dma_dword_cycles    : out   std_logic := '0';
-      dma_toROM           : out   std_logic := '0';
-      dma_cycles_adrup    : out   std_logic_vector(3 downto 0) := (others => '0'); 
-      
-      dma_eepromcount     : out   unsigned(16 downto 0);
+      dma_eepromcount     : out    unsigned(16 downto 0);
       
       dma_bus_Adr         : out    std_logic_vector(27 downto 0);
       dma_bus_rnw         : buffer std_logic;
@@ -48,7 +49,7 @@ entity gba_dma is
       dma_bus_done        : in     std_logic;
       dma_bus_unread      : in     std_logic;
       
-      debug_dma           : out   std_logic_vector(31 downto 0)
+      debug_dma           : out    std_logic_vector(31 downto 0)
    );
 end entity;
 
@@ -72,6 +73,7 @@ architecture arch of gba_dma is
    signal single_first_cycles : std_logic_vector(3 downto 0);
    signal single_dword_cycles : std_logic_vector(3 downto 0);
    signal single_dword_toRom  : std_logic_vector(3 downto 0);
+   signal single_init_cycles  : std_logic_vector(3 downto 0);
    signal single_cycles_adrup : std_logic_vector(15 downto 0);
    
              
@@ -142,6 +144,7 @@ begin
       dma_first_cycles  => single_first_cycles(0),
       dma_dword_cycles  => single_dword_cycles(0),
       dma_toROM         => single_dword_toRom(0),
+      dma_init_cycles   => single_init_cycles(0),
       dma_cycles_adrup  => single_cycles_adrup(3 downto 0),
                         
       dma_eepromcount   => open,
@@ -206,6 +209,7 @@ begin
       dma_first_cycles  => single_first_cycles(1),
       dma_dword_cycles  => single_dword_cycles(1),
       dma_toROM         => single_dword_toRom(1),
+      dma_init_cycles   => single_init_cycles(1),
       dma_cycles_adrup  => single_cycles_adrup(7 downto 4),
                         
       dma_eepromcount   => open,
@@ -270,6 +274,7 @@ begin
       dma_first_cycles  => single_first_cycles(2),
       dma_dword_cycles  => single_dword_cycles(2),
       dma_toROM         => single_dword_toRom(2),
+      dma_init_cycles   => single_init_cycles(2),
       dma_cycles_adrup  => single_cycles_adrup(11 downto 8),
          
       dma_eepromcount   => open,
@@ -334,6 +339,7 @@ begin
       dma_first_cycles  => single_first_cycles(3),
       dma_dword_cycles  => single_dword_cycles(3),
       dma_toROM         => single_dword_toRom(3),
+      dma_init_cycles   => single_init_cycles(3),
       dma_cycles_adrup  => single_cycles_adrup(15 downto 12),
          
       dma_eepromcount   => dma_eepromcount,
@@ -376,6 +382,7 @@ begin
    dma_first_cycles <= single_first_cycles(0)          or single_first_cycles(1)          or single_first_cycles(2)           or single_first_cycles(3);
    dma_dword_cycles <= single_dword_cycles(0)          or single_dword_cycles(1)          or single_dword_cycles(2)           or single_dword_cycles(3);
    dma_toROM        <= single_dword_toRom(0)           or single_dword_toRom(1)           or single_dword_toRom(2)            or single_dword_toRom(3);
+   dma_init_cycles  <= single_init_cycles(0)           or single_init_cycles(1)           or single_init_cycles(2)            or single_init_cycles(3);
    dma_cycles_adrup <= single_cycles_adrup(3 downto 0) or single_cycles_adrup(7 downto 4) or single_cycles_adrup(11 downto 8) or single_cycles_adrup(15 downto 12);
    
    dma_on   <= single_dma_on(0) or single_dma_on(1) or  single_dma_on(2) or single_dma_on(3);

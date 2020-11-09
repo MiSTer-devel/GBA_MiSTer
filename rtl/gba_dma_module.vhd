@@ -26,49 +26,50 @@ entity gba_dma_module is
    );
    port 
    (
-      clk100              : in    std_logic;  
-      reset               : in    std_logic;
-      
-      savestate_bus       : inout proc_bus_gb_type;
-      loading_savestate   : in    std_logic;
-      
-      gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
-      
-      new_cycles          : in    unsigned(7 downto 0);
-      new_cycles_valid    : in    std_logic;
-      
-      IRP_DMA             : out   std_logic := '0';
-      
-      dma_on              : out   std_logic := '0';
-      allow_on            : in    std_logic;
-      dma_soon            : out   std_logic := '0';
-      
-      sound_dma_req       : in    std_logic;
-      hblank_trigger      : in    std_logic;
-      vblank_trigger      : in    std_logic;
-      
-      dma_new_cycles      : out   std_logic := '0'; 
-      dma_first_cycles    : out   std_logic := '0';
-      dma_dword_cycles    : out   std_logic := '0';
-      dma_toROM           : out   std_logic := '0';
-      dma_cycles_adrup    : out   std_logic_vector(3 downto 0) := (others => '0'); 
-      
-      dma_eepromcount     : out   unsigned(16 downto 0);
-      
-      last_dma_out        : out   std_logic_vector(31 downto 0) := (others => '0');
-      last_dma_valid      : out   std_logic := '0';
-      last_dma_in         : in    std_logic_vector(31 downto 0);
-      
-      dma_bus_Adr         : out   std_logic_vector(27 downto 0) := (others => '0'); 
-      dma_bus_rnw         : out   std_logic := '0';
-      dma_bus_ena         : out   std_logic := '0';
-      dma_bus_acc         : out   std_logic_vector(1 downto 0) := (others => '0'); 
-      dma_bus_dout        : out   std_logic_vector(31 downto 0) := (others => '0'); 
-      dma_bus_din         : in    std_logic_vector(31 downto 0);
-      dma_bus_done        : in    std_logic;
-      dma_bus_unread      : in    std_logic;
-      
-      is_idle             : out   std_logic
+      clk100              : in     std_logic;  
+      reset               : in     std_logic;
+                                   
+      savestate_bus       : inout  proc_bus_gb_type;
+      loading_savestate   : in     std_logic;
+                                   
+      gb_bus              : inout  proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
+                                   
+      new_cycles          : in     unsigned(7 downto 0);
+      new_cycles_valid    : in     std_logic;
+                                   
+      IRP_DMA             : out    std_logic := '0';
+                                   
+      dma_on              : out    std_logic := '0';
+      allow_on            : in     std_logic;
+      dma_soon            : out    std_logic := '0';
+                                   
+      sound_dma_req       : in     std_logic;
+      hblank_trigger      : in     std_logic;
+      vblank_trigger      : in     std_logic;
+                                   
+      dma_new_cycles      : out    std_logic := '0'; 
+      dma_first_cycles    : out    std_logic := '0';
+      dma_dword_cycles    : out    std_logic := '0';
+      dma_toROM           : out    std_logic := '0';
+      dma_init_cycles     : buffer std_logic := '0';
+      dma_cycles_adrup    : out    std_logic_vector(3 downto 0) := (others => '0'); 
+                                   
+      dma_eepromcount     : out    unsigned(16 downto 0);
+                                   
+      last_dma_out        : out    std_logic_vector(31 downto 0) := (others => '0');
+      last_dma_valid      : out    std_logic := '0';
+      last_dma_in         : in     std_logic_vector(31 downto 0);
+                                   
+      dma_bus_Adr         : out    std_logic_vector(27 downto 0) := (others => '0'); 
+      dma_bus_rnw         : out    std_logic := '0';
+      dma_bus_ena         : out    std_logic := '0';
+      dma_bus_acc         : out    std_logic_vector(1 downto 0) := (others => '0'); 
+      dma_bus_dout        : out    std_logic_vector(31 downto 0) := (others => '0'); 
+      dma_bus_din         : in     std_logic_vector(31 downto 0);
+      dma_bus_done        : in     std_logic;
+      dma_bus_unread      : in     std_logic;
+                                   
+      is_idle             : out    std_logic
    );
 end entity;
 
@@ -110,6 +111,7 @@ architecture arch of gba_dma_module is
    type tstate is
    (
       IDLE,
+      START,
       READING,
       WRITING
    );
@@ -178,6 +180,7 @@ begin
          dma_first_cycles <= '0';
          dma_dword_cycles <= '0';
          dma_toROM        <= '0';
+         dma_init_cycles  <= '0';
          dma_cycles_adrup <= (others => '0');
          
          if (reset = '1') then
@@ -282,6 +285,7 @@ begin
                         dmaon     <= '1';
                         waitTicks <= 0;
                         dma_soon  <= '0';
+                        state     <= IDLE;
                      else
                         waitTicks <= waitTicks - to_integer(new_cycles);
                      end if;
@@ -296,6 +300,12 @@ begin
                   
                      when IDLE =>
                         if (allow_on = '1') then
+                           dma_init_cycles  <= '1';
+                           state            <= START;
+                        end if;
+                  
+                     when START =>
+                        if (allow_on = '1' and dma_init_cycles = '0') then
                            state <= READING;
                            dma_bus_rnw <= '1';
                            dma_bus_ena <= '1';
@@ -377,8 +387,9 @@ begin
                      
                      when WRITING =>
                         if (dma_bus_done = '1') then
-                           state <= IDLE;
+                           state <= START;
                            if (count = 0) then
+                              state   <= IDLE;
                               running <= '0';
                               dmaon   <= '0';
    

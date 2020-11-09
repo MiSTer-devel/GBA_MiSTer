@@ -48,6 +48,7 @@ entity gba_cpu is
       dma_first_cycles : in    std_logic := '0';
       dma_dword_cycles : in    std_logic := '0';
       dma_toROM        : in    std_logic := '0';
+      dma_init_cycles  : in    std_logic := '0';
       dma_cycles_adrup : in    std_logic_vector(3 downto 0) := (others => '0'); 
       
       IRP_in           : in    std_logic_vector(15 downto 0);
@@ -878,14 +879,19 @@ begin
             
             regs(16) <= Flag_Negative & Flag_Zero & Flag_Carry & Flag_V_Overflow & x"00000" & IRQ_disable & FIQ_disable & thumbmode & '1' & unsigned(cpu_mode);
             
+            if (dma_init_cycles = '1') then
+               new_cycles_out   <= to_unsigned(2, new_cycles_out'length);
+               new_cycles_valid <= '1';
+            end if;
+            
             if (dma_new_cycles = '1') then
                new_cycles_valid <= '1';
                if (dma_dword_cycles = '1') then
                   if (dma_first_cycles = '1') then
                      if (dma_toROM = '1') then
-                        new_cycles_out   <= to_unsigned(5 + memoryWait32(to_integer(unsigned(dma_cycles_adrup))), new_cycles_out'length);
-                     else
                         new_cycles_out   <= to_unsigned(3 + memoryWait32(to_integer(unsigned(dma_cycles_adrup))), new_cycles_out'length);
+                     else
+                        new_cycles_out   <= to_unsigned(1 + memoryWait32(to_integer(unsigned(dma_cycles_adrup))), new_cycles_out'length);
                      end if;
                   else
                      new_cycles_out   <= to_unsigned(1 + memoryWaitSeq32(to_integer(unsigned(dma_cycles_adrup))), new_cycles_out'length);
@@ -893,9 +899,9 @@ begin
                else
                   if (dma_first_cycles = '1') then
                      if (dma_toROM = '1') then
-                        new_cycles_out   <= to_unsigned(5 + memoryWait16(to_integer(unsigned(dma_cycles_adrup))), new_cycles_out'length);
-                     else
                         new_cycles_out   <= to_unsigned(3 + memoryWait16(to_integer(unsigned(dma_cycles_adrup))), new_cycles_out'length);
+                     else
+                        new_cycles_out   <= to_unsigned(1 + memoryWait16(to_integer(unsigned(dma_cycles_adrup))), new_cycles_out'length);
                      end if;
                   else
                      new_cycles_out   <= to_unsigned(1 + memoryWaitSeq16(to_integer(unsigned(dma_cycles_adrup))), new_cycles_out'length);
