@@ -42,10 +42,13 @@ entity gba_dma_module is
       dma_on              : out    std_logic := '0';
       allow_on            : in     std_logic;
       dma_soon            : out    std_logic := '0';
+      lowprio_pending     : in     std_logic; 
                                    
       sound_dma_req       : in     std_logic;
       hblank_trigger      : in     std_logic;
       vblank_trigger      : in     std_logic;
+      videodma_start      : in     std_logic;
+      videodma_stop       : in     std_logic;
                                    
       dma_new_cycles      : out    std_logic := '0'; 
       dma_first_cycles    : out    std_logic := '0';
@@ -268,7 +271,8 @@ begin
                   if (Start_Timing = 0 or 
                   (Start_Timing = 1 and vblank_trigger = '1') or 
                   (Start_Timing = 2 and hblank_trigger = '1') or 
-                  (Start_Timing = 3 and sound_dma_req = '1')) then
+                  (Start_Timing = 3 and sound_dma_req = '1') or
+                  (Start_Timing = 3 and videodma_start = '1')) then
                      dma_soon   <= '1';
                      waitTicks  <= 3;
                      waiting    <= '0';
@@ -276,7 +280,10 @@ begin
                      fullcount  <= count;
                   end if ;   
                end if;
-               --if (DMAs[index].dMA_Start_Timing = 3 and index = 3) -- video dma not implemented"
+               
+               if (Start_Timing = 3 and videodma_stop = '1') then
+                  Enable <= "0";
+               end if;
       
                if (waitTicks > 0) then
                   if (new_cycles_valid = '1') then
@@ -300,7 +307,9 @@ begin
                   
                      when IDLE =>
                         if (allow_on = '1') then
-                           dma_init_cycles  <= '1';
+                           if (lowprio_pending = '0') then
+                              dma_init_cycles  <= '1';
+                           end if;
                            state            <= START;
                         end if;
                   

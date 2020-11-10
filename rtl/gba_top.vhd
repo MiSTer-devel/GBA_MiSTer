@@ -284,6 +284,8 @@ architecture arch of gba_top is
    
    signal hblank_trigger : std_logic;
    signal vblank_trigger : std_logic;
+   signal videodma_start : std_logic;
+   signal videodma_stop  : std_logic;
    
    signal timer0_tick    : std_logic;
    signal timer1_tick    : std_logic;
@@ -757,6 +759,8 @@ begin
       sound_dma_req       => sound_dma_req,
       hblank_trigger      => hblank_trigger,
       vblank_trigger      => vblank_trigger,
+      videodma_start      => videodma_start,
+      videodma_stop       => videodma_stop ,   
       
       dma_new_cycles      => dma_new_cycles,  
       dma_first_cycles    => dma_first_cycles,
@@ -848,6 +852,8 @@ begin
 
       hblank_trigger       => hblank_trigger,
       vblank_trigger       => vblank_trigger,
+      videodma_start       => videodma_start,
+      videodma_stop        => videodma_stop ,   
                         
       VRAM_Lo_addr         => VRAM_Lo_addr,   
       VRAM_Lo_datain       => VRAM_Lo_datain, 

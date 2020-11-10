@@ -30,6 +30,8 @@ entity gba_dma is
       sound_dma_req       : in     std_logic_vector(1 downto 0);
       hblank_trigger      : in     std_logic;
       vblank_trigger      : in     std_logic;
+      videodma_start      : in     std_logic;
+      videodma_stop       : in     std_logic;
                                    
       dma_new_cycles      : out    std_logic := '0'; 
       dma_first_cycles    : out    std_logic := '0';
@@ -80,6 +82,8 @@ architecture arch of gba_dma is
    signal single_dma_on   : std_logic_vector(3 downto 0);
    signal single_allow_on : std_logic_vector(3 downto 0);
    signal single_soon     : std_logic_vector(3 downto 0);
+   
+   signal lowprio_pending : std_logic_vector(2 downto 0);
    
    signal dma_switch : integer range 0 to 3 := 0; 
    
@@ -135,11 +139,14 @@ begin
       dma_on            => single_dma_on(0),
       allow_on          => single_allow_on(0),
       dma_soon          => single_soon(0),
+      lowprio_pending   => lowprio_pending(0),
                         
       sound_dma_req     => '0', 
       hblank_trigger    => hblank_trigger,
       vblank_trigger    => vblank_trigger,
-                        
+      videodma_start    => '0',
+      videodma_stop     => '0',                
+      
       dma_new_cycles    => single_new_cycles(0), 
       dma_first_cycles  => single_first_cycles(0),
       dma_dword_cycles  => single_dword_cycles(0),
@@ -200,10 +207,13 @@ begin
       dma_on            => single_dma_on(1),
       allow_on          => single_allow_on(1),
       dma_soon          => single_soon(1),
+      lowprio_pending   => lowprio_pending(1),
                         
       sound_dma_req     => sound_dma_req(0), 
       hblank_trigger    => hblank_trigger,
       vblank_trigger    => vblank_trigger,
+      videodma_start    => '0',
+      videodma_stop     => '0',     
                         
       dma_new_cycles    => single_new_cycles(1), 
       dma_first_cycles  => single_first_cycles(1),
@@ -265,10 +275,13 @@ begin
       dma_on            => single_dma_on(2),
       allow_on          => single_allow_on(2),
       dma_soon          => single_soon(2),
+      lowprio_pending   => lowprio_pending(2),
                         
       sound_dma_req     => sound_dma_req(1), 
       hblank_trigger    => hblank_trigger,
       vblank_trigger    => vblank_trigger,
+      videodma_start    => '0',
+      videodma_stop     => '0',     
          
       dma_new_cycles    => single_new_cycles(2), 
       dma_first_cycles  => single_first_cycles(2),
@@ -330,10 +343,13 @@ begin
       dma_on            => single_dma_on(3),
       allow_on          => single_allow_on(3),
       dma_soon          => single_soon(3),
+      lowprio_pending   => '0',
                         
       sound_dma_req     => '0', 
       hblank_trigger    => hblank_trigger,
       vblank_trigger    => vblank_trigger,
+      videodma_start    => videodma_start,
+      videodma_stop     => videodma_stop ,     
          
       dma_new_cycles    => single_new_cycles(3), 
       dma_first_cycles  => single_first_cycles(3),
@@ -377,6 +393,10 @@ begin
    single_allow_on(1) <= '1' when (do_step = '1' and dma_idle = '0' and CPU_bus_idle = '1' and dma_switch = 1) else '0';
    single_allow_on(2) <= '1' when (do_step = '1' and dma_idle = '0' and CPU_bus_idle = '1' and dma_switch = 2) else '0';
    single_allow_on(3) <= '1' when (do_step = '1' and dma_idle = '0' and CPU_bus_idle = '1' and dma_switch = 3) else '0';
+   
+   lowprio_pending(0) <= single_dma_on(1) or single_dma_on(2) or single_dma_on(3);
+   lowprio_pending(1) <= single_dma_on(2) or single_dma_on(3);
+   lowprio_pending(2) <= single_dma_on(3);
    
    dma_new_cycles   <= single_new_cycles(0)            or single_new_cycles(1)            or single_new_cycles(2)             or single_new_cycles(3);
    dma_first_cycles <= single_first_cycles(0)          or single_first_cycles(1)          or single_first_cycles(2)           or single_first_cycles(3);

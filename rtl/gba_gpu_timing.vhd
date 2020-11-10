@@ -33,6 +33,9 @@ entity gba_gpu_timing is
       vram_block_mode      : in  std_logic;
       vram_blocked         : out std_logic := '0';
       
+      videodma_start       : out std_logic := '0';
+      videodma_stop        : out std_logic := '0';
+      
       line_trigger         : out std_logic := '0';                              
       hblank_trigger       : out std_logic := '0';                              
       vblank_trigger       : out std_logic := '0';                              
@@ -124,6 +127,9 @@ begin
          vblank_trigger  <= '0';
          newline_invsync <= '0';
          
+         videodma_start  <= '0';
+         videodma_stop   <= '0';
+         
          vram_blocked <= '0';
          if (gpustate = visible and vram_block_mode = '1' and cycles < 980) then
             vram_blocked <= '1';
@@ -170,6 +176,9 @@ begin
                         gpustate                  <= HBLANK;
                         REG_DISPSTAT_H_Blank_flag <= "1";
                         hblank_trigger            <= '1';
+                        if (linecounter >= 2) then
+                           videodma_start  <= '1';
+                        end if;
                         if (REG_DISPSTAT_H_Blank_IRQ_Enable = "1") then
                            IRP_HBlank <= '1';
                         end if;
@@ -214,6 +223,12 @@ begin
                         -- don't do hblank for dma here!
                         if (REG_DISPSTAT_H_Blank_IRQ_Enable = "1") then
                            IRP_HBlank <= '1'; -- Note that no H-Blank interrupts are generated within V-Blank period. Really? Seems to work this way...
+                        end if;
+                        if (linecounter < 162) then
+                           videodma_start <= '1';
+                        end if;
+                        if (linecounter = 162) then
+                           videodma_stop  <= '1';
                         end if;
                      end if;
                   

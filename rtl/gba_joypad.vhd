@@ -36,6 +36,8 @@ architecture arch of gba_joypad is
    
    signal Keys    : std_logic_vector(KEYINPUT.upper downto KEYINPUT.lower) := (others => '0');
    signal Keys_1  : std_logic_vector(KEYINPUT.upper downto KEYINPUT.lower) := (others => '0');
+   
+   signal REG_KEYCNT_1 : std_logic_vector(KEYCNT  .upper downto KEYCNT  .lower) := (others => '0');
 
 begin 
 
@@ -50,7 +52,8 @@ begin
 
          IRP_Joypad <= '0';
          
-         Keys_1 <= Keys;
+         Keys_1       <= Keys;
+         REG_KEYCNT_1 <= REG_KEYCNT;
          
          Keys(0) <= not KeyA; 
          Keys(1) <= not KeyB;
@@ -63,7 +66,7 @@ begin
          Keys(8) <= not KeyR;
          Keys(9) <= not KeyL;
          
-         if (Keys_1 /= Keys) then
+         if (Keys_1 /= Keys or REG_KEYCNT_1 /= REG_KEYCNT) then
             if (REG_KEYCNT(30) = '1') then
                if (REG_KEYCNT(31) = '1') then -- logical and
                   if ((not Keys(9 downto 0)) = REG_KEYCNT(25 downto 16)) then

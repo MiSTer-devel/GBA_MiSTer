@@ -51,6 +51,8 @@ entity gba_gpu is
                            
       hblank_trigger       : buffer std_logic;
       vblank_trigger       : buffer std_logic;
+      videodma_start       : out    std_logic;
+      videodma_stop        : out    std_logic;
                           
       VRAM_Lo_addr         : in    integer range 0 to 16383;
       VRAM_Lo_datain       : in    std_logic_vector(31 downto 0);
@@ -130,7 +132,10 @@ begin
       IRP_LCDStat                  => IRP_LCDStat,
       
       vram_block_mode              => vram_block_mode,
-      vram_blocked                 => vram_blocked,  
+      vram_blocked                 => vram_blocked, 
+
+      videodma_start               => videodma_start,
+      videodma_stop                => videodma_stop,       
            
       line_trigger                 => line_trigger,
       hblank_trigger               => hblank_trigger,                            
