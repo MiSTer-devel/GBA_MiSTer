@@ -237,12 +237,11 @@ begin
                            gpustate    <= VISIBLE;
                            drawsoon    <= '1';
                            pixelpos    <= 0;
-                           REG_DISPSTAT_V_Blank_flag <= "0";
                         else
                            gpustate <= VBLANK;
-                           --if ((linecounter + 1) = 227)
-                              -- GBRegs.Sect_display.DISPSTAT_V_Blank_flag.write(0);  -- V-Blank flag (1=VBlank) (set in line 160..226; not 227)
-                           --end if;
+                           if ((linecounter + 1) = 227) then
+                              REG_DISPSTAT_V_Blank_flag <= "0";  -- (set in line 160..226; not 227)
+                           end if;
                         end if;
                      end if;
                

@@ -189,6 +189,7 @@ architecture arch of gba_memorymux is
    
    signal registersettle     : std_logic := '0';
    signal registersettle_cnt : integer range 0 to 7 := 0;
+   signal wait_timer         : integer range 0 to 7 := 0;
    
    signal vramwait           : std_logic := '0';
    
@@ -443,6 +444,8 @@ begin
          case state is
          
             when IDLE =>
+            
+               wait_timer <= 0;
          
                if (mem_bus_ena = '1') then
                
@@ -496,6 +499,9 @@ begin
                                  gb_bus_out.rnw <= '1';
                                  gb_bus_out.ena <= '1';
                                  state <= WAIT_GBBUS;
+                                 if ((unsigned(mem_bus_Adr(11 downto 0)) >= x"100") and (unsigned(mem_bus_Adr(11 downto 0)) <= x"10C")) then
+                                    wait_timer <= 7;
+                                 end if;
                               else
                                  state <= READ_UNREADABLE;
                               end if;
@@ -722,26 +728,30 @@ begin
                state        <= ROTATE;               
                
             when WAIT_GBBUS =>
-               if (gb_bus_out.done /= '0') then
-                  if (read_operation = '1') then
-                     if (is_simu = '0') then
-                        rotate_data <= gb_bus_out.Dout;
-                     else
-                        for i in 0 to 31 loop
-                           if (gb_bus_out.Dout(i) = '1') then rotate_data(i) <= '1'; else rotate_data(i) <= '0'; end if;
-                        end loop;
-                     end if;
-                     state <= rotate;
-                  else
-                     mem_bus_done <= '1'; 
-                     state <= IDLE;
-                  end if;
+               if (wait_timer > 0) then
+                  wait_timer <= wait_timer - 1;
                else
-                  if (read_operation = '1') then
-                     state <= READ_UNREADABLE;
+                  if (gb_bus_out.done /= '0') then
+                     if (read_operation = '1') then
+                        if (is_simu = '0') then
+                           rotate_data <= gb_bus_out.Dout;
+                        else
+                           for i in 0 to 31 loop
+                              if (gb_bus_out.Dout(i) = '1') then rotate_data(i) <= '1'; else rotate_data(i) <= '0'; end if;
+                           end loop;
+                        end if;
+                        state <= rotate;
+                     else
+                        mem_bus_done <= '1'; 
+                        state <= IDLE;
+                     end if;
                   else
-                     mem_bus_done <= '1'; 
-                     state <= IDLE;
+                     if (read_operation = '1') then
+                        state <= READ_UNREADABLE;
+                     else
+                        mem_bus_done <= '1'; 
+                        state <= IDLE;
+                     end if;
                   end if;
                end if;
                
