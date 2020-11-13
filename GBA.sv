@@ -612,6 +612,7 @@ always @(posedge clk_sys) begin
 				if(cart_id == {"DRAGON BALLZ"} )              	begin sram_quirk <= 1;                          end // Dragon Ball Z - Taiketsu EU
 				if(cart_id == {"DBZBUUSFURY", 8'h00} )          begin sram_quirk <= 1;                          end // Dragon Ball Z - Buu's Fury US
 				if(cart_id == {"DBZLGCYGOKU2"} )              	begin sram_quirk <= 1;                          end // Dragon Ball Z - The Legacy of Goku II US
+				if(cart_id == {"DRAGONBALLAA"} )              	begin sram_quirk <= 1;                          end // Dragon Ball Z - Advanced Adventure EU + US + J + K
 				if(cart_id == {"TOPGUN CZ", 24'h000000} )     	begin sram_quirk <= 1;                          end // Top Gun - Combat Zones
 				if(cart_id == {"IRIDIONII", 24'h000000} )     	begin sram_quirk <= 1;                          end // Iridion II EU and US
 				if(cart_id == {"BOMBER MAN", 16'h0000} )      	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Classic NES Series Bomberman / Famicom Mini 09 - Bomber Man

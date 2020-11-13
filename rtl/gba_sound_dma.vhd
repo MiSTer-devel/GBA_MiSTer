@@ -180,13 +180,11 @@ begin
                
                if (afterfifo_cnt < 3) then
                   afterfifo_cnt <= afterfifo_cnt + 1;
-               else
+               elsif (fifo_Empty = '0') then
                   afterfifo_cnt <= 0;
                   if (fifo_cnt > 0) then 
                      fifo_cnt <= fifo_cnt - 1;
-                     if (fifo_Empty = '0') then
-                        fifo_Rd  <= '1';
-                     end if;
+                     fifo_Rd  <= '1';
                   end if;
                end if;
                
