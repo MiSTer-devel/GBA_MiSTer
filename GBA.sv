@@ -631,13 +631,13 @@ always @(posedge clk_sys) begin
 				if(cart_id == {"Z-GUNDAM", 32'h00000000} )    	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini - Kidou Senshi Z Gundam - Hot Scramble (Japan) (Promo)
 				if(cart_id == {"SD GACHAPON1"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 30 - SD Gundam World - Gachapon Senshi Scramble Wars
 				if(cart_id == {"DRACULA 1", 24'h000000} )     	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 29 - Akumajou Dracula
-				if(cart_id == {"TANTEI CLUB2"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 28 - Famicom Tantei Club Part II - Ushiro ni Tatsu Shoujo - Zen, Kouhen
-				if(cart_id == {"TANTEI CLUB1"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 27 - Famicom Tantei Club - Kieta Koukeisha - Zen, Kouhen
-				if(cart_id == {"ONIGASHIMA", 16'h0000} )      	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 26 - Famicom Mukashibanashi - Shin Onigashima - Zen, Kouhen
-				if(cart_id == {"LINK", 64'h0000000000000000} )	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 25 - The Legend of Zelda 2 - Link no Bouken
-				if(cart_id == {"PARTHENA", 32'h00000000} )    	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 24 - Hikari Shinwa - Palthena no Kagami
-				if(cart_id == {"FMS METROID", 8'h00} )        	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 23 - Metroid
-				if(cart_id == {"MURASAME", 32'h00000000} )    	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 22 - Nazo no Murasame Jou
+				if(cart_id == {"TANTEI CLUB2"} )              	begin sram_quirk <= 1;                          end // Famicom Mini 28 - Famicom Tantei Club Part II - Ushiro ni Tatsu Shoujo - Zen, Kouhen
+				if(cart_id == {"TANTEI CLUB1"} )              	begin sram_quirk <= 1;                          end // Famicom Mini 27 - Famicom Tantei Club - Kieta Koukeisha - Zen, Kouhen
+				if(cart_id == {"ONIGASHIMA", 16'h0000} )      	begin sram_quirk <= 1;                          end // Famicom Mini 26 - Famicom Mukashibanashi - Shin Onigashima - Zen, Kouhen
+				if(cart_id == {"LINK", 64'h0000000000000000} )	begin sram_quirk <= 1;                          end // Famicom Mini 25 - The Legend of Zelda 2 - Link no Bouken
+				if(cart_id == {"PARTHENA", 32'h00000000} )    	begin sram_quirk <= 1;                          end // Famicom Mini 24 - Hikari Shinwa - Palthena no Kagami
+				if(cart_id == {"FMS METROID", 8'h00} )        	begin sram_quirk <= 1;                          end // Famicom Mini 23 - Metroid
+				if(cart_id == {"MURASAME", 32'h00000000} )    	begin sram_quirk <= 1;                          end // Famicom Mini 22 - Nazo no Murasame Jou
 				if(cart_id == {"SUPER MARIO2"} )              	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 21 - Super Mario Bros. 2
 				if(cart_id == {"GOEMON 1", 32'h00000000} )    	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 20 - Ganbare Goemon! - Karakuri Douchuu
 				if(cart_id == {"TWINBEE", 40'h0000000000} )   	begin sram_quirk <= 1; memory_remap_quirk <= 1; end // Famicom Mini 19 - Twin Bee
