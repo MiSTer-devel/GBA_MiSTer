@@ -76,6 +76,10 @@ architecture arch of gba_gpioRTCSolarGyro is
    signal rtc_change       : std_logic := '0';
    signal RTC_saveLoaded_1 : std_logic := '0';
    
+   signal saveCTL          : std_logic := '0';
+   signal saveCTL_next     : std_logic := '0';
+   signal CTLval           : std_logic_vector(7 downto 0) := x"40";
+   
    signal RTC_timestamp    : std_logic_vector(31 downto 0);
    signal diffSeconds      : unsigned(31 downto 0) := (others => '0');
    
@@ -127,6 +131,11 @@ begin
          -- overwritten later
          GPIO_done    <= '0';
          saveRTC_next <= '0';
+         saveCTL_next <= '0';
+         
+         if (saveCTL_next = '1') then
+            CTLval <= data(0);
+         end if;
          
          -- precalc for timing purpose
          case (solar_in) is
@@ -264,15 +273,15 @@ begin
                      end if;
                      
                      -- RTC
-                     if (selected(2) = '1') then
+                     --if (selected(2) = '1') then -- don't check for clock as Sennen Kazoku doesn't handle it "correct"
                      
-                        RTC_inuse <= '1';
-
                         if (state = IDLE and retval = x"1" and GPIO_Dout = x"5") then
                         
                            state   <= COMMANDSTATE;
                            bits    <= (others => '0');
                            command <= (others => '0');
+                           
+                           RTC_inuse <= '1';
                               
                         elsif (retval(0) = '0' and GPIO_Dout(0) = '1') then -- bit transfer
 
@@ -293,18 +302,17 @@ begin
       
                                     case (new_command) is
 
-                                       when x"60" =>
-                                          -- not sure what this command does but it doesn't take parameters, maybe it is a reset or stop
+                                       when x"60" => -- reset
                                           state <= IDLE;
       
-                                       when x"62" =>
-                                          -- this sets the control state but not sure what those values are
+                                       when x"62" => --control state
                                           state   <= READDATA;
                                           dataLen <= to_unsigned(1, dataLen'length);
+                                          saveCTL <= '1';
       
                                        when x"63" =>
                                           dataLen <= to_unsigned(1, dataLen'length);
-                                          data(0) <= x"40";
+                                          data(0) <= CTLval;
                                           state   <= DATASTATE;
                                                
                                        when x"64" =>
@@ -361,7 +369,9 @@ begin
                                        bits  <= (others => '0');
                                        state <= IDLE;
                                        saveRTC_next <= saveRTC;
+                                       saveCTL_next <= saveCTL;
                                        saveRTC      <= '0';
+                                       saveCTL      <= '0';
                                     end if;
                                     
                                  end if;
@@ -375,7 +385,7 @@ begin
                            retval <= GPIO_Dout;
                               
                         end if;
-                     end if;
+                     --end if;
                   
                   when others => null;
                end case;
