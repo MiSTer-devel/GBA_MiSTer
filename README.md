@@ -1,5 +1,5 @@
-# GBA_MiSTer
-GBA for MiSTer
+# [Gameboy Advance](https://en.wikipedia.org/wiki/Game_Boy_Advance) for [MiSTer Platform](https://github.com/MiSTer-devel/Main_MiSTer/wiki)
+
 
 # HW Requirements/Features
 The games can run from a naked DE10-Nano with the build-in DDR-RAM.
