@@ -1,11 +1,20 @@
 
 module vga_out
 (
+	input         clk,
 	input         ypbpr_full,
 	input         ypbpr_en,
 
+	input         hsync,
+	input         vsync,
+	input         csync,
+
 	input  [23:0] din,
-	output [23:0] dout
+	output [23:0] dout,
+
+	output reg    hsync_o,
+	output reg    vsync_o,
+	output reg    csync_o
 );
 
 wire [5:0] yuv_full[225] = '{
@@ -49,17 +58,32 @@ wire [5:0] blue  = din[7:2];
 // Pb = 128 - 0.148*R - 0.291*G + 0.439*B (Pb = -0.169*R - 0.331*G + 0.500*B)
 // Pr = 128 + 0.439*R - 0.368*G - 0.071*B (Pr =  0.500*R - 0.419*G - 0.081*B)
 
-wire [18:0]  y_8 = 19'd04096 + ({red, 8'd0} + {red, 3'd0}) + ({green, 9'd0} + {green, 2'd0}) + ({blue, 6'd0} + {blue, 5'd0} + {blue, 2'd0});
-wire [18:0] pb_8 = 19'd32768 - ({red, 7'd0} + {red, 4'd0} + {red, 3'd0}) - ({green, 8'd0} + {green, 5'd0} + {green, 3'd0}) + ({blue, 8'd0} + {blue, 7'd0} + {blue, 6'd0});
-wire [18:0] pr_8 = 19'd32768 + ({red, 8'd0} + {red, 7'd0} + {red, 6'd0}) - ({green, 8'd0} + {green, 6'd0} + {green, 5'd0} + {green, 4'd0} + {green, 3'd0}) - ({blue, 6'd0} + {blue , 3'd0});
+reg [18:0] y_2, pb_2, pr_2;
 
-wire [7:0] y  = ( y_8[17:8] < 16) ? 8'd16 : ( y_8[17:8] > 235) ? 8'd235 :  y_8[15:8];
-wire [7:0] pb = (pb_8[17:8] < 16) ? 8'd16 : (pb_8[17:8] > 240) ? 8'd240 : pb_8[15:8];
-wire [7:0] pr = (pr_8[17:8] < 16) ? 8'd16 : (pr_8[17:8] > 240) ? 8'd240 : pr_8[15:8];
+wire [7:0] y  = ( y_2[17:8] < 16) ? 8'd16 : ( y_2[17:8] > 235) ? 8'd235 :  y_2[15:8];
+wire [7:0] pb = (pb_2[17:8] < 16) ? 8'd16 : (pb_2[17:8] > 240) ? 8'd240 : pb_2[15:8];
+wire [7:0] pr = (pr_2[17:8] < 16) ? 8'd16 : (pr_2[17:8] > 240) ? 8'd240 : pr_2[15:8];
 
-assign dout[23:16] = ypbpr_en ? {(ypbpr_full ? yuv_full[pr-8'd16] : pr[7:2]), 2'b00} : din[23:16];
-assign dout[15:8]  = ypbpr_en ? {(ypbpr_full ? yuv_full[y -8'd16] :  y[7:2]), 2'b00} : din[15:8];
-assign dout[7:0]   = ypbpr_en ? {(ypbpr_full ? yuv_full[pb-8'd16] : pb[7:2]), 2'b00} : din[7:0];
+reg [7:0] y_3, pb_3, pr_3;
+reg [23:0] din2, din3;
+reg hsync2, vsync2, csync2;
+always @(posedge clk) begin
+	y_2  <= 19'd04096 + ({red, 8'd0} + {red, 3'd0}) + ({green, 9'd0} + {green, 2'd0}) + ({blue, 6'd0} + {blue, 5'd0} + {blue, 2'd0});
+	pb_2 <= 19'd32768 - ({red, 7'd0} + {red, 4'd0} + {red, 3'd0}) - ({green, 8'd0} + {green, 5'd0} + {green, 3'd0}) + ({blue, 8'd0} + {blue, 7'd0} + {blue, 6'd0});
+	pr_2 <= 19'd32768 + ({red, 8'd0} + {red, 7'd0} + {red, 6'd0}) - ({green, 8'd0} + {green, 6'd0} + {green, 5'd0} + {green, 4'd0} + {green, 3'd0}) - ({blue, 6'd0} + {blue , 3'd0});
 
+	y_3  <= {(ypbpr_full ? yuv_full[y -8'd16] :  y[7:2]), 2'b00};
+	pb_3 <= {(ypbpr_full ? yuv_full[pb-8'd16] : pb[7:2]), 2'b00};
+	pr_3 <= {(ypbpr_full ? yuv_full[pr-8'd16] : pr[7:2]), 2'b00};
+
+	hsync_o <= hsync2; hsync2 <= hsync;
+	vsync_o <= vsync2; vsync2 <= vsync;
+	csync_o <= csync2; csync2 <= csync;
+
+	din2 <= din;
+	din3 <= din2;
+end
+
+assign dout = ypbpr_en ? {pr_3, y_3, pb_3} : din3;
 
 endmodule
