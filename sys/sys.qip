@@ -23,6 +23,7 @@ set_global_assignment -name VERILOG_FILE       [file join $::quartus(qip_path) s
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) mt32pi.sv ]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) hdmi_config.sv ]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) mcp23009.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) f2sdram_safe_terminator.sv ]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ddr_svc.sv ]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) sysmem.sv ]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) sd_card.sv ]
