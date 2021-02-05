@@ -1000,6 +1000,18 @@ hdmi_config hdmi_config
 	.ypbpr(ypbpr_en & direct_video)
 );
 
+assign HDMI_I2C_SCL = hdmi_scl_en ? 1'b0 : 1'bZ;
+assign HDMI_I2C_SDA = hdmi_sda_en ? 1'b0 : 1'bZ;
+
+wire hdmi_scl_en, hdmi_sda_en;
+cyclonev_hps_interface_peripheral_i2c hdmi_i2c
+(
+	.out_clk(hdmi_scl_en),
+	.scl(HDMI_I2C_SCL),
+	.out_data(hdmi_sda_en),
+	.sda(HDMI_I2C_SDA)
+);
+
 `ifndef DEBUG_NOHDMI
 wire [23:0] hdmi_data_sl;
 wire        hdmi_de_sl, hdmi_vs_sl, hdmi_hs_sl;
