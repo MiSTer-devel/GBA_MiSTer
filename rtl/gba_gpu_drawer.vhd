@@ -2479,26 +2479,30 @@ begin
             if (interframe_blend = "10") then -- by toggling only when option is on, even/odd picture can be selected with multiple switch on/off
                frameselect            <= not frameselect;
             end if;
-         elsif (drawline = '1') then
+         elsif (hblank_trigger_1 = '1') then
          
             -- background
-            if (mosaik_vcnt_bg < unsigned(REG_MOSAIC_BG_Mosaic_V_Size)) then
-               mosaik_vcnt_bg <= mosaik_vcnt_bg + 1;
-            else
+            if (mosaik_vcnt_bg >= unsigned(REG_MOSAIC_BG_Mosaic_V_Size)) then
                mosaik_vcnt_bg        <= 0;
-               linecounter_mosaic_bg <= to_integer(linecounter);
+               if (linecounter < 159) then
+                  linecounter_mosaic_bg <= to_integer(linecounter) + 1;
+               end if;
                mosaic_ref2_x         <= ref2_x;
                mosaic_ref2_y         <= ref2_y;
                mosaic_ref3_x         <= ref3_x;
                mosaic_ref3_y         <= ref3_y;
+            else
+               mosaik_vcnt_bg <= mosaik_vcnt_bg + 1;
             end if;
             
             -- sprite
-            if (mosaik_vcnt_obj < unsigned(REG_MOSAIC_OBJ_Mosaic_V_Size)) then
-               mosaik_vcnt_obj <= mosaik_vcnt_obj + 1;
-            else
+            if (mosaik_vcnt_obj >= unsigned(REG_MOSAIC_OBJ_Mosaic_V_Size)) then
                mosaik_vcnt_obj        <= 0;
-               linecounter_mosaic_obj <= to_integer(linecounter);
+               if (linecounter < 159) then
+                  linecounter_mosaic_obj <= to_integer(linecounter) + 1;
+               end if;
+            else
+               mosaik_vcnt_obj <= mosaik_vcnt_obj + 1;
             end if;
 
          end if;

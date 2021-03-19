@@ -529,6 +529,10 @@ begin
             special_effect_var := "01";
             special_out_cycle4 <= '1';
          end if;
+         
+         if (special_effect_var > 1 and firstprio_cycle3(4 downto 0) = "10000" and effect_1st_obj = '0') then
+            special_out_cycle4 <= '0';
+         end if;
 
          special_effect_cycle4 <= special_effect_var;
       

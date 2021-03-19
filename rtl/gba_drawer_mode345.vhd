@@ -75,6 +75,7 @@ architecture arch of gba_drawer_mode345 is
    signal palette_readwait : integer range 0 to 2;
    
    signal mosaik_cnt       : integer range 0 to 15 := 0;
+   signal skip_data        : std_logic := '0';
    
 begin 
 
@@ -91,6 +92,8 @@ begin
     variable byteaddr : integer;
    begin
       if rising_edge(clk100) then
+      
+         skip_data <= '0';
       
          case (vramfetch) is
          
@@ -131,6 +134,7 @@ begin
                else
                   if (x_cnt < 239) then
                      x_cnt     <= x_cnt + 1;
+                     skip_data <= '1';
                   else
                      vramfetch <= IDLE;
                   end if;
@@ -200,6 +204,15 @@ begin
          if (drawline = '1') then
             mosaik_cnt    <= 15; -- first pixel must fetch new data
             pixeldata(15) <= '1';
+         elsif (skip_data = '1' or (DrawState = NEXTPIXEL and vramfetch = FETCHDONE)) then
+            if (mosaik_cnt < Mosaic_H_Size and mosaic = '1') then
+               mosaik_cnt <= mosaik_cnt + 1;
+            else
+               mosaik_cnt <= 0;
+               if (skip_data = '1') then
+                  pixeldata(15) <= '1';
+               end if;
+            end if;
          end if;
       
          case (DrawState) is
@@ -210,10 +223,8 @@ begin
                   pixel_x       <= x_cnt;
                
                   if (mosaik_cnt < Mosaic_H_Size and mosaic = '1') then
-                     mosaik_cnt <= mosaik_cnt + 1;
                      pixel_we   <= not pixeldata(15);
                   else
-                     mosaik_cnt <= 0;
                      if (BG_Mode = "100") then
                         DrawState        <= WAITREAD; 
                         palette_readwait <= 2;
