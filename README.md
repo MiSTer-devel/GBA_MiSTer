@@ -21,12 +21,12 @@ you can activate the "Homebrew BIOS" settings in OSD.
 As the BIOS is already replaced at boot time, you must save this settings and hard reset/reload the GBA core.
 
 # Status
-~1600 games tested until ingame:
-- 99% without major issues (no crash, playable)
+~1600 games tested until ingame.
+There is no known official game that doesn't work.
+Exceptions are games that require rare extra hardware (mostly japanese).
+Some small video glitches remain, see issue list.
 
 # Features
-- all videomodes including affine and special effects
-- all soundchannels
 - saving as in GBA
 - Savestates
 - FastForward - speed up game by factor 2-4
@@ -43,14 +43,18 @@ As the BIOS is already replaced at boot time, you must save this settings and ha
 - 2x Resolution: game is rendered at 480x320 instead of 240x160 pixels
 
 # Savestates
-Core provides 4 slots to save the state. The first slot gets saved to disk and automatically loaded (but not applied)
-upon next load of game. Rest 3 slots are residing only in memory for temporary use.
-First slot save/restore is available from OSD as well. 
+Core provides 4 slots to save and restore the state. 
+Those can be saved to SDCard or reside only in memory for temporary use(OSD Option). 
+Usage with either Keyboard, Gamepad mappable button or OSD.
 
-
-Hot keys for save states:
+Keyboard Hotkeys for save states:
 - Alt-F1..F4 - save the state
 - F1...F4 - restore
+
+Gamepad:
+- Savestatebutton+Left or Right switches the savestate slot
+- Savestatebutton+Start+Down saves to the selected slot
+- Savestatebutton+Start+Up loads from the selected slot
 
 # Rewind
 To use rewind, turn on the OSD Option "Rewind Capture" and map the rewind button.
@@ -59,9 +63,9 @@ Attention: Rewind capture will slow down your game by about 0.5% and may lead to
 Rewind capture is not compatible to "Pause when OSD is open", so pause is disabled when Rewind capture is on.
 
 # Spritelimit
-Currently there are only few games known that produce glitches without sprite pixel limit:
-- Gunstar Super Heroes
-- Famicon Mini Series Vol21 - Vol30
+There are only very few games known that produce glitches without sprite pixel limit.
+Those games use the sprite pixel limit automatically.
+You can optionally also turn this on if you notice problems.
 
 # 2x Resolution
 Only works over HDMI, Analog output is not changed in 2x Resolution mode. 
@@ -73,7 +77,6 @@ Improved rendering resolution for:
 This rendering is experimental and can cause glitches, as not all game behavior can be supported.
 Those glitches can not be fixed without gamespecific hacks and therefore will not be fixed. 
 Please don't add bugs in such cases.
-
 
 # Cartridge Hardware supported games
 - RTC: Pokemon Sapphire+Ruby+Emerald, Boktai 1+2+3, Sennen Kazoku, Rockman EXE 4.5
@@ -87,42 +90,6 @@ If there is a game you want to play that also uses one of these features, but is
 - Multiplayer features like Serials
 - E-Reader support
 - other cartridge hardware
-
-# Accuracy
-
-(Status 03.02.2020)
-
->> Attention: the following comparisons are NOT intended for proving any solution is better than the other.
->> This is solely here for the purpose of showing the status compared to other great emulators available.
->> It is not unusual that an emulator can play games fine and still fail tests. 
->> Furthermore some of these tests are new and not yet addressed by most emulators.
-
-There is great testsuite you can get from here: https://github.com/mgba-emu/suite
-It tests out correct Memory, Timer, DMA, CPU, BIOS behavior and also instruction timing. It works 100% on the real GBA.
-The suite itself has several thousand single tests.
-
-Testname      | TestCount | Mister GBA| mGBA | VBA-M | Higan
---------------|-----------|-----------|------|-------|-------
-Memory        |      1552 |  1552     | 1552 |  1338 | 1552
-IOREAD        |       123 |   123     |  116 |   100 |  123
-Timing        |      1660 |  1554     | 1540 |   692 | 1424
-Timer         |       936 |   445     |  610 |   440 |  457
-Timer IRQ     |        90 |    65     |   70 |     8 |   36
-Shifter       |       140 |   140     |  140 |   132 |  132
-Carry         |        93 |    93     |   93 |    93 |   93
-BIOSMath      |       625 |   625     |  625 |   625 |  625
-DMATests      |      1256 |  1248     | 1232 |  1032 | 1136
-EdgeCase      |        10 |     3     |    7 |     3 |    1
-Layer Toggle  |         1 |  pass     | pass |  pass | fail 
-OAM Update    |         1 |  fail     | fail |  fail | fail
-
-
-A complex CPU only testuite can be found here: https://github.com/jsmolka/gba-suite
-
-Testname | Mister GBA| mGBA | VBA-M | Higan
----------|-----------|------|-------|-------
-ARM      |  Pass     | Fail |  Fail |  Fail
-THUMB    |  Pass     | Fail |  Fail |  Fail
 
 # Information for developers
 
