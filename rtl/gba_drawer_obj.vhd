@@ -242,7 +242,6 @@ begin
 
    -- OAM Fetch
    process (clk100)
-      variable tileindex_var : integer range 0 to 1023;
    begin
       if rising_edge(clk100) then
       
@@ -316,10 +315,8 @@ begin
                when EVALOAM =>
                   if (OAM_data0(OAM_AFFINE) = '1') then
                      OAM_data_aff3 <= OAMRAM_Drawer_data(31 downto 16);
-                     tileindex_var := to_integer(unsigned(OAM_data2(OAM_TILE_HI downto OAM_TILE_LO)));
                   else
                      OAM_data2     <= OAMRAM_Drawer_data(15 downto 0);
-                     tileindex_var := to_integer(unsigned(OAMRAM_Drawer_data(OAM_TILE_HI downto OAM_TILE_LO)));
                   end if;
                
                   -- skip if

@@ -1,7 +1,3 @@
--- todo:
--- sound??
--- savememories
-
 library IEEE;
 use IEEE.std_logic_1164.all;  
 use IEEE.numeric_std.all;     
@@ -20,43 +16,45 @@ entity gba_savestates is
    );
    port 
    (
-      clk100              : in     std_logic;  
-      gb_on               : in     std_logic;
-      reset               : out    std_logic := '0';
-      
-      load_done           : out    std_logic := '0';
-      
-      save                : in     std_logic;  
-      load                : in     std_logic;
-      savestate_address   : in     integer;
-      savestate_busy      : out    std_logic;
+      clk100                 : in     std_logic;  
+      gb_on                  : in     std_logic;
+      reset                  : out    std_logic := '0';
 
-      cpu_jump            : in     std_logic;
+      load_done              : out    std_logic := '0';
       
-      internal_bus_out    : inout  proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
-      loading_savestate   : out    std_logic := '0';
-      saving_savestate    : out    std_logic := '0';
-      sleep_savestate     : out    std_logic := '0';
-      bus_ena_in          : in     std_logic;
+      increaseSSHeaderCount  : in     std_logic;  
+      save                   : in     std_logic;  
+      load                   : in     std_logic;
+      savestate_address      : in     integer;
+      savestate_busy         : out    std_logic;
+
+      cpu_jump               : in     std_logic;
       
-      gb_bus              : inout  proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
+      internal_bus_out       : inout  proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
+      loading_savestate      : out    std_logic := '0';
+      saving_savestate       : out    std_logic := '0';
+      sleep_savestate        : out    std_logic := '0';
+      bus_ena_in             : in     std_logic;
+      
+      gb_bus                 : inout  proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
        
-      SAVE_BusAddr        : buffer std_logic_vector(27 downto 0);
-      SAVE_BusRnW         : out    std_logic;
-      SAVE_BusACC         : out    std_logic_vector(1 downto 0);
-      SAVE_BusWriteData   : out    std_logic_vector(31 downto 0);
-      SAVE_Bus_ena        : out    std_logic := '0';
+      SAVE_BusAddr           : buffer std_logic_vector(27 downto 0);
+      SAVE_BusRnW            : out    std_logic;
+      SAVE_BusACC            : out    std_logic_vector(1 downto 0);
+      SAVE_BusWriteData      : out    std_logic_vector(31 downto 0);
+      SAVE_Bus_ena           : out    std_logic := '0';
       
-      SAVE_BusReadData    : in     std_logic_vector(31 downto 0);
-      SAVE_BusReadDone    : in     std_logic;
+      SAVE_BusReadData       : in     std_logic_vector(31 downto 0);
+      SAVE_BusReadDone       : in     std_logic;
       
-      bus_out_Din         : out    std_logic_vector(63 downto 0) := (others => '0');
-      bus_out_Dout        : in     std_logic_vector(63 downto 0);
-      bus_out_Adr         : buffer std_logic_vector(25 downto 0) := (others => '0');
-      bus_out_rnw         : out    std_logic := '0';
-      bus_out_ena         : out    std_logic := '0';
-      bus_out_active      : out    std_logic := '0'; 
-      bus_out_done        : in     std_logic
+      bus_out_Din            : out    std_logic_vector(63 downto 0) := (others => '0');
+      bus_out_Dout           : in     std_logic_vector(63 downto 0);
+      bus_out_Adr            : buffer std_logic_vector(25 downto 0) := (others => '0');
+      bus_out_rnw            : out    std_logic := '0';
+      bus_out_ena            : out    std_logic := '0';
+      bus_out_active         : out    std_logic := '0'; 
+      bus_out_be             : out    std_logic_vector(7 downto 0) := (others => '0');
+      bus_out_done           : in     std_logic
    );
 end entity;
 
@@ -210,14 +208,12 @@ begin
          registerram_readen   <= '0';
          load_done            <= '0';
          
+         bus_out_be    <= x"FF";
+
          gb_on_1 <= gb_on;
          
          registerram_readvalid <= registerram_readen;
-         
-         if (gb_on = '0') then 
-            header_amount <= (others => '0');
-         end if;
-   
+
          case state is
          
             when IDLE =>
@@ -382,6 +378,9 @@ begin
                   bus_out_Din    <= std_logic_vector(to_unsigned(STATESIZE, 32)) & std_logic_vector(header_amount);
                   bus_out_ena    <= '1';
                   bus_out_active <= '1';
+                  if (increaseSSHeaderCount = '0') then
+                     bus_out_be  <= x"F0";
+                  end if;
                end if;
             
             when SAVEMEMORY_READ =>
@@ -444,7 +443,7 @@ begin
             when LOAD_HEADERAMOUNTCHECK =>
                if (bus_out_done = '1') then
                   bus_out_active       <= '0';
-                  if (bus_out_Dout(31 downto 0) /= x"00000000") then
+                  if (bus_out_Dout(63 downto 32) = std_logic_vector(to_unsigned(STATESIZE, 32))) then
                      header_amount        <= unsigned(bus_out_Dout(31 downto 0));
                      state                <= LOADINTERNALS_READ;
                      SAVE_BusRnW          <= '0';

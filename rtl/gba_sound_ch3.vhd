@@ -59,7 +59,6 @@ architecture arch of gba_sound_ch3 is
    signal choutput_on         : std_logic := '0';
                               
    signal wavetable_ptr       : unsigned(4 downto 0)  := (others => '0');
-   signal wavetable           : std_logic_vector(0 to 7)  := (others => '0');
    signal wave_vol            : integer range -16 to 15;         
                               
    signal length_left         : unsigned(8 downto 0) := (others => '0');   
@@ -142,7 +141,6 @@ begin
             bank_play           <= 0;
             choutput_on         <= '0';
             wavetable_ptr       <= (others => '0');
-            wavetable           <= (others => '0');
             wave_vol            <= 0;         
             length_left         <= (others => '0');   
             volume_shift        <= 0;

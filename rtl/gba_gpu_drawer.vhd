@@ -425,7 +425,6 @@ architecture arch of gba_gpu_drawer is
    signal busy_modeobj_hd0 : std_logic;
    signal busy_modeobj_hd1 : std_logic;
    
-   signal draw_allmod   : std_logic_vector(7 downto 0);
    signal busy_allmod   : std_logic_vector(7 downto 0);
    
    -- linebuffers
@@ -1499,15 +1498,6 @@ begin
    VRAM_Drawer_addr1 <= VRAM_Drawer_addr_mode2_3_hd1 when (hdmode2x_bg = '1' and BG_Mode = "010") else VRAM_Drawer_addr_mode0_1;
    VRAM_Drawer_addr2 <= VRAM_Drawer_addr_mode0_2 when BG_Mode = "000" else VRAM_Drawer_addr_mode2_2 when ((BG_Mode = "001" or BG_Mode = "010") and hdmode2x_bg = '0') else VRAM_Drawer_addr_mode2_2_hd0 when BG_Mode = "001" or BG_Mode = "010" else VRAM_Drawer_addr_345_Lo;
    VRAM_Drawer_addr3 <= VRAM_Drawer_addr_mode0_3 when BG_Mode = "000" else VRAM_Drawer_addr_mode2_2_hd1 when hdmode2x_bg = '1' else VRAM_Drawer_addr_mode2_3;
-   
-   draw_allmod(0) <= drawline_mode0_0;
-   draw_allmod(1) <= drawline_mode0_1;
-   draw_allmod(2) <= drawline_mode0_2;
-   draw_allmod(3) <= drawline_mode0_3;
-   draw_allmod(4) <= drawline_mode2_2;
-   draw_allmod(5) <= drawline_mode2_3;
-   draw_allmod(6) <= drawline_mode345;
-   draw_allmod(7) <= drawline_obj    ;
 
    busy_allmod(0) <= busy_mode0_0;
    busy_allmod(1) <= busy_mode0_1;

@@ -60,6 +60,7 @@ module ddram
 	input  [63:0] ch4_din,
 	input         ch4_req,
 	input         ch4_rnw,
+	input  [7:0]  ch4_be,
 	output        ch4_ready,
    
    // framebuffer
@@ -203,7 +204,7 @@ always @(posedge DDRAM_CLK) begin
 					ch_rq[4]         <= 0;
 					ch               <= 4;
 					ram_data         <= ch4_din;
-					ram_be           <= 8'hFF;
+					ram_be           <= ch4_be;
 					ram_address      <= ch4_addr;
 					ram_burst        <= 1;
 					if(~ch4_rnw) begin

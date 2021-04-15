@@ -88,7 +88,6 @@ architecture arch of gba_cheats is
    
    signal stop_defragment : integer range 0 to CHEATCOUNT - 1 := 0;
    
-   signal new_cheat  : std_logic := '0';
    signal first_free : integer range 0 to CHEATCOUNT := 0;
    
    signal skip_next  : std_logic := '0';
@@ -160,7 +159,6 @@ begin
                   elsif (fifo_Empty = '0') then
                      state       <= FIFO_WAIT;
                      fifo_Rd     <= '1';
-                     new_cheat   <= '1';
                      cheatindex  <= 0;
                   end if;
                   

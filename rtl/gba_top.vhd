@@ -21,119 +21,121 @@ entity gba_top is
    );
    port 
    (
-      clk100             : in     std_logic;  
+      clk100                : in     std_logic;  
       -- settings                 
-      GBA_on             : in     std_logic;  -- switching from off to on = reset
-      GBA_lockspeed      : in     std_logic;  -- 1 = 100% speed, 0 = max speed
-      GBA_cputurbo       : in     std_logic;  -- 1 = cpu free running, all other 16 mhz
-      GBA_flash_1m       : in     std_logic;  -- 1 when string "FLASH1M_V" is anywhere in gamepak
-      CyclePrecalc       : in     std_logic_vector(15 downto 0); -- 100 seems to be ok to keep fullspeed for all games
-      MaxPakAddr         : in     std_logic_vector(24 downto 0); -- max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
-      CyclesMissing      : buffer std_logic_vector(31 downto 0); -- debug only for speed measurement, keep open
-      CyclesVsyncSpeed   : out    std_logic_vector(31 downto 0); -- debug only for speed measurement, keep open
-      SramFlashEnable    : in     std_logic;
-      memory_remap       : in     std_logic;
-      save_state         : in     std_logic;
-      load_state         : in     std_logic;
-      interframe_blend   : in     std_logic_vector(1 downto 0); -- 0 = off, 1 = blend, 2 = 30hz
-      maxpixels          : in     std_logic;                    -- limit pixels per line
-      shade_mode         : in     std_logic_vector(2 downto 0); -- 0 = off, 1..4 modes
-      hdmode2x_bg        : in     std_logic;
-      hdmode2x_obj       : in     std_logic;
-      specialmodule      : in     std_logic;                    -- 0 = off, 1 = use gamepak GPIO Port at address 0x080000C4..0x080000C8
-      solar_in           : in     std_logic_vector(2 downto 0);
-      tilt               : in     std_logic;                    -- 0 = off, 1 = use tilt at address 0x0E008200, 0x0E008300, 0x0E008400, 0x0E008500
-      rewind_on          : in     std_logic;
-      rewind_active      : in     std_logic;
-      savestate_number   : in     integer;
+      GBA_on                : in     std_logic;  -- switching from off to on = reset
+      GBA_lockspeed         : in     std_logic;  -- 1 = 100% speed, 0 = max speed
+      GBA_cputurbo          : in     std_logic;  -- 1 = cpu free running, all other 16 mhz
+      GBA_flash_1m          : in     std_logic;  -- 1 when string "FLASH1M_V" is anywhere in gamepak
+      CyclePrecalc          : in     std_logic_vector(15 downto 0); -- 100 seems to be ok to keep fullspeed for all games
+      MaxPakAddr            : in     std_logic_vector(24 downto 0); -- max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
+      CyclesMissing         : buffer std_logic_vector(31 downto 0); -- debug only for speed measurement, keep open
+      CyclesVsyncSpeed      : out    std_logic_vector(31 downto 0); -- debug only for speed measurement, keep open
+      SramFlashEnable       : in     std_logic;
+      memory_remap          : in     std_logic;
+      increaseSSHeaderCount : in     std_logic;
+      save_state            : in     std_logic;
+      load_state            : in     std_logic;
+      interframe_blend      : in     std_logic_vector(1 downto 0); -- 0 = off, 1 = blend, 2 = 30hz
+      maxpixels             : in     std_logic;                    -- limit pixels per line
+      shade_mode            : in     std_logic_vector(2 downto 0); -- 0 = off, 1..4 modes
+      hdmode2x_bg           : in     std_logic;
+      hdmode2x_obj          : in     std_logic;
+      specialmodule         : in     std_logic;                    -- 0 = off, 1 = use gamepak GPIO Port at address 0x080000C4..0x080000C8
+      solar_in              : in     std_logic_vector(2 downto 0);
+      tilt                  : in     std_logic;                    -- 0 = off, 1 = use tilt at address 0x0E008200, 0x0E008300, 0x0E008400, 0x0E008500
+      rewind_on             : in     std_logic;
+      rewind_active         : in     std_logic;
+      savestate_number      : in     integer;
       -- RTC
-      RTC_timestampNew   : in     std_logic;                     -- new current timestamp from system
-      RTC_timestampIn    : in     std_logic_vector(31 downto 0); -- timestamp in seconds, current time
-      RTC_timestampSaved : in     std_logic_vector(31 downto 0); -- timestamp in seconds, saved time
-      RTC_savedtimeIn    : in     std_logic_vector(41 downto 0); -- time structure, loaded
-      RTC_saveLoaded     : in     std_logic;                     -- must be 0 when loading new game, should go and stay 1 when RTC was loaded and values are valid
-      RTC_timestampOut   : out    std_logic_vector(31 downto 0); -- timestamp to be saved
-      RTC_savedtimeOut   : out    std_logic_vector(41 downto 0); -- time structure to be saved
-      RTC_inuse          : out    std_logic := '0';              -- will indicate that RTC is in use and should be saved on next saving
+      RTC_timestampNew      : in     std_logic;                     -- new current timestamp from system
+      RTC_timestampIn       : in     std_logic_vector(31 downto 0); -- timestamp in seconds, current time
+      RTC_timestampSaved    : in     std_logic_vector(31 downto 0); -- timestamp in seconds, saved time
+      RTC_savedtimeIn       : in     std_logic_vector(41 downto 0); -- time structure, loaded
+      RTC_saveLoaded        : in     std_logic;                     -- must be 0 when loading new game, should go and stay 1 when RTC was loaded and values are valid
+      RTC_timestampOut      : out    std_logic_vector(31 downto 0); -- timestamp to be saved
+      RTC_savedtimeOut      : out    std_logic_vector(41 downto 0); -- time structure to be saved
+      RTC_inuse             : out    std_logic := '0';              -- will indicate that RTC is in use and should be saved on next saving
       -- cheats
-      cheat_clear        : in     std_logic;
-      cheats_enabled     : in     std_logic;
-      cheat_on           : in     std_logic;
-      cheat_in           : in     std_logic_vector(127 downto 0);
-      cheats_active      : out    std_logic := '0';
+      cheat_clear           : in     std_logic;
+      cheats_enabled        : in     std_logic;
+      cheat_on              : in     std_logic;
+      cheat_in              : in     std_logic_vector(127 downto 0);
+      cheats_active         : out    std_logic := '0';
       -- sdram interface
-      sdram_read_ena     : out    std_logic;                     -- triggered once for read request 
-      sdram_read_done    : in     std_logic := '0';              -- must be triggered once when sdram_read_data is valid after last read
-      sdram_read_addr    : out    std_logic_vector(24 downto 0); -- all addresses are DWORD addresses!
-      sdram_read_data    : in     std_logic_vector(31 downto 0); -- data from last request, valid when done = 1
-      sdram_second_dword : in     std_logic_vector(31 downto 0); -- second dword to be read for buffering/prefetch. Must be valid 1 cycle after done = 1
+      sdram_read_ena        : out    std_logic;                     -- triggered once for read request 
+      sdram_read_done       : in     std_logic := '0';              -- must be triggered once when sdram_read_data is valid after last read
+      sdram_read_addr       : out    std_logic_vector(24 downto 0); -- all addresses are DWORD addresses!
+      sdram_read_data       : in     std_logic_vector(31 downto 0); -- data from last request, valid when done = 1
+      sdram_second_dword    : in     std_logic_vector(31 downto 0); -- second dword to be read for buffering/prefetch. Must be valid 1 cycle after done = 1
       -- other Memories           
-      bus_out_Din        : out    std_logic_vector(31 downto 0); -- data read from WRam Large, SRAM/Flash/EEPROM
-      bus_out_Dout       : in     std_logic_vector(31 downto 0); -- data written to WRam Large, SRAM/Flash/EEPROM
-      bus_out_Adr        : out    std_logic_vector(25 downto 0); -- all addresses are DWORD addresses!
-      bus_out_rnw        : out    std_logic;                     -- read = 1, write = 0
-      bus_out_ena        : out    std_logic;                     -- one cycle high for each action
-      bus_out_done       : in     std_logic;                     -- should be one cycle high when write is done or read value is valid
+      bus_out_Din           : out    std_logic_vector(31 downto 0); -- data read from WRam Large, SRAM/Flash/EEPROM
+      bus_out_Dout          : in     std_logic_vector(31 downto 0); -- data written to WRam Large, SRAM/Flash/EEPROM
+      bus_out_Adr           : out    std_logic_vector(25 downto 0); -- all addresses are DWORD addresses!
+      bus_out_rnw           : out    std_logic;                     -- read = 1, write = 0
+      bus_out_ena           : out    std_logic;                     -- one cycle high for each action
+      bus_out_done          : in     std_logic;                     -- should be one cycle high when write is done or read value is valid
       -- savestate           
-      SAVE_out_Din       : out    std_logic_vector(63 downto 0); -- data read from savestate
-      SAVE_out_Dout      : in     std_logic_vector(63 downto 0); -- data written to savestate
-      SAVE_out_Adr       : out    std_logic_vector(25 downto 0); -- all addresses are DWORD addresses!
-      SAVE_out_rnw       : out    std_logic;                     -- read = 1, write = 0
-      SAVE_out_ena       : out    std_logic;                     -- one cycle high for each action
-      SAVE_out_active    : out    std_logic;                     -- is high when access goes to savestate
-      SAVE_out_done      : in     std_logic;                     -- should be one cycle high when write is done or read value is valid
+      SAVE_out_Din          : out    std_logic_vector(63 downto 0); -- data read from savestate
+      SAVE_out_Dout         : in     std_logic_vector(63 downto 0); -- data written to savestate
+      SAVE_out_Adr          : out    std_logic_vector(25 downto 0); -- all addresses are DWORD addresses!
+      SAVE_out_rnw          : out    std_logic;                     -- read = 1, write = 0
+      SAVE_out_ena          : out    std_logic;                     -- one cycle high for each action
+      SAVE_out_active       : out    std_logic;                     -- is high when access goes to savestate
+      SAVE_out_be           : out    std_logic_vector(7 downto 0);
+      SAVE_out_done         : in     std_logic;                     -- should be one cycle high when write is done or read value is valid
       -- Write to BIOS
-      bios_wraddr        : in     std_logic_vector(11 downto 0) := (others => '0');
-      bios_wrdata        : in     std_logic_vector(31 downto 0) := (others => '0');
-      bios_wr            : in     std_logic := '0';
+      bios_wraddr           : in     std_logic_vector(11 downto 0) := (others => '0');
+      bios_wrdata           : in     std_logic_vector(31 downto 0) := (others => '0');
+      bios_wr               : in     std_logic := '0';
       -- save memory used
-      save_eeprom        : out    std_logic;
-      save_sram          : out    std_logic;
-      save_flash         : out    std_logic;
-      load_done          : out    std_logic;                     -- savestate successfully loaded
+      save_eeprom           : out    std_logic;
+      save_sram             : out    std_logic;
+      save_flash            : out    std_logic;
+      load_done             : out    std_logic;                     -- savestate successfully loaded
       -- Keys - all active high   
-      KeyA               : in     std_logic; 
-      KeyB               : in     std_logic;
-      KeySelect          : in     std_logic;
-      KeyStart           : in     std_logic;
-      KeyRight           : in     std_logic;
-      KeyLeft            : in     std_logic;
-      KeyUp              : in     std_logic;
-      KeyDown            : in     std_logic;
-      KeyR               : in     std_logic;
-      KeyL               : in     std_logic;
-      AnalogTiltX        : in     signed(7 downto 0);
-      AnalogTiltY        : in     signed(7 downto 0);
+      KeyA                  : in     std_logic; 
+      KeyB                  : in     std_logic;
+      KeySelect             : in     std_logic;
+      KeyStart              : in     std_logic;
+      KeyRight              : in     std_logic;
+      KeyLeft               : in     std_logic;
+      KeyUp                 : in     std_logic;
+      KeyDown               : in     std_logic;
+      KeyR                  : in     std_logic;
+      KeyL                  : in     std_logic;
+      AnalogTiltX           : in     signed(7 downto 0);
+      AnalogTiltY           : in     signed(7 downto 0);
       -- debug interface          
-      GBA_BusAddr        : in     std_logic_vector(27 downto 0);
-      GBA_BusRnW         : in     std_logic;
-      GBA_BusACC         : in     std_logic_vector(1 downto 0);
-      GBA_BusWriteData   : in     std_logic_vector(31 downto 0);
-      GBA_BusReadData    : out    std_logic_vector(31 downto 0);
-      GBA_Bus_written    : in     std_logic;
+      GBA_BusAddr           : in     std_logic_vector(27 downto 0);
+      GBA_BusRnW            : in     std_logic;
+      GBA_BusACC            : in     std_logic_vector(1 downto 0);
+      GBA_BusWriteData      : in     std_logic_vector(31 downto 0);
+      GBA_BusReadData       : out    std_logic_vector(31 downto 0);
+      GBA_Bus_written       : in     std_logic;
       -- display data
-      pixel_out_x        : buffer integer range 0 to 239;
-      pixel_out_y        : buffer integer range 0 to 159;
-      pixel_out_addr     : buffer integer range 0 to 38399;       -- address for framebuffer 
-      pixel_out_data     : buffer std_logic_vector(17 downto 0);  -- RGB data for framebuffer 
-      pixel_out_we       : buffer std_logic;                      -- new pixel for framebuffer 
+      pixel_out_x           : buffer integer range 0 to 239;
+      pixel_out_y           : buffer integer range 0 to 159;
+      pixel_out_addr        : buffer integer range 0 to 38399;       -- address for framebuffer 
+      pixel_out_data        : buffer std_logic_vector(17 downto 0);  -- RGB data for framebuffer 
+      pixel_out_we          : buffer std_logic;                      -- new pixel for framebuffer 
                                   
-      largeimg_out_base  : out    std_logic_vector(31 downto 0) := x"38000000";            
-      largeimg_out_addr  : buffer std_logic_vector(25 downto 0) := (others => '0');
-      largeimg_out_data  : out    std_logic_vector(63 downto 0);
-      largeimg_out_req   : out    std_logic := '0';
-      largeimg_out_done  : in     std_logic;
-      largeimg_newframe  : in     std_logic;
-      largeimg_singlebuf : in     std_logic;
+      largeimg_out_base     : out    std_logic_vector(31 downto 0) := x"38000000";            
+      largeimg_out_addr     : buffer std_logic_vector(25 downto 0) := (others => '0');
+      largeimg_out_data     : out    std_logic_vector(63 downto 0);
+      largeimg_out_req      : out    std_logic := '0';
+      largeimg_out_done     : in     std_logic;
+      largeimg_newframe     : in     std_logic;
+      largeimg_singlebuf    : in     std_logic;
       -- sound                             
-      sound_out_left     : out    std_logic_vector(15 downto 0) := (others => '0');
-      sound_out_right    : out    std_logic_vector(15 downto 0) := (others => '0');
+      sound_out_left        : out    std_logic_vector(15 downto 0) := (others => '0');
+      sound_out_right       : out    std_logic_vector(15 downto 0) := (others => '0');
       -- debug                    
-      debug_cpu_pc       : out    std_logic_vector(31 downto 0);
-      debug_cpu_mixed    : out    std_logic_vector(31 downto 0);
-      debug_irq          : out    std_logic_vector(31 downto 0);
-      debug_dma          : out    std_logic_vector(31 downto 0);
-      debug_mem          : out    std_logic_vector(31 downto 0)  
+      debug_cpu_pc          : out    std_logic_vector(31 downto 0);
+      debug_cpu_mixed       : out    std_logic_vector(31 downto 0);
+      debug_irq             : out    std_logic_vector(31 downto 0);
+      debug_dma             : out    std_logic_vector(31 downto 0);
+      debug_mem             : out    std_logic_vector(31 downto 0)  
    );
 end entity;
 
@@ -161,7 +163,6 @@ architecture arch of gba_top is
    signal savestate_bus        : proc_bus_gb_type;
    signal reset                : std_logic;
    signal loading_savestate    : std_logic;
-   signal saving_savestate     : std_logic;
    signal sleep_savestate      : std_logic;
    
    signal cpu_jump             : std_logic;
@@ -329,7 +330,7 @@ architecture arch of gba_top is
    signal IRP_DMA     : std_logic_vector(3 downto 0);
    signal IRP_Serial  : std_logic;
    signal IRP_Joypad  : std_logic;
-   signal IRP_Gamepak : std_logic;
+   -- signal IRP_Gamepak : std_logic; -- not implemented
    
    signal cycles_ahead    : integer range 0 to 131071 := 0;
    signal cycles_16_100   : integer range 0 to (SPEEDDIV - 1) := 0;
@@ -487,43 +488,45 @@ begin
    )
    port map
    (
-      clk100              => clk100,
-      gb_on               => gbaon,
-      reset               => reset,
-      
-      load_done           => load_done,
+      clk100                => clk100,
+      gb_on                 => gbaon,
+      reset                 => reset,
+  
+      load_done             => load_done,
                         
-      save                => savestate_savestate,
-      load                => savestate_loadstate,
-      savestate_address   => savestate_address,
-      savestate_busy      => savestate_busy,      
-      
-      cpu_jump            => cpu_jump,
-      
-      internal_bus_out    => savestate_bus,
-      loading_savestate   => loading_savestate,
-      saving_savestate    => saving_savestate,
-      sleep_savestate     => sleep_savestate,
-      bus_ena_in          => mem_bus_ena,
-      
-      gb_bus              => gb_bus,
-       
-      SAVE_BusAddr        => SAVE_BusAddr,     
-      SAVE_BusRnW         => SAVE_BusRnW,      
-      SAVE_BusACC         => SAVE_BusACC,      
-      SAVE_BusWriteData   => SAVE_BusWriteData,
-      SAVE_Bus_ena        => SAVE_Bus_ena,     
-                                           
-      SAVE_BusReadData    => mem_bus_din, 
-      SAVE_BusReadDone    => mem_bus_done, 
-                                          
-      bus_out_Din         => SAVE_out_Din,   
-      bus_out_Dout        => SAVE_out_Dout,  
-      bus_out_Adr         => SAVE_out_Adr,   
-      bus_out_rnw         => SAVE_out_rnw,   
-      bus_out_ena         => SAVE_out_ena,   
-      bus_out_active      => SAVE_out_active,
-      bus_out_done        => SAVE_out_done  
+      increaseSSHeaderCount => increaseSSHeaderCount,
+      save                  => savestate_savestate,
+      load                  => savestate_loadstate,
+      savestate_address     => savestate_address,
+      savestate_busy        => savestate_busy,      
+
+      cpu_jump              => cpu_jump,
+
+      internal_bus_out      => savestate_bus,
+      loading_savestate     => loading_savestate,
+      --saving_savestate      => saving_savestate,
+      sleep_savestate       => sleep_savestate,
+      bus_ena_in            => mem_bus_ena,
+
+      gb_bus                => gb_bus,
+
+      SAVE_BusAddr          => SAVE_BusAddr,     
+      SAVE_BusRnW           => SAVE_BusRnW,      
+      SAVE_BusACC           => SAVE_BusACC,      
+      SAVE_BusWriteData     => SAVE_BusWriteData,
+      SAVE_Bus_ena          => SAVE_Bus_ena,     
+                                             
+      SAVE_BusReadData      => mem_bus_din, 
+      SAVE_BusReadDone      => mem_bus_done, 
+                                            
+      bus_out_Din           => SAVE_out_Din,   
+      bus_out_Dout          => SAVE_out_Dout,  
+      bus_out_Adr           => SAVE_out_Adr,   
+      bus_out_rnw           => SAVE_out_rnw,   
+      bus_out_ena           => SAVE_out_ena,   
+      bus_out_active        => SAVE_out_active,
+      bus_out_be            => SAVE_out_be,
+      bus_out_done          => SAVE_out_done  
    );
    
    igba_statemanager : entity work.gba_statemanager
@@ -968,8 +971,6 @@ begin
       timerdebug2      => timerdebug2,
       timerdebug3      => timerdebug3,
       
-      cyclenr          => open, --cyclenr
-      
       debug_cpu_pc     => debug_cpu_pc,   
       debug_cpu_mixed  => debug_cpu_mixed
    );
@@ -1021,7 +1022,7 @@ begin
             if (IRP_DMA(2) = '1')   then IRPFLags(10) <= '1'; end if;
             if (IRP_DMA(3) = '1')   then IRPFLags(11) <= '1'; end if;
             if (IRP_Joypad = '1')   then IRPFLags(12) <= '1'; end if;
-            if (IRP_Gamepak = '1')  then IRPFLags(13) <= '1'; end if;
+            --if (IRP_Gamepak = '1')  then IRPFLags(13) <= '1'; end if; -- not implemented
             
             cpu_IRP <= '0';
             if ((IRPFLags and REG_IRP_IE) /= x"0000" and REG_IME(0) = '1') then

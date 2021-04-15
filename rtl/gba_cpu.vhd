@@ -63,10 +63,12 @@ entity gba_cpu is
       timerdebug2      : in    std_logic_vector(31 downto 0);
       timerdebug3      : in    std_logic_vector(31 downto 0);
       
+-- synthesis translate_off
       cyclenr          : buffer integer := 0;
       cyclecount       : buffer integer := 0;
       cyclesum         : buffer integer := 0;
-      
+-- synthesis translate_on     
+	  
       debug_cpu_pc     : out   std_logic_vector(31 downto 0);
       debug_cpu_mixed  : out   std_logic_vector(31 downto 0)
    );
@@ -181,11 +183,11 @@ architecture arch of gba_cpu is
    
    type t_timings_2 is array(0 to 1) of integer range 1 to 8;
    type t_timings_4 is array(0 to 3) of integer range 1 to 8;
-   signal gamepakRamWaitState : t_timings_4 := ( 4, 3, 2, 8);
-   signal gamepakWaitState    : t_timings_4 := ( 4, 3, 2, 8);
-   signal gamepakWaitState0   : t_timings_2 := ( 2, 1);
-   signal gamepakWaitState1   : t_timings_2 := ( 4, 1);
-   signal gamepakWaitState2   : t_timings_2 := ( 8, 1);
+   constant gamepakRamWaitState : t_timings_4 := ( 4, 3, 2, 8);
+   constant gamepakWaitState    : t_timings_4 := ( 4, 3, 2, 8);
+   constant gamepakWaitState0   : t_timings_2 := ( 2, 1);
+   constant gamepakWaitState1   : t_timings_2 := ( 4, 1);
+   constant gamepakWaitState2   : t_timings_2 := ( 8, 1);
    
    signal wait_cnt_update_1 : std_logic := '0';
    
@@ -209,7 +211,6 @@ architecture arch of gba_cpu is
    -- ############# Decode ##############
    
    signal decode_request   : std_logic := '0';
-   signal decode_ack       : std_logic := '0';
    signal decode_data      : std_logic_vector(31 downto 0) := (others => '0');
    signal decode_PC        : unsigned(31 downto 0) := (others => '0');
    signal decode_condition : std_logic_vector(3 downto 0);
@@ -459,7 +460,6 @@ architecture arch of gba_cpu is
    
    signal bus_fetch_Adr    : std_logic_vector(31 downto 0);
    signal bus_fetch_rnw    : std_logic;
-   signal bus_fetch_ena    : std_logic;
    signal bus_fetch_acc    : std_logic_vector(1 downto 0);
    
    signal bus_execute_Adr  : std_logic_vector(31 downto 0) := (others => '0');
@@ -653,7 +653,6 @@ begin
       if rising_edge(clk100) then
       
          done             <= '0';
-         bus_fetch_ena    <= '0';
          
          execute_start    <= '0';
          new_cycles_valid <= '0';
@@ -711,7 +710,6 @@ begin
             skip_pending_fetch <= '0';
             fetch_available    <= '0';
                 
-            decode_ack         <= '0';
             decode_request     <= '1';
             state_decode       <= WAITFETCH;
                 
@@ -750,7 +748,6 @@ begin
                if (wait_fetch = '0' or gb_bus_done = '1') then
                   bus_fetch_Adr <= std_logic_vector(new_pc);
                   bus_fetch_rnw <= '1';
-                  bus_fetch_ena <= '1';
                   if (thumbmode = '1') then 
                      bus_fetch_acc <= ACCESS_16BIT; 
                      PC            <= new_pc + 2;
@@ -794,7 +791,6 @@ begin
                   if ((fetch_available = '0' or decode_request = '1') and (wait_fetch = '0' or (gb_bus_done = '1' and decode_request = '1')) and (skip_pending_fetch = '0' or gb_bus_done = '1')) then
                      bus_fetch_Adr <= std_logic_vector(PC);
                      bus_fetch_rnw <= '1';
-                     bus_fetch_ena <= '1';
                      if (thumbmode = '1') then 
                         bus_fetch_acc <= ACCESS_16BIT; 
                         PC            <= PC + 2;
@@ -823,8 +819,6 @@ begin
             
             nextOpCodeAccessSeq16 <= 1 + memoryWaitSeq16(to_integer(unsigned(PC(27 downto 24))));
             nextOpCodeAccessSeq32 <= 1 + memoryWaitSeq32(to_integer(unsigned(PC(27 downto 24))));
-            
-            decode_ack     <= '0';
             
             if (jump = '1') then
             
@@ -861,7 +855,6 @@ begin
                   when DECODE_DONE =>
                      if (state_execute = FETCH_OP and do_step = '1' and dma_on = '0' and settle = '0' and halt = '0') then
                         decode_request <= '1';
-                        decode_ack     <= '1';
                         state_decode   <= WAITFETCH;
                      end if;
                   

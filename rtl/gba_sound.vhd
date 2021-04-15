@@ -113,8 +113,7 @@ architecture arch of gba_sound is
    
    signal soundmix8_l : signed(15 downto 0) := (others => '0'); 
    signal soundmix8_r : signed(15 downto 0) := (others => '0'); 
-   signal soundmix9_l : signed(9 downto 0) := (others => '0'); 
-   signal soundmix9_r : signed(9 downto 0) := (others => '0'); 
+   signal soundmix9   : signed(9 downto 0) := (others => '0'); 
    
            
 begin 
@@ -407,21 +406,13 @@ begin
          soundmix8_l <= soundmix7_l; -- + to_integer(unsigned(REG_SOUNDBIAS));
          soundmix8_r <= soundmix7_r; -- + to_integer(unsigned(REG_SOUNDBIAS));
 
-         -- clipping, only for turbosound
+         -- clipping, only for turbosound, using left channel only
          if (soundmix8_l < -512) then
-            soundmix9_l <= to_signed(-512, 10);
+            soundmix9 <= to_signed(-512, 10);
          elsif (soundmix8_l > 511) then
-            soundmix9_l <= to_signed(511, 10);
+            soundmix9 <= to_signed(511, 10);
          else
-            soundmix9_l <= soundmix8_l(9 downto 0);
-         end if;
-         
-         if (soundmix8_r < -512) then
-            soundmix9_r <= to_signed(-512, 10);
-         elsif (soundmix8_r > 511) then
-            soundmix9_r <= to_signed(511, 10);
-         else
-            soundmix9_r <= soundmix8_r(9 downto 0);
+            soundmix9 <= soundmix8_l(9 downto 0);
          end if;
       
       end if;
@@ -442,7 +433,7 @@ begin
    begin
    
       fifo_Wr <= dma_new_sample when fifo_Full = '0' and filling = '1' else '0';
-      fifo_Din <= std_logic_vector(soundmix9_l(9 downto 1));
+      fifo_Din <= std_logic_vector(soundmix9(9 downto 1));
    
       iSyncFifo : entity MEM.SyncFifo
       generic map

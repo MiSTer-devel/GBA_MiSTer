@@ -28,7 +28,7 @@ end entity;
 architecture arch of gba_gpu_colorshade is
 
    type t_shade_lookup_linear_ram is array(0 to 127) of integer range 0 to 1023;
-   signal shade_lookup_linear_ram : t_shade_lookup_linear_ram := 
+   constant shade_lookup_linear_ram : t_shade_lookup_linear_ram := 
    (
       -- 2.2
         0,   1,   2,   6,  11,  17,  26,  36,  
@@ -56,7 +56,7 @@ architecture arch of gba_gpu_colorshade is
    );
    
    type t_shade_mult_ram is array(0 to 35) of integer range -1023 to 1023;
-   signal shade_mult_ram : t_shade_mult_ram := 
+   constant shade_mult_ram : t_shade_mult_ram := 
    (
       -- shader gba-color
       865, 174, -015,
@@ -80,7 +80,7 @@ architecture arch of gba_gpu_colorshade is
    );
    
    type t_shade_lookup_rgb_border_ram is array(0 to 255) of integer range 0 to 1023;
-   signal shade_lookup_rgb_border_ram : t_shade_lookup_rgb_border_ram := 
+   constant shade_lookup_rgb_border_ram : t_shade_lookup_rgb_border_ram := 
    (
       -- 2.2
         0,   1,   2,   3,   4,   5,   6,   8,  
@@ -161,7 +161,6 @@ architecture arch of gba_gpu_colorshade is
    signal pixel_1_2x     : integer range 0 to 479;
    signal pixel_1_y      : integer range 0 to 159;
    signal pixel_1_addr   : integer range 0 to 38399;
-   signal pixel_1_data   : std_logic_vector(14 downto 0); 
    signal pixel_1_we     : std_logic := '0';
    signal color_linear_1 : integer range 0 to 1023;
    signal color_linear_2 : integer range 0 to 1023;
@@ -273,7 +272,6 @@ begin
          pixel_1_y    <= pixel_in_y;   
          pixel_1_addr <= pixel_in_addr;
          pixel_1_we   <= pixel_in_we;
-         pixel_1_data <= pixel_in_data;
          
          color_linear_1 <= shade_lookup_linear(to_integer(unsigned(pixel_in_data(14 downto 10))));
          color_linear_2 <= shade_lookup_linear(to_integer(unsigned(pixel_in_data( 9 downto  5))));
