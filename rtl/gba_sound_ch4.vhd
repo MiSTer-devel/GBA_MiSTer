@@ -9,8 +9,12 @@ use work.pReg_gba_sound.all;
 entity gba_sound_ch4 is
    port 
    (
-      clk100              : in    std_logic;  
-      gb_on               : in    std_logic;  
+      clk100              : in    std_logic; 
+      reset               : in    std_logic;      
+      gb_on               : in    std_logic; 
+      ch_on_ss            : in    std_logic;
+      loading_savestate   : in    std_logic;  
+      
       gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
       
       new_cycles_valid    : in    std_logic;
@@ -97,6 +101,11 @@ begin
             soundcycles_freq     <= (others => '0');
             soundcycles_envelope <= (others => '0');
             soundcycles_length   <= (others => '0');
+            
+         elsif (reset = '1') then
+         
+            sound_out <= (others => '0');
+            ch_on     <= ch_on_ss;
          
          else
       
@@ -134,7 +143,7 @@ begin
                if (REG_Initial = "1") then
                   envelope_cnt <= (others => '0');
                   envelope_add <= (others => '0');
-                  ch_on        <= '1';
+                  ch_on        <= not loading_savestate;
                   
                   wave_on <= '1'; -- 1 because negative output
                   lfsr <= (others => '1');

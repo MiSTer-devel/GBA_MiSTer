@@ -54,9 +54,14 @@ package pReg_savestates is
    constant REG_SAVESTATE_IRP             : regmap_type := ( 47,   15,      0,        1,        0,   readwrite);
    constant REG_SAVESTATE_GPIOBITS        : regmap_type := ( 47,   21,     16,        1,        0,   readwrite);
    
+   constant REG_SAVESTATE_DMASOUNDA       : regmap_type := ( 47,   26,     22,        1,        0,   readwrite);
+   constant REG_SAVESTATE_DMASOUNDB       : regmap_type := ( 47,   31,     27,        1,        0,   readwrite);
+   
    -- memory
    constant REG_SAVESTATE_EEPROM          : regmap_type := ( 48,   31,      0,        1,        0,   readwrite);
    constant REG_SAVESTATE_FLASH           : regmap_type := ( 49,   16,      0,        1,        0,   readwrite);
+   
+   constant REG_SAVESTATE_SOUNDON         : regmap_type := ( 49,   20,     17,        1,        0,   readwrite);
    
    -- dma
    constant REG_SAVESTATE_DMASOURCE       : regmap_type := ( 50,   27,      0,        4,        0,   readwrite);
@@ -70,7 +75,7 @@ package pReg_savestates is
    constant REG_SAVESTATE_GPU             : regmap_type := ( 66,   24,      0,        1,        0,   readwrite);
    
    -- GPIO
-   constant REG_SAVESTATE_GPIO            : regmap_type := ( 67,   29,      0,        1,        0,   readwrite);
+   constant REG_SAVESTATE_GPIO            : regmap_type := ( 67,   29,      0,        1,        0,   readwrite);   
    
    
 end package;

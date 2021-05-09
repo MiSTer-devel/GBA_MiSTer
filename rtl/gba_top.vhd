@@ -795,6 +795,11 @@ begin
    ( 
       clk100               => clk100,
       gb_on                => gbaon,
+      reset                => reset,
+      
+      savestate_bus        => savestate_bus,
+      loading_savestate    => loading_savestate,
+      
       gb_bus               => gb_bus,
       
       lockspeed            => GBA_lockspeed,

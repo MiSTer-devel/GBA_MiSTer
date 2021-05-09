@@ -7,6 +7,8 @@ use work.pReg_gba_sound.all;
 
 library MEM;
 
+use work.pReg_savestates.all;
+
 entity gba_sound is
    generic
    (
@@ -16,6 +18,11 @@ entity gba_sound is
    (
       clk100              : in    std_logic; 
       gb_on               : in    std_logic;      
+      reset               : in    std_logic;
+      
+      loading_savestate   : in    std_logic;  
+      savestate_bus       : inout proc_bus_gb_type;
+      
       gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
       
       lockspeed           : in    std_logic;
@@ -115,6 +122,9 @@ architecture arch of gba_sound is
    signal soundmix8_r : signed(15 downto 0) := (others => '0'); 
    signal soundmix9   : signed(9 downto 0) := (others => '0'); 
    
+   -- savestates
+   signal SAVESTATE_SOUNDON      : std_logic_vector(3 downto 0);
+   signal SAVESTATE_SOUNDON_back : std_logic_vector(3 downto 0);
            
 begin 
 
@@ -158,6 +168,15 @@ begin
    Sound_3_ON_flag(Sound_3_ON_flag'right) <= '1' when sound_on_ch3 = '1' and (Sound_3_Enable_Flags_LEFT = "1" or Sound_3_Enable_Flags_RIGHT = "1") else '0';
    Sound_4_ON_flag(Sound_4_ON_flag'right) <= '1' when sound_on_ch4 = '1' and (Sound_4_Enable_Flags_LEFT = "1" or Sound_4_Enable_Flags_RIGHT = "1") else '0';
     
+   -- save state
+   iSAVESTATE_SOUNDON : entity work.eProcReg_gba generic map (REG_SAVESTATE_SOUNDON) port map (clk100, savestate_bus, SAVESTATE_SOUNDON_back, SAVESTATE_SOUNDON);
+
+   SAVESTATE_SOUNDON_back(0) <= sound_on_ch1;
+   SAVESTATE_SOUNDON_back(1) <= sound_on_ch2;
+   SAVESTATE_SOUNDON_back(2) <= sound_on_ch3;
+   SAVESTATE_SOUNDON_back(3) <= sound_on_ch4;
+
+    
    igba_sound_ch1 : entity work.gba_sound_ch1
    generic map
    (
@@ -177,12 +196,15 @@ begin
    )
    port map
    (
-      clk100           => clk100, 
-      gb_on            => gbsound_on,      
-      gb_bus           => gb_bus,           
-      new_cycles_valid => new_cycles_valid,
-      sound_out        => sound_out_ch1,
-      sound_on         => sound_on_ch1 
+      clk100            => clk100, 
+      reset             => reset, 
+      gb_on             => gbsound_on,   
+      ch_on_ss          => SAVESTATE_SOUNDON(0),   
+      loading_savestate => loading_savestate,      
+      gb_bus            => gb_bus,           
+      new_cycles_valid  => new_cycles_valid,
+      sound_out         => sound_out_ch1,
+      sound_on          => sound_on_ch1 
    );
    
    igba_sound_ch2 : entity work.gba_sound_ch1
@@ -204,45 +226,59 @@ begin
    )
    port map
    (
-      clk100           => clk100, 
-      gb_on            => gbsound_on,        
-      gb_bus           => gb_bus,          
-      new_cycles_valid => new_cycles_valid,
-      sound_out        => sound_out_ch2,
-      sound_on         => sound_on_ch2 
+      clk100            => clk100, 
+      reset             => reset, 
+      gb_on             => gbsound_on,    
+      ch_on_ss          => SAVESTATE_SOUNDON(1),
+      loading_savestate => loading_savestate,
+      gb_bus            => gb_bus,          
+      new_cycles_valid  => new_cycles_valid,
+      sound_out         => sound_out_ch2,
+      sound_on          => sound_on_ch2 
    );
    
    igba_sound_ch3 : entity work.gba_sound_ch3
    port map
    (
-      clk100           => clk100,     
-      gb_on            => gbsound_on,        
-      gb_bus           => gb_bus,              
-      new_cycles_valid => new_cycles_valid,
-      sound_out        => sound_out_ch3,
-      sound_on         => sound_on_ch3 
+      clk100            => clk100,  
+      reset             => reset,       
+      gb_on             => gbsound_on, 
+      ch_on_ss          => SAVESTATE_SOUNDON(2),   
+      loading_savestate => loading_savestate,      
+      gb_bus            => gb_bus,              
+      new_cycles_valid  => new_cycles_valid,
+      sound_out         => sound_out_ch3,
+      sound_on          => sound_on_ch3 
    );
    
    igba_sound_ch4 : entity work.gba_sound_ch4
    port map
    (
-      clk100           => clk100,  
-      gb_on            => gbsound_on,        
-      gb_bus           => gb_bus,             
-      new_cycles_valid => new_cycles_valid,
-      sound_out        => sound_out_ch4,
-      sound_on         => sound_on_ch4 
+      clk100            => clk100,  
+      reset             => reset, 
+      gb_on             => gbsound_on, 
+      ch_on_ss          => SAVESTATE_SOUNDON(3),     
+      loading_savestate => loading_savestate,      
+      gb_bus            => gb_bus,             
+      new_cycles_valid  => new_cycles_valid,
+      sound_out         => sound_out_ch4,
+      sound_on          => sound_on_ch4 
    );
    
    igba_sound_dmaA : entity work.gba_sound_dma
    generic map
    (
-      REG_FIFO            => FIFO_A
+      REG_FIFO                => FIFO_A,
+      REG_SAVESTATE_DMASOUND  => REG_SAVESTATE_DMASOUNDA
    )
    port map
    (
       clk100              => clk100,
-      gb_on               => gb_on,  
+      reset               => reset, 
+      
+      savestate_bus       => savestate_bus,
+      loading_savestate   => loading_savestate,
+      
       gb_bus              => gb_bus,
                            
       settings_new        => SOUNDCNT_H_DMA_written,
@@ -268,12 +304,17 @@ begin
    igba_sound_dmaB : entity work.gba_sound_dma
    generic map
    (
-      REG_FIFO            => FIFO_B
+      REG_FIFO                => FIFO_B,
+      REG_SAVESTATE_DMASOUND  => REG_SAVESTATE_DMASOUNDB
    )
    port map
    (
       clk100              => clk100,
-      gb_on               => gb_on,  
+      reset               => reset, 
+      
+      savestate_bus       => savestate_bus,
+      loading_savestate   => loading_savestate,
+      
       gb_bus              => gb_bus,
                            
       settings_new        => SOUNDCNT_H_DMA_written,

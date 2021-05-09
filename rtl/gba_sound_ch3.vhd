@@ -10,7 +10,11 @@ entity gba_sound_ch3 is
    port 
    (
       clk100              : in    std_logic; 
-      gb_on               : in    std_logic;        
+      reset               : in    std_logic;
+      gb_on               : in    std_logic; 
+      ch_on_ss            : in    std_logic;  
+      loading_savestate   : in    std_logic;        
+      
       gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
       
       new_cycles_valid    : in    std_logic;
@@ -152,6 +156,11 @@ begin
             freq_cnt            <= (others => '0');
             soundcycles_freq    <= (others => '0');
             soundcycles_length  <= (others => '0');
+            
+         elsif (reset = '1') then
+         
+            sound_out <= (others => '0');
+            ch_on     <= ch_on_ss;
          
          else
          
@@ -172,7 +181,7 @@ begin
                freq_divider <= '0' & unsigned(REG_SOUND3CNT_X_Sample_Rate);
                length_on <= REG_SOUND3CNT_X_Length_Flag(REG_SOUND3CNT_X_Length_Flag'left);
                if (REG_SOUND3CNT_X_Initial = "1") then
-                  ch_on         <= '1';
+                  ch_on         <= not loading_savestate;
                   freq_cnt      <= (others => '0');
                   wavetable_ptr <= (others => '0');
                end if;

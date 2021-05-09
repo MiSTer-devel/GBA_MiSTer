@@ -90,6 +90,7 @@ architecture arch of etb is
    signal SAVE_out_Din     : std_logic_vector(63 downto 0);
    signal SAVE_out_Dout    : std_logic_vector(63 downto 0);
    signal SAVE_out_Adr     : std_logic_vector(25 downto 0);
+   signal SAVE_out_be      : std_logic_vector(7 downto 0);
    signal SAVE_out_rnw     : std_logic;                    
    signal SAVE_out_ena     : std_logic;                    
    signal SAVE_out_active  : std_logic;                    
@@ -165,6 +166,7 @@ architecture arch of etb is
    signal ch4_addr         : std_logic_vector(27 downto 1);
    signal ch4_dout         : std_logic_vector(63 downto 0);
    signal ch4_din          : std_logic_vector(63 downto 0);
+   signal ch4_be           : std_logic_vector(7 downto 0);
    signal ch4_req          : std_logic;
    signal ch4_rnw          : std_logic;
    signal ch4_ready        : std_logic;
@@ -254,6 +256,7 @@ begin
       CyclesVsyncSpeed   => CyclesVsyncSpeed,
       SramFlashEnable    => GBA_SramFlashEna(GBA_SramFlashEna'left),
       memory_remap       => GBA_MemoryRemap(GBA_MemoryRemap'left),
+      increaseSSHeaderCount => '0',
       save_state         => GBA_SaveState(GBA_SaveState'left),
       load_state         => GBA_LoadState(GBA_LoadState'left),
       interframe_blend   => "00",
@@ -261,7 +264,7 @@ begin
       shade_mode         => "000",
       hdmode2x_bg        => '0',
       hdmode2x_obj       => '0',
-      specialmodule      => '0',
+      specialmodule      => '1',
       solar_in           => "000",
       tilt               => '0',
       rewind_on          => GBA_Rewind_on(GBA_Rewind_on'left),
@@ -301,6 +304,7 @@ begin
       SAVE_out_rnw       => SAVE_out_rnw,   
       SAVE_out_ena       => SAVE_out_ena,   
       SAVE_out_active    => SAVE_out_active,
+      SAVE_out_be        => SAVE_out_be,
       SAVE_out_done      => SAVE_out_done, 
       -- copy
       --Copy_request_start  => Copy_request_start,
@@ -380,6 +384,7 @@ begin
    ch4_din  <= SAVE_out_Din;
    ch4_req  <= SAVE_out_ena;
    ch4_rnw  <= SAVE_out_rnw;
+   ch4_be   <= SAVE_out_be;
    SAVE_out_Dout <= ch4_dout;
    SAVE_out_done <= ch4_ready;
    
@@ -422,6 +427,7 @@ begin
       ch4_din          => ch4_din,         
       ch4_req          => ch4_req,         
       ch4_rnw          => ch4_rnw,         
+      ch4_be           => ch4_be,       
       ch4_ready        => ch4_ready,       
       
       ch5_addr         => (27 downto 1 => '0'),        

@@ -8,15 +8,22 @@ use work.pRegmap_gba.all;
 use work.pProc_bus_gba.all;
 use work.pReg_gba_sound.all;
 
+use work.pReg_savestates.all;
+
 entity gba_sound_dma is
    generic
    (
-      REG_FIFO            : regmap_type
+      REG_FIFO                : regmap_type;
+      REG_SAVESTATE_DMASOUND  : regmap_type
    );
    port 
    (
       clk100              : in    std_logic;  
-      gb_on               : in    std_logic;  
+      reset               : in    std_logic;  
+      
+      loading_savestate   : in    std_logic;  
+      savestate_bus       : inout proc_bus_gb_type;
+      
       gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
       
       settings_new        : in    std_logic;
@@ -67,8 +74,13 @@ architecture arch of gba_sound_dma is
    signal sound_raw  : std_logic_vector(7 downto 0) := (others => '0');
    signal sound_out  : signed(15 downto 0) := (others => '0');
 
+   -- savestate
+   signal SAVESTATE_DMASOUND       : std_logic_vector(4 downto 0);
+   signal SAVESTATE_DMASOUND_back  : std_logic_vector(4 downto 0);
    
 begin 
+
+
 
    iFIFO_REGISTER : entity work.eProcReg_gba generic map (REG_FIFO) port map  (clk100, gb_bus, x"00000000", FIFO_REGISTER, FIFO_REGISTER_written);  
   
@@ -103,6 +115,12 @@ begin
       Empty    => fifo_Empty
    );
    
+   -- save state
+   iSAVESTATE_DMASOUND : entity work.eProcReg_gba generic map (REG_SAVESTATE_DMASOUND) port map (clk100, savestate_bus, SAVESTATE_DMASOUND_back, SAVESTATE_DMASOUND);
+
+   SAVESTATE_DMASOUND_back(2 downto 0) <= std_logic_vector(to_unsigned(fifo_cnt, 3));
+   SAVESTATE_DMASOUND_back(4 downto 3) <= std_logic_vector(to_unsigned(afterfifo_cnt, 2));
+
    process (clk100)
    begin
       if rising_edge(clk100) then
@@ -113,14 +131,15 @@ begin
          fifo_Wr    <= '0';
          fifo_Rd    <= '0';
          
-         if (gb_on = '0') then
+         if (reset = '1') then
          
-            sound_raw <= (others => '0');
-            sound_out <= (others => '0');
+            sound_raw      <= (others => '0');
+            sound_out      <= (others => '0');
+            afterfifo_data <= (others => '0');
             
             fifo_reset    <= '1';
-            fifo_cnt      <= 0;
-            afterfifo_cnt <= 0;
+            fifo_cnt      <= to_integer(unsigned(SAVESTATE_DMASOUND(2 downto 0)));
+            afterfifo_cnt <= to_integer(unsigned(SAVESTATE_DMASOUND(4 downto 3)));
          
          else
          
@@ -147,7 +166,7 @@ begin
             
             FIFO_WRITE_ENABLES <= gb_bus.bEna;
             
-            if (settings_new = '1' and Reset_FIFO = '1') then
+            if (settings_new = '1' and Reset_FIFO = '1' and loading_savestate = '0') then
                fifo_reset    <= '1';
                fifo_cnt      <= 0;
                afterfifo_cnt <= 0;
@@ -158,7 +177,7 @@ begin
                new_sample_request <= '1';
             end if;
             
-            if (FIFO_REGISTER_written = '1') then
+            if (FIFO_REGISTER_written = '1' and loading_savestate = '0') then
             
                if (fifo_Full = '0' and fifo_cnt < 7) then -- real hardware does also clear fifo when writing 8th dword(can only happen when writing without DMA)
                   fifo_cnt <= fifo_cnt + 1;
@@ -180,10 +199,12 @@ begin
                
                if (afterfifo_cnt < 3) then
                   afterfifo_cnt <= afterfifo_cnt + 1;
-               elsif (fifo_Empty = '0') then
+               else
                   afterfifo_cnt <= 0;
                   if (fifo_cnt > 0) then 
                      fifo_cnt <= fifo_cnt - 1;
+                  end if;
+                  if (fifo_Empty = '0') then
                      fifo_Rd  <= '1';
                   end if;
                end if;

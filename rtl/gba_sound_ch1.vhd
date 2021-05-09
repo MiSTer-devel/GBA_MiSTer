@@ -25,8 +25,12 @@ entity gba_sound_ch1 is
    );
    port 
    (
-      clk100              : in    std_logic;  
+      clk100              : in    std_logic; 
+      reset               : in    std_logic;
       gb_on               : in    std_logic;  
+      ch_on_ss            : in    std_logic;  
+      loading_savestate   : in    std_logic;  
+      
       gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
       
       new_cycles_valid    : in    std_logic;
@@ -127,6 +131,11 @@ begin
             soundcycles_envelope <= (others => '0');
             soundcycles_length   <= (others => '0');
          
+         elsif (reset = '1') then
+         
+            sound_out <= (others => '0');
+            ch_on     <= ch_on_ss;
+         
          else
       
             -- register write triggers
@@ -151,7 +160,7 @@ begin
                   sweepcnt      <= (others => '0');
                   envelope_cnt  <= (others => '0');
                   envelope_add  <= (others => '0');
-                  ch_on         <= '1';
+                  ch_on         <= not loading_savestate;
                   freq_cnt      <= (others => '0');
                   wavetable_ptr <= (others => '0');
                end if;
