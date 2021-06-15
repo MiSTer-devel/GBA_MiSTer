@@ -228,7 +228,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 `include "build_id.v"
 parameter CONF_STR = {
 	"GBA;SS3E000000:80000;",
-	"FS,GBA;",
+	"FS,GBA,Load,300C0000;",
 	"-;",
 	"C,Cheats;",
 	"H1O6,Cheats Enabled,Yes,No;",
@@ -393,17 +393,17 @@ always @(posedge clk_sys) begin
 	old_download <= cart_download;
 	if (old_download & ~cart_download) last_addr <= ioctl_addr;
 
-	if(~old_download & cart_download) begin
+	if (~ioctl_download && ioctl_download_1 && ioctl_index == 1) begin
 		flash_1m <= 0;
 		cart_type <= ioctl_index[7:6];
 		cart_loaded <= 1;
 	end
 
-	if(cart_download & ioctl_wr) begin
-		if({str, ioctl_dout[7:0]} == "FLASH1M_V") flash_1m <= 1;
-		if({str[55:0], ioctl_dout[7:0], ioctl_dout[15:8]} == "FLASH1M_V") flash_1m <= 1;
+	if(rom_wr) begin
+		if({str, rom_dout[7:0]} == "FLASH1M_V") flash_1m <= 1;
+		if({str[55:0], rom_dout[7:0], rom_dout[15:8]} == "FLASH1M_V") flash_1m <= 1;
 
-		str <= {str[47:0], ioctl_dout[7:0], ioctl_dout[15:8]};
+		str <= {str[47:0], rom_dout[7:0], rom_dout[15:8]};
 	end
 end
 
@@ -512,8 +512,8 @@ gba_top
 gba
 (
 	.clk100(clk_sys),
-	.GBA_on(~reset),                  // switching from off to on = reset
-	.GBA_lockspeed(~fast_forward),    // 1 = 100% speed, 0 = max speed
+	.GBA_on(~reset && ~romcopy_active),  // switching from off to on = reset
+	.GBA_lockspeed(~fast_forward),       // 1 = 100% speed, 0 = max speed
 	.GBA_cputurbo(cpu_turbo),
 	.GBA_flash_1m(flash_1m),          // 1 when string "FLASH1M_V" is anywhere in gamepak
 	.CyclePrecalc(pause ? 16'd0 : 16'd100), // 100 seems to be ok to keep fullspeed for all games
@@ -621,10 +621,8 @@ reg solar_quirk = 0;           // game has solar module
 reg sprite_quirk = 0;          // game depends on using max sprite pixels per line, otherwise glitches appear
 always @(posedge clk_sys) begin
 	reg [95:0] cart_id;
-	reg old_download;
-	old_download <= cart_download;
 
-	if(~old_download && cart_download) begin
+	if (~ioctl_download && ioctl_download_1 && ioctl_index == 1) begin
       sram_quirk         <= 0;
       memory_remap_quirk <= 0;
       gpio_quirk         <= 0;
@@ -634,10 +632,10 @@ always @(posedge clk_sys) begin
    end
 
 	// TODO: better to use game ID (fixed 6 bytes after name of game) - less data to check.
-	if(ioctl_wr & cart_download) begin
-		if(ioctl_addr[26:4] == 'hA) begin
-			if(ioctl_addr[3:0] <  12) cart_id[{4'd10 - ioctl_addr[3:0], 3'd0} +:16] <= {ioctl_dout[7:0],ioctl_dout[15:8]};
-			if(ioctl_addr[3:0] == 12) begin
+	if(rom_wr) begin
+		if(rom_addr[26:4] == 'hA) begin
+			if(rom_addr[3:0] <  12) cart_id[{4'd10 - rom_addr[3:0], 3'd0} +:16] <= {rom_dout[7:0],rom_dout[15:8]};
+			if(rom_addr[3:0] == 12) begin
 				if(cart_id == {"ROCKY BOXING"} )               begin sram_quirk <= 1;                                             end // Rocky US
 				if(cart_id == {"ROCKY", 56'h00000000000000} )  begin sram_quirk <= 1;                                             end // Rocky EU
 				if(cart_id == {"DBZ LGCYGOKU"} )               begin sram_quirk <= 1;                                             end // Dragon Ball Z - The Legacy of Goku US
@@ -741,18 +739,18 @@ sdram sdram
 	.init(~pll_locked),
 	.clk(clk_sys),
 
-	.ch1_addr(cart_download ? ioctl_addr[26:1]+ROM_START[26:1] : {sdram_addr, 1'b0}),
-	.ch1_din(ioctl_dout),
+	.ch1_addr({sdram_addr, 1'b0}),
+	.ch1_din(16'b0),
 	.ch1_dout({sdr_sdram_dout2, sdr_sdram_dout1}),
-	.ch1_req((cart_download ? ioctl_wr : sdram_req) & sdram_en),
+	.ch1_req(sdram_req & sdram_en),
 	.ch1_rnw(cart_download ? 1'b0     : 1'b1     ),
 	.ch1_ready(sdr_sdram_ack),
 
-	.ch2_addr({bus_addr, 1'b0}),
-	.ch2_din(bus_din),
+	.ch2_addr(romcopysd_active ? romcopy_writepos[26:1]+ROM_START[26:1] : {bus_addr, 1'b0}),
+	.ch2_din(romcopysd_active ? romcopy_data : bus_din),
 	.ch2_dout(sdr_bus_dout),
-	.ch2_req(~cart_download & bus_req & sdram_en),
-	.ch2_rnw(bus_rd),
+	.ch2_req(romcopysd_active ? romcopysd_req : ~cart_download & bus_req & sdram_en),
+	.ch2_rnw(romcopysd_active ? 1'b0 : bus_rd),
 	.ch2_ready(sdr_bus_ack),
 
 	.ch3_addr({sd_lba[7:0],bram_addr}),
@@ -785,11 +783,11 @@ ddram ddram
 (
 	.*,
 
-	.ch1_addr(cart_download ? ioctl_addr[26:1]+ROM_START[26:1] : {sdram_addr, 1'b0}),
-	.ch1_din(ioctl_dout),
+	.ch1_addr(romcopy_active ? romcopy_readpos[26:1]+ROM_START[26:1] : {sdram_addr, 1'b0}),
+	.ch1_din(16'b0),
 	.ch1_dout({ddr_sdram_dout2, ddr_sdram_dout1}),
-	.ch1_req((cart_download ? ioctl_wr : sdram_req) & ~sdram_en),
-	.ch1_rnw(cart_download ? 1'b0     : 1'b1     ),
+	.ch1_req(romcopy_active ? romcopy_ddrreq : sdram_req & ~sdram_en),
+	.ch1_rnw(1'b1),
 	.ch1_ready(ddr_sdram_ack),
 
 	.ch2_addr({bus_addr, 1'b0}),
@@ -820,6 +818,128 @@ ddram ddram
    .ch5_ready(fb_ack)
    
 );
+
+///////////////// copy rom data from ddrram to sdram
+
+localparam STATE_ROMCOPY_IDLE = 0;
+localparam STATE_ROMCOPY_READ = 1;
+localparam STATE_ROMCOPY_WAIT = 2;
+localparam STATE_ROMCOPY_ACK  = 3;
+reg[1:0]  romcopy_state = 0;
+reg       romcopy_active = 0;
+reg[26:0] romcopy_size;
+reg[26:0] romcopy_readpos; 
+reg       romcopy_ddrreq = 0; 
+
+always @(posedge clk_sys) begin
+
+   romcopy_ddrreq <= 0;
+
+	case (romcopy_state)
+      STATE_ROMCOPY_IDLE : begin
+         if (~ioctl_download && ioctl_download_1 && ioctl_index == 1) begin
+            romcopy_state   <= STATE_ROMCOPY_READ;
+            romcopy_size    <= ioctl_addr;
+            romcopy_readpos <= 0;
+            romcopy_active  <= 1;
+         end
+      end
+      
+      STATE_ROMCOPY_READ : begin
+         if (romcopy_readpos >= romcopy_size) begin
+            romcopy_state  <= STATE_ROMCOPY_IDLE;
+            romcopy_active <= 0;
+         end else begin 
+            romcopy_ddrreq <= 1;
+            romcopy_state  <= STATE_ROMCOPY_WAIT;
+         end
+      end
+      
+      STATE_ROMCOPY_WAIT : begin
+         if (ddr_sdram_ack) begin
+            romcopy_readpos <= romcopy_readpos + 4'd8;
+            romcopy_state   <= STATE_ROMCOPY_ACK; 
+         end
+      end
+      
+      STATE_ROMCOPY_ACK : begin
+         if (romcopysd_state == STATE_ROMCOPYSD_IDLE) begin
+            romcopy_state <= STATE_ROMCOPY_READ;
+         end
+      end
+   endcase
+end
+
+localparam STATE_ROMCOPYSD_IDLE   = 0;
+localparam STATE_ROMCOPYSD_WAIT1  = 1;
+localparam STATE_ROMCOPYSD_WAIT2  = 2;
+reg[1:0]   romcopysd_state = 0;
+reg[26:0]  romcopy_writepos; 
+reg        romcopysd_active = 0;
+reg        romcopysd_req = 0; 
+reg[31:0]  romcopy_data; 
+reg[31:0]  romcopy_datanext; 
+
+reg [2:0]  rom_state;
+reg [26:0] rom_addr;
+reg [26:0] rom_addrnext;
+reg [15:0] rom_dout;
+reg [63:0] rom_data;
+reg        rom_wr = 0;
+
+always @(posedge clk_sys) begin
+
+   romcopysd_req <= 0;
+
+	case (romcopysd_state)
+      STATE_ROMCOPYSD_IDLE : begin
+         if (ioctl_download && ~ioctl_download_1 && ioctl_index == 1) begin
+            romcopy_writepos <= 0;
+         end
+         if (romcopy_state == STATE_ROMCOPY_ACK) begin
+            romcopysd_state  <= STATE_ROMCOPYSD_WAIT1;
+            romcopysd_active <= 1;
+            romcopysd_req    <= sdram_en;
+            romcopy_data     <= ddr_sdram_dout1;
+            romcopy_datanext <= ddr_sdram_dout2;
+            
+            rom_state        <= 4;
+            rom_data         <= {ddr_sdram_dout2, ddr_sdram_dout1};
+            rom_addrnext     <= romcopy_writepos;
+         end
+      end
+      
+      STATE_ROMCOPYSD_WAIT1 : begin
+         if (sdr_bus_ack || ~sdram_en) begin
+            romcopy_writepos <= romcopy_writepos + 3'd4;
+            romcopysd_state  <= STATE_ROMCOPYSD_WAIT2;
+            romcopysd_req    <= sdram_en;
+            romcopy_data     <= romcopy_datanext;
+         end
+      end
+      
+      STATE_ROMCOPYSD_WAIT2 : begin
+         if (sdr_bus_ack || ~sdram_en) begin
+            romcopy_writepos <= romcopy_writepos + 3'd4;
+            romcopysd_state  <= STATE_ROMCOPYSD_IDLE;
+            romcopysd_active <= 0;
+         end
+      end
+   endcase
+   
+   // rebuild download bus for flash1M and quirk detection 
+   rom_wr <= 0;
+   if (rom_state > 0) begin
+      rom_state     <= rom_state - 1'd1;
+      rom_wr        <= 1;
+      rom_dout      <= rom_data[15:0];
+      rom_addr      <= rom_addrnext;
+      rom_addrnext  <= rom_addrnext + 2'd2;
+      rom_data      <= {16'b0, rom_data[63:16]};
+   end
+end
+
+/////////////////
 
 wire [127:0] time_din_h = {32'd0, time_din, "RT"};
 wire [15:0] bram_dout;
