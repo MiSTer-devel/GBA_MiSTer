@@ -12,7 +12,7 @@ SDRAM addon is required.
 # Foldername
 All Games and BIOS go to GBA2P folder. 
 
-It is seperated from the normal GBA folder so ensure safe savegame handling.
+It is seperated from the normal GBA folder to ensure safe savegame handling.
 
 You can create a symlink to GBA folder if you want to use the same games/BIOS.
 
@@ -27,7 +27,7 @@ Normal and Multiplayer serial connection modes are implemented.
 
 UART and GPIO modes are missing.
 
-Most popular games should work in multiplayer mode, but there are some games known to now working.
+Most popular games should work in multiplayer mode, but there are some games known that are not working.
 
 # Savegames
 Saves created contain savegames for both players. 
