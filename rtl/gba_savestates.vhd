@@ -478,7 +478,7 @@ begin
                end if;
             
             when LOADINTERNALS_WRITE => 
-               if (internal_bus_out.done = '1') then
+               --if (internal_bus_out.done = '1') then
                   bus_out_Adr <= std_logic_vector(unsigned(bus_out_Adr) + 2);
                   if (count < INTERNALSCOUNT) then
                      state          <= LOADINTERNALS_READ;
@@ -494,7 +494,7 @@ begin
                      bus_out_ena        <= '1';
                      bus_out_active     <= '1';
                   end if;
-               end if;
+               --end if;
                
             when LOADREGISTER_READ =>
                if (bus_out_done = '1') then

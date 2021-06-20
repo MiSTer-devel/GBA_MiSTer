@@ -63,11 +63,17 @@ module ddram
 	input  [7:0]  ch4_be,
 	output        ch4_ready,
    
-   // framebuffer
+   // framebuffer1
 	input  [27:1] ch5_addr,
 	input  [63:0] ch5_din,
 	input         ch5_req,
-	output        ch5_ready
+	output        ch5_ready,
+   
+   // framebuffer2
+	input  [27:1] ch6_addr,
+	input  [63:0] ch6_din,
+	input         ch6_req,
+	output        ch6_ready
 );
 
 reg  [7:0] ram_burst;
@@ -78,7 +84,7 @@ reg        ram_read = 0;
 reg        ram_write = 0;
 reg  [7:0] ram_be;
 
-reg  [5:1] ready;
+reg  [6:1] ready;
 
 assign DDRAM_BURSTCNT = ram_burst;
 assign DDRAM_BE       = ram_read ? 8'hFF : ram_be;
@@ -96,18 +102,19 @@ assign ch2_ready = ready[2];
 assign ch3_ready = ready[3];
 assign ch4_ready = ready[4];
 assign ch5_ready = ready[5];
+assign ch6_ready = ready[6];
 
 reg [63:0] next_q[2:1];
 reg [27:1] cache_addr[2:1];
 reg  [1:0] state  = 0;
 reg  [2:1] cached = 0;
 reg  [2:0] ch = 0; 
-reg  [5:1] ch_rq;
+reg  [6:1] ch_rq;
 
 always @(posedge DDRAM_CLK) begin
 
 
-	ch_rq <= ch_rq | {ch5_req, ch4_req, ch3_req, ch2_req, ch1_req};
+	ch_rq <= ch_rq | {ch6_req, ch5_req, ch4_req, ch3_req, ch2_req, ch1_req};
 	ready <= 0;
 
 	if(!DDRAM_BUSY) begin
@@ -225,6 +232,16 @@ always @(posedge DDRAM_CLK) begin
                ram_write        <= 1;
                ram_burst        <= 1;
                ready[5]         <= 1;
+				end
+            else if(ch_rq[6] || ch6_req) begin
+					ch_rq[6]         <= 0;
+					ch               <= 6;
+					ram_data         <= ch6_din;
+					ram_be           <= 8'hFF;
+               ram_address      <= ch6_addr;
+               ram_write        <= 1;
+               ram_burst        <= 1;
+               ready[6]         <= 1;
 				end
 
 			1: if(DDRAM_DOUT_READY) begin

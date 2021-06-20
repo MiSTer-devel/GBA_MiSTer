@@ -38,30 +38,10 @@ entity gba_top is
       load_state            : in     std_logic;
       interframe_blend      : in     std_logic_vector(1 downto 0); -- 0 = off, 1 = blend, 2 = 30hz
       maxpixels             : in     std_logic;                    -- limit pixels per line
-      shade_mode            : in     std_logic_vector(2 downto 0); -- 0 = off, 1..4 modes
-      hdmode2x_bg           : in     std_logic;
-      hdmode2x_obj          : in     std_logic;
       specialmodule         : in     std_logic;                    -- 0 = off, 1 = use gamepak GPIO Port at address 0x080000C4..0x080000C8
-      solar_in              : in     std_logic_vector(2 downto 0);
-      tilt                  : in     std_logic;                    -- 0 = off, 1 = use tilt at address 0x0E008200, 0x0E008300, 0x0E008400, 0x0E008500
       rewind_on             : in     std_logic;
       rewind_active         : in     std_logic;
       savestate_number      : in     integer;
-      -- RTC
-      RTC_timestampNew      : in     std_logic;                     -- new current timestamp from system
-      RTC_timestampIn       : in     std_logic_vector(31 downto 0); -- timestamp in seconds, current time
-      RTC_timestampSaved    : in     std_logic_vector(31 downto 0); -- timestamp in seconds, saved time
-      RTC_savedtimeIn       : in     std_logic_vector(41 downto 0); -- time structure, loaded
-      RTC_saveLoaded        : in     std_logic;                     -- must be 0 when loading new game, should go and stay 1 when RTC was loaded and values are valid
-      RTC_timestampOut      : out    std_logic_vector(31 downto 0); -- timestamp to be saved
-      RTC_savedtimeOut      : out    std_logic_vector(41 downto 0); -- time structure to be saved
-      RTC_inuse             : out    std_logic := '0';              -- will indicate that RTC is in use and should be saved on next saving
-      -- cheats
-      cheat_clear           : in     std_logic;
-      cheats_enabled        : in     std_logic;
-      cheat_on              : in     std_logic;
-      cheat_in              : in     std_logic_vector(127 downto 0);
-      cheats_active         : out    std_logic := '0';
       -- sdram interface
       sdram_read_ena        : out    std_logic;                     -- triggered once for read request 
       sdram_read_done       : in     std_logic := '0';              -- must be triggered once when sdram_read_data is valid after last read
@@ -104,8 +84,6 @@ entity gba_top is
       KeyDown               : in     std_logic;
       KeyR                  : in     std_logic;
       KeyL                  : in     std_logic;
-      AnalogTiltX           : in     signed(7 downto 0);
-      AnalogTiltY           : in     signed(7 downto 0);
       -- debug interface          
       GBA_BusAddr           : in     std_logic_vector(27 downto 0);
       GBA_BusRnW            : in     std_logic;
@@ -120,6 +98,9 @@ entity gba_top is
       pixel_out_data        : buffer std_logic_vector(17 downto 0);  -- RGB data for framebuffer 
       pixel_out_we          : buffer std_logic;                      -- new pixel for framebuffer 
                                   
+      fb_hoffset            : in     integer;
+      fb_voffset            : in     integer;
+      fb_linesize           : in     integer;
       largeimg_out_base     : out    std_logic_vector(31 downto 0) := x"38000000";            
       largeimg_out_addr     : buffer std_logic_vector(25 downto 0) := (others => '0');
       largeimg_out_data     : out    std_logic_vector(63 downto 0);
@@ -130,6 +111,13 @@ entity gba_top is
       -- sound                             
       sound_out_left        : out    std_logic_vector(15 downto 0) := (others => '0');
       sound_out_right       : out    std_logic_vector(15 downto 0) := (others => '0');
+      -- serial
+      serial_clockout       : out    std_logic;
+      serial_clockin        : in     std_logic;
+      serial_dataout        : out    std_logic;
+      serial_datain         : in     std_logic;
+      si_terminal           : in     std_logic;
+      sd_terminal           : in     std_logic;
       -- debug                    
       debug_cpu_pc          : out    std_logic_vector(31 downto 0);
       debug_cpu_mixed       : out    std_logic_vector(31 downto 0);
@@ -173,15 +161,6 @@ architecture arch of gba_top is
    signal savestate_busy       : std_logic;
    
    signal sleep_rewind         : std_logic;
-   
-   -- cheats
-   signal Cheats_BusAddr       : std_logic_vector(27 downto 0);
-   signal Cheats_BusRnW        : std_logic;
-   signal Cheats_BusACC        : std_logic_vector(1 downto 0);
-   signal Cheats_BusWriteData  : std_logic_vector(31 downto 0);
-   signal Cheats_Bus_ena       : std_logic := '0';
-   
-   signal sleep_cheats         : std_logic;
    
    -- wiring  
    signal cpu_bus_Adr          : std_logic_vector(31 downto 0);
@@ -242,13 +221,6 @@ architecture arch of gba_top is
    signal PALETTE_OAM_datain   : std_logic_vector(31 downto 0);
    signal PALETTE_OAM_dataout  : std_logic_vector(31 downto 0);
    signal PALETTE_OAM_we       : std_logic_vector(3 downto 0);
-   
-   signal GPIO_done            : std_logic;
-   signal GPIO_readEna         : std_logic;
-   signal GPIO_Din             : std_logic_vector(3 downto 0);
-   signal GPIO_Dout            : std_logic_vector(3 downto 0);
-   signal GPIO_writeEna        : std_logic;
-   signal GPIO_addr            : std_logic_vector(1 downto 0);
    
    signal gbaon                : std_logic := '0';
    signal gpu_out_active       : std_logic;
@@ -340,20 +312,9 @@ architecture arch of gba_top is
    signal bench_slow      : integer range 0 to 1685375 := 0;
    
    -- large image out
-   signal pixel_out_2x       : integer range 0 to 479; 
-   signal pixel_out_data2x   : std_logic_vector(17 downto 0);  
-   signal pixel_out_we2x     : std_logic := '0';   
-   signal pixel2_out_x       : integer range 0 to 479;
-   signal pixel2_out_data    : std_logic_vector(17 downto 0);  
-   signal pixel2_out_we      : std_logic;
-   
    signal pixel_write_addr   : integer range 0 to 239;
    signal pixel_write_data   : std_logic_vector(35 downto 0);
    signal pixel_write_ena    : std_logic := '0';
-      
-   signal pixel2_write_addr  : integer range 0 to 239;
-   signal pixel2_write_data  : std_logic_vector(35 downto 0);
-   signal pixel2_write_ena   : std_logic := '0';
    
    type tstate is
    (
@@ -365,8 +326,6 @@ architecture arch of gba_top is
                           
    signal pixel_out_y_1    : integer range 0 to 159 := 0;
    signal pixelpos         : integer range 0 to 240 := 0;
-   signal pixelpos2        : integer range 0 to 240 := 0;
-   signal pixelcnt         : integer range 0 to 3 := 0;
    signal firstpixel       : std_logic := '0';
    signal linebuffer_data  : std_logic_vector(35 downto 0);
    signal linebuffer2_data : std_logic_vector(35 downto 0);
@@ -387,8 +346,14 @@ begin
       clk100            => clk100,
       gb_bus            => gb_bus,
       
-      new_cycles        => new_cycles,      
-      new_cycles_valid  => new_cycles_valid,
+      new_exact_cycle   => new_exact_cycle,
+
+      clockout          => serial_clockout,
+      clockin           => serial_clockin, 
+      dataout           => serial_dataout, 
+      datain            => serial_datain,       
+      si_terminal       => si_terminal,
+      sd_terminal       => sd_terminal,
                          
       IRP_Serial        => IRP_Serial
    );
@@ -454,13 +419,6 @@ begin
             debug_bus_ena    <= '1';
             debug_bus_acc    <= SAVE_BusACC;
             debug_bus_dout   <= SAVE_BusWriteData;
-         elsif (Cheats_Bus_ena = '1') then
-            debug_bus_active <= '1';
-            debug_bus_Adr    <= Cheats_BusAddr;
-            debug_bus_rnw    <= Cheats_BusRnW;
-            debug_bus_ena    <= '1';
-            debug_bus_acc    <= Cheats_BusACC;
-            debug_bus_dout   <= Cheats_BusWriteData;
          end if;
          
          if (debug_bus_active = '1' and mem_bus_done = '1') then
@@ -554,62 +512,6 @@ begin
       request_loadstate   => savestate_loadstate,
       request_address     => savestate_address,  
       request_busy        => savestate_busy     
-   );
-   
-   igba_cheats : entity work.gba_cheats
-   port map
-   (
-      clk100         => clk100,
-      gb_on          => GBA_on,
-                      
-      cheat_clear    => cheat_clear,
-      cheats_enabled => cheats_enabled,
-      cheat_on       => cheat_on,
-      cheat_in       => cheat_in,
-      cheats_active  => cheats_active,
-                     
-      vsync          => vblank_trigger,
-                     
-      bus_ena_in     => mem_bus_ena,
-      sleep_cheats   => sleep_cheats,
-                    
-      BusAddr        => Cheats_BusAddr,     
-      BusRnW         => Cheats_BusRnW,      
-      BusACC         => Cheats_BusACC,      
-      BusWriteData   => Cheats_BusWriteData,
-      Bus_ena        => Cheats_Bus_ena,     
-      BusReadData    => mem_bus_din, 
-      BusDone        => mem_bus_done
-   );
-   
-   igba_gpioRTCSolarGyro : entity work.gba_gpioRTCSolarGyro
-   port map
-   (
-      clk100               => clk100, 
-      reset                => reset,
-      GBA_on               => GBA_on,
-                                         
-      savestate_bus        => savestate_bus,
-                                         
-      GPIO_readEna         => GPIO_readEna, 
-      GPIO_done            => GPIO_done,   
-      GPIO_Din             => GPIO_Din,     
-      GPIO_Dout            => GPIO_Dout,    
-      GPIO_writeEna        => GPIO_writeEna,
-      GPIO_addr            => GPIO_addr,
-      
-      vblank_trigger       => vblank_trigger,
-      RTC_timestampNew     => RTC_timestampNew,
-      RTC_timestampIn      => RTC_timestampIn,   
-      RTC_timestampSaved   => RTC_timestampSaved,
-      RTC_savedtimeIn      => RTC_savedtimeIn,   
-      RTC_saveLoaded       => RTC_saveLoaded,    
-      RTC_timestampOut     => RTC_timestampOut,  
-      RTC_savedtimeOut     => RTC_savedtimeOut,  
-      RTC_inuse            => RTC_inuse,         
-      
-      AnalogX              => AnalogTiltX,
-      solar_in             => solar_in
    );
    
    process (clk100)
@@ -723,16 +625,6 @@ begin
       PALETTE_OAM_we       => PALETTE_OAM_we,
 
       specialmodule        => specialmodule,
-      GPIO_readEna         => GPIO_readEna,
-      GPIO_done            => GPIO_done,    
-      GPIO_Din             => GPIO_Din,     
-      GPIO_Dout            => GPIO_Dout,    
-      GPIO_writeEna        => GPIO_writeEna,
-      GPIO_addr            => GPIO_addr,    
-      
-      tilt                 => tilt,       
-      AnalogTiltX          => AnalogTiltX,
-      AnalogTiltY          => AnalogTiltY,
 
       debug_mem            => debug_mem      
    );
@@ -834,22 +726,14 @@ begin
       lockspeed            => GBA_lockspeed,
       interframe_blend     => interframe_blend,
       maxpixels            => maxpixels,
-      shade_mode           => shade_mode,
-      hdmode2x_bg          => hdmode2x_bg,
-      hdmode2x_obj         => hdmode2x_obj,
       
       bitmapdrawmode       => bitmapdrawmode,
 
       pixel_out_x          => pixel_out_x,
-      pixel_out_2x         => pixel_out_2x, 
       pixel_out_y          => pixel_out_y,
       pixel_out_addr       => pixel_out_addr,
       pixel_out_data       => pixel_out_data,
       pixel_out_we         => pixel_out_we,  
-       
-      pixel2_out_x         => pixel2_out_x,   
-      pixel2_out_data      => pixel2_out_data,
-      pixel2_out_we        => pixel2_out_we,  
       
       new_cycles           => new_cycles,      
       new_cycles_valid     => new_cycles_valid,
@@ -1078,7 +962,7 @@ begin
          end if;
          
          gba_step <= '0';
-         if (DEBUG_NOCPU = '0' and sleep_savestate = '0' and sleep_cheats = '0' and sleep_rewind = '0' and 
+         if (DEBUG_NOCPU = '0' and sleep_savestate = '0' and sleep_rewind = '0' and 
             (GBA_lockspeed = '0' or GBA_cputurbo = '1' or cycles_ahead < unsigned(CyclePrecalc))) then
             gba_step <= '1';
          end if;
@@ -1111,23 +995,12 @@ begin
          
          pixel_write_ena <= '0';
          if (pixel_out_we = '1') then
-            pixel_write_addr <= pixel_out_2x / 2;
-            if (pixel_out_2x mod 2 = 0) then
+            pixel_write_addr <= pixel_out_x / 2;
+            if (pixel_out_x mod 2 = 0) then
                pixel_write_data(17 downto 0) <= pixel_out_data;
             else
                pixel_write_data(35 downto 18) <= pixel_out_data;
                pixel_write_ena <= '1';
-            end if;
-         end if;
-         
-         pixel2_write_ena <= '0';
-         if (pixel2_out_we = '1') then
-            pixel2_write_addr <= pixel2_out_x / 2;
-            if (pixel2_out_x mod 2 = 0) then
-               pixel2_write_data(17 downto 0) <= pixel2_out_data;
-            else
-               pixel2_write_data(35 downto 18) <= pixel2_out_data;
-               pixel2_write_ena <= '1';
             end if;
          end if;
    
@@ -1158,29 +1031,6 @@ begin
       re_b       => '1'
    );
    
-   ilinebuffer_hd1: entity MEM.SyncRamDual
-   generic map
-   (
-      DATA_WIDTH => 36,
-      ADDR_WIDTH => 8
-   )
-   port map
-   (
-      clk        => clk100,
-      
-      addr_a     => pixel2_write_addr,
-      datain_a   => pixel2_write_data,
-      dataout_a  => open,
-      we_a       => pixel2_write_ena,
-      re_a       => '0',
-               
-      addr_b     => pixelpos2,
-      datain_b   => (35 downto 0 => '0'),
-      dataout_b  => linebuffer2_data,
-      we_b       => '0',
-      re_b       => '1'
-   );
-   
    process (clk100)
    begin
       if rising_edge(clk100) then
@@ -1195,12 +1045,11 @@ begin
          case (state) is
          
             when IDLE =>
-               if (pixel_out_y_1 /= pixel_out_y and pixel_write_ena = '1' and (hdmode2x_bg = '1' or hdmode2x_obj = '1')) then
+               if (pixel_out_y_1 /= pixel_out_y and pixel_write_ena = '1') then
                   pixel_out_y_1     <= pixel_out_y;
                   state             <= READPIXEL;
                   pixelpos          <= 0;
-                  pixelpos2         <= 0;
-                  pixeladdress      <= pixel_out_y * 1024;
+                  pixeladdress      <= pixel_out_y * fb_linesize;
                   if (pixel_out_y = 0) then
                      frameoffset <= current_frame;
                      --if (largeimg_singlebuf = '0') then
@@ -1221,31 +1070,17 @@ begin
                firstpixel <= '0';
                if (largeimg_out_done = '1' or firstpixel = '1') then
                   
-                  if (pixelcnt = 0) then
-                     pixelcnt <= 1;
-                     pixelpos <= pixelpos + 1;
+                  pixelpos <= pixelpos + 1;
+                  if (pixelpos < 119) then
+                     pixeladdress <= pixeladdress + 2;
                   else
-                     pixelcnt  <= 0;
-                     pixelpos2 <= pixelpos2 + 1;
-                     if (pixelpos2 < 239) then
-                        pixeladdress <= pixeladdress + 2;
-                     else
-                        state <= IDLE;
-                     end if;
+                     state <= IDLE;
                   end if;
 
                   largeimg_out_req  <= '1';
-                  case (pixelcnt) is
-                     when 0 => 
-                        largeimg_out_addr <= "1" & std_logic_vector(to_unsigned(pixeladdress + current_frame * 16#100000#, 25));
-                        largeimg_out_data(31 downto  0) <= x"00" & linebuffer_data( 5 downto  0) & "00" & linebuffer_data(11 downto  6) & "00" & linebuffer_data(17 downto 12) & "00";
-                        largeimg_out_data(63 downto 32) <= x"00" & linebuffer_data(23 downto 18) & "00" & linebuffer_data(29 downto 24) & "00" & linebuffer_data(35 downto 30) & "00";
-                     when 1 => 
-                        largeimg_out_addr <= "1" & std_logic_vector(to_unsigned(pixeladdress + 512 + current_frame * 16#100000#, 25));
-                        largeimg_out_data(31 downto  0) <= x"00" & linebuffer2_data( 5 downto  0) & "00" & linebuffer2_data(11 downto  6) & "00" & linebuffer2_data(17 downto 12) & "00";
-                        largeimg_out_data(63 downto 32) <= x"00" & linebuffer2_data(23 downto 18) & "00" & linebuffer2_data(29 downto 24) & "00" & linebuffer2_data(35 downto 30) & "00";
-                     when others => null;
-                  end case;
+                  largeimg_out_addr <= "1" & std_logic_vector(to_unsigned(pixeladdress + current_frame * 16#100000# + fb_voffset * 16#A000# + 240 * fb_hoffset, 25));
+                  largeimg_out_data(31 downto  0) <= x"00" & linebuffer_data( 5 downto  0) & "00" & linebuffer_data(11 downto  6) & "00" & linebuffer_data(17 downto 12) & "00";
+                  largeimg_out_data(63 downto 32) <= x"00" & linebuffer_data(23 downto 18) & "00" & linebuffer_data(29 downto 24) & "00" & linebuffer_data(35 downto 30) & "00";
                   
                end if;
          

@@ -80,55 +80,71 @@ architecture arch of etb is
    signal GBA_CHEAT_REPLACE : std_logic_vector(Reg_GBA_CHEAT_REPLACE.upper downto Reg_GBA_CHEAT_REPLACE.lower) := (others => '0');
    signal GBA_CHEAT_RESET   : std_logic_vector(Reg_GBA_CHEAT_RESET  .upper downto Reg_GBA_CHEAT_RESET  .lower) := (others => '0');
    
-   signal bus_out_Din      : std_logic_vector(31 downto 0);
-   signal bus_out_Dout     : std_logic_vector(31 downto 0);
-   signal bus_out_Adr      : std_logic_vector(25 downto 0);
-   signal bus_out_rnw      : std_logic;
-   signal bus_out_ena      : std_logic;
-   signal bus_out_done     : std_logic;
+   signal bus1_out_Din      : std_logic_vector(31 downto 0);
+   signal bus1_out_Dout     : std_logic_vector(31 downto 0);
+   signal bus1_out_Adr      : std_logic_vector(25 downto 0);
+   signal bus1_out_rnw      : std_logic;
+   signal bus1_out_ena      : std_logic;
+   signal bus1_out_done     : std_logic;
    
-   signal SAVE_out_Din     : std_logic_vector(63 downto 0);
-   signal SAVE_out_Dout    : std_logic_vector(63 downto 0);
-   signal SAVE_out_Adr     : std_logic_vector(25 downto 0);
-   signal SAVE_out_be      : std_logic_vector(7 downto 0);
-   signal SAVE_out_rnw     : std_logic;                    
-   signal SAVE_out_ena     : std_logic;                    
-   signal SAVE_out_active  : std_logic;                    
-   signal SAVE_out_done    : std_logic;                    
+   signal bus2_out_Din      : std_logic_vector(31 downto 0);
+   signal bus2_out_Dout     : std_logic_vector(31 downto 0);
+   signal bus2_out_Adr      : std_logic_vector(25 downto 0);
+   signal bus2_out_rnw      : std_logic;
+   signal bus2_out_ena      : std_logic;
+   signal bus2_out_done     : std_logic;
    
-   signal cpu_loopback     : std_logic_vector(31 downto 0);
-   
-   signal Cheat_written    : std_logic;
-   signal cheats_vector    : std_logic_vector(127 downto 0);
+   signal SAVE1_out_Din     : std_logic_vector(63 downto 0);
+   signal SAVE1_out_Dout    : std_logic_vector(63 downto 0);
+   signal SAVE1_out_Adr     : std_logic_vector(25 downto 0);
+   signal SAVE1_out_be      : std_logic_vector(7 downto 0);
+   signal SAVE1_out_rnw     : std_logic;                    
+   signal SAVE1_out_ena     : std_logic;                    
+   signal SAVE1_out_active  : std_logic;                    
+   signal SAVE1_out_done    : std_logic;   
+
+   signal SAVE2_out_Din     : std_logic_vector(63 downto 0);
+   signal SAVE2_out_Dout    : std_logic_vector(63 downto 0);
+   signal SAVE2_out_Adr     : std_logic_vector(25 downto 0);
+   signal SAVE2_out_be      : std_logic_vector(7 downto 0);
+   signal SAVE2_out_rnw     : std_logic;                    
+   signal SAVE2_out_ena     : std_logic;                    
+   signal SAVE2_out_active  : std_logic;                    
+   signal SAVE2_out_done    : std_logic;   
    
    -- gba signals
-   signal sdram_read_ena     : std_logic;
-   signal sdram_read_done    : std_logic;
-   signal sdram_read_addr    : std_logic_vector(24 downto 0);
-   signal sdram_read_data    : std_logic_vector(31 downto 0);
-   signal sdram_second_dword : std_logic_vector(31 downto 0);
-    
-   signal Copy_request_start : std_logic;
-   signal Copy_request_src   : std_logic_vector(24 downto 0);
-   signal Copy_request_dst   : std_logic_vector(24 downto 0);
-   signal Copy_request_len   : std_logic_vector(24 downto 0);
-   signal Copy_request_done  : std_logic;
-    
-   signal pixel_out_x        : integer range 0 to 239;
-   signal pixel_out_y        : integer range 0 to 159;
-   signal pixel_out_data     : std_logic_vector(17 downto 0);  
-   signal pixel_out_we       : std_logic;
+   signal sdram1_read_ena     : std_logic;
+   signal sdram1_read_done    : std_logic;
+   signal sdram1_read_addr    : std_logic_vector(24 downto 0);
+   signal sdram1_read_data    : std_logic_vector(31 downto 0);
+   signal sdram1_second_dword : std_logic_vector(31 downto 0);   
    
+   signal sdram2_read_ena     : std_logic;
+   signal sdram2_read_done    : std_logic;
+   signal sdram2_read_addr    : std_logic_vector(24 downto 0);
+   signal sdram2_read_data    : std_logic_vector(31 downto 0);
+   signal sdram2_second_dword : std_logic_vector(31 downto 0);
+
    signal largeimg_out_addr  : std_logic_vector(25 downto 0);
    signal largeimg_out_data  : std_logic_vector(63 downto 0);
    signal largeimg_out_req   : std_logic;
    signal largeimg_out_done  : std_logic;
    signal largeimg_newframe  : std_logic;
+   
+   signal largeimg_out2_addr : std_logic_vector(25 downto 0);
+   signal largeimg_out2_data : std_logic_vector(63 downto 0);
+   signal largeimg_out2_req  : std_logic;
+   signal largeimg_out2_done : std_logic;
                          
    signal sound_out_left     : std_logic_vector(15 downto 0);
    signal sound_out_right    : std_logic_vector(15 downto 0);
    
    signal RTC_saveLoaded     : std_logic := '0';
+   
+   signal serial1_clockout   : std_logic;
+   signal serial2_clockout   : std_logic;
+   signal serial1_dataout    : std_logic;
+   signal serial2_dataout    : std_logic;
    
    -- ddrram
    signal DDRAM_CLK        : std_logic;
@@ -170,6 +186,47 @@ architecture arch of etb is
    signal ch4_req          : std_logic;
    signal ch4_rnw          : std_logic;
    signal ch4_ready        : std_logic;
+   
+   -- ddrram2
+   signal DDRAM2_CLK        : std_logic;
+   signal DDRAM2_BUSY       : std_logic;
+   signal DDRAM2_BURSTCNT   : std_logic_vector(7 downto 0);
+   signal DDRAM2_ADDR       : std_logic_vector(28 downto 0);
+   signal DDRAM2_DOUT       : std_logic_vector(63 downto 0);
+   signal DDRAM2_DOUT_READY : std_logic;
+   signal DDRAM2_RD         : std_logic;
+   signal DDRAM2_DIN        : std_logic_vector(63 downto 0);
+   signal DDRAM2_BE         : std_logic_vector(7 downto 0);
+   signal DDRAM2_WE         : std_logic;
+                   
+   signal c2h1_addr         : std_logic_vector(27 downto 1);
+   signal c2h1_dout         : std_logic_vector(63 downto 0);
+   signal c2h1_din          : std_logic_vector(15 downto 0);
+   signal c2h1_req          : std_logic;
+   signal c2h1_rnw          : std_logic;
+   signal c2h1_ready        : std_logic;
+                          
+   signal c2h2_addr         : std_logic_vector(27 downto 1);
+   signal c2h2_dout         : std_logic_vector(31 downto 0);
+   signal c2h2_din          : std_logic_vector(31 downto 0);
+   signal c2h2_req          : std_logic;
+   signal c2h2_rnw          : std_logic;
+   signal c2h2_ready        : std_logic;
+                       
+   signal c2h3_addr         : std_logic_vector(25 downto 1);
+   signal c2h3_dout         : std_logic_vector(15 downto 0);
+   signal c2h3_din          : std_logic_vector(15 downto 0);
+   signal c2h3_req          : std_logic;
+   signal c2h3_rnw          : std_logic;
+   signal c2h3_ready        : std_logic;
+                     
+   signal c2h4_addr         : std_logic_vector(27 downto 1);
+   signal c2h4_dout         : std_logic_vector(63 downto 0);
+   signal c2h4_din          : std_logic_vector(63 downto 0);
+   signal c2h4_be           : std_logic_vector(7 downto 0);
+   signal c2h4_req          : std_logic;
+   signal c2h4_rnw          : std_logic;
+   signal c2h4_ready        : std_logic;
    
    
 begin
@@ -223,11 +280,9 @@ begin
    iReg_GBA_CHEAT_FLAGS   : entity procbus.eProcReg generic map (Reg_GBA_CHEAT_FLAGS  ) port map  (clk100, proc_bus_in, GBA_CHEAT_FLAGS  , GBA_CHEAT_FLAGS  ); 
    iReg_GBA_CHEAT_ADDRESS : entity procbus.eProcReg generic map (Reg_GBA_CHEAT_ADDRESS) port map  (clk100, proc_bus_in, GBA_CHEAT_ADDRESS, GBA_CHEAT_ADDRESS); 
    iReg_GBA_CHEAT_COMPARE : entity procbus.eProcReg generic map (Reg_GBA_CHEAT_COMPARE) port map  (clk100, proc_bus_in, GBA_CHEAT_COMPARE, GBA_CHEAT_COMPARE); 
-   iReg_GBA_CHEAT_REPLACE : entity procbus.eProcReg generic map (Reg_GBA_CHEAT_REPLACE) port map  (clk100, proc_bus_in, GBA_CHEAT_REPLACE, GBA_CHEAT_REPLACE, Cheat_written); 
+   iReg_GBA_CHEAT_REPLACE : entity procbus.eProcReg generic map (Reg_GBA_CHEAT_REPLACE) port map  (clk100, proc_bus_in, GBA_CHEAT_REPLACE, GBA_CHEAT_REPLACE); 
    iReg_GBA_CHEAT_RESET   : entity procbus.eProcReg generic map (Reg_GBA_CHEAT_RESET  ) port map  (clk100, proc_bus_in, GBA_CHEAT_RESET  , GBA_CHEAT_RESET  ); 
      
-   cheats_vector <= GBA_CHEAT_FLAGS & GBA_CHEAT_ADDRESS & GBA_CHEAT_COMPARE & GBA_CHEAT_REPLACE; 
-   
    RTC_saveLoaded <= '1' after 500 ns;
    
    igba_top : entity gba.gba_top
@@ -240,6 +295,7 @@ begin
       Softmap_GBA_EEPROM_ADDR  => 0,
       Softmap_SaveState_ADDR   => 16#3800000#,
       Softmap_Rewind_ADDR      => 16#2000000#,
+      fb_offset                => 0,
       turbosound               => '1'
    )
    port map
@@ -261,57 +317,34 @@ begin
       load_state         => GBA_LoadState(GBA_LoadState'left),
       interframe_blend   => "00",
       maxpixels          => '0',
-      shade_mode         => "000",
       hdmode2x_bg        => '0',
       hdmode2x_obj       => '0',
-      specialmodule      => '1',
-      solar_in           => "000",
-      tilt               => '0',
+      specialmodule      => '0',
       rewind_on          => GBA_Rewind_on(GBA_Rewind_on'left),
       rewind_active      => GBA_Rewind_active(GBA_Rewind_active'left),
       savestate_number   => 0,
-      -- RTC
-      RTC_timestampNew   => '0',
-      RTC_timestampIn    => x"00001E10", -- one hour
-      RTC_timestampSaved => x"00001000",
-      RTC_savedtimeIn    => x"19" & "10010" & "110001" & "110" & "100011" & "1011001" & "1011001",
-      RTC_saveLoaded     => RTC_saveLoaded,
-      RTC_timestampOut   => open,
-      RTC_savedtimeOut   => open,
-      RTC_inuse          => open, 
-      -- cheats
-      cheat_clear        => GBA_CHEAT_RESET(GBA_CHEAT_RESET'left),
-      cheats_enabled     => '1',
-      cheat_on           => Cheat_written,
-      cheat_in           => cheats_vector,
       -- sdram interface 
-      sdram_read_ena     => sdram_read_ena,    
-      sdram_read_done    => sdram_read_done,   
-      sdram_read_addr    => sdram_read_addr,   
-      sdram_read_data    => sdram_read_data,   
-      sdram_second_dword => sdram_second_dword,
+      sdram_read_ena     => sdram1_read_ena,    
+      sdram_read_done    => sdram1_read_done,   
+      sdram_read_addr    => sdram1_read_addr,   
+      sdram_read_data    => sdram1_read_data,   
+      sdram_second_dword => sdram1_second_dword,
       -- other Memories
-      bus_out_Din        => bus_out_Din, 
-      bus_out_Dout       => bus_out_Dout,
-      bus_out_Adr        => bus_out_Adr, 
-      bus_out_rnw        => bus_out_rnw,
-      bus_out_ena        => bus_out_ena, 
-      bus_out_done       => bus_out_done,
+      bus_out_Din        => bus1_out_Din, 
+      bus_out_Dout       => bus1_out_Dout,
+      bus_out_Adr        => bus1_out_Adr, 
+      bus_out_rnw        => bus1_out_rnw,
+      bus_out_ena        => bus1_out_ena, 
+      bus_out_done       => bus1_out_done,
       -- savestate
-      SAVE_out_Din       => SAVE_out_Din,   
-      SAVE_out_Dout      => SAVE_out_Dout,  
-      SAVE_out_Adr       => SAVE_out_Adr,   
-      SAVE_out_rnw       => SAVE_out_rnw,   
-      SAVE_out_ena       => SAVE_out_ena,   
-      SAVE_out_active    => SAVE_out_active,
-      SAVE_out_be        => SAVE_out_be,
-      SAVE_out_done      => SAVE_out_done, 
-      -- copy
-      --Copy_request_start  => Copy_request_start,
-      --Copy_request_src    => Copy_request_src,  
-      --Copy_request_dst    => Copy_request_dst,  
-      --Copy_request_len    => Copy_request_len,  
-      --Copy_request_done   => Copy_request_done,  
+      SAVE_out_Din       => SAVE1_out_Din,   
+      SAVE_out_Dout      => SAVE1_out_Dout,  
+      SAVE_out_Adr       => SAVE1_out_Adr,   
+      SAVE_out_rnw       => SAVE1_out_rnw,   
+      SAVE_out_ena       => SAVE1_out_ena,   
+      SAVE_out_active    => SAVE1_out_active,
+      SAVE_out_be        => SAVE1_out_be,
+      SAVE_out_done      => SAVE1_out_done, 
       -- Write to BIOS
       bios_wraddr        => (11 downto 0 => '0'),
       bios_wrdata        => (31 downto 0 => '0'),
@@ -331,8 +364,6 @@ begin
       KeyDown            => GBA_KeyDown(GBA_KeyDown'left),
       KeyR               => GBA_KeyR(GBA_KeyR'left),
       KeyL               => GBA_KeyL(GBA_KeyL'left),
-      AnalogTiltX        => x"00",
-      AnalogTiltY        => x"00",
       -- debug interface 
       GBA_BusAddr        => GBA_BusAddr,     
       GBA_BusRnW         => GBA_BusRnW(GBA_BusRnW'left),      
@@ -340,12 +371,6 @@ begin
       GBA_BusWriteData   => GBA_BusWriteData,
       GBA_BusReadData    => GBA_BusReadData, 
       GBA_Bus_written    => GBA_Bus_written,
-      -- display data      
-      pixel_out_x        => pixel_out_x,
-      pixel_out_y        => pixel_out_y,
-      pixel_out_addr     => open,
-      pixel_out_data     => pixel_out_data,
-      pixel_out_we       => pixel_out_we, 
 
       largeimg_out_addr  => largeimg_out_addr,
       largeimg_out_data  => largeimg_out_data,
@@ -356,37 +381,141 @@ begin
       -- sound          
       sound_out_left     => sound_out_left,
       sound_out_right    => sound_out_right,
-      -- debug
-      debug_cpu_pc       => open, --GBA_DEBUG_CPU_PC, 
-      debug_cpu_mixed    => open, --GBA_DEBUG_CPU_MIX,
-      debug_irq          => open, --GBA_DEBUG_IRQ,    
-      debug_dma          => open, --GBA_DEBUG_DMA,
-      debug_mem          => open  --GBA_DEBUG_MEM      
+      -- serial
+      serial_clockout    => serial1_clockout,
+      serial_clockin     => serial2_clockout,
+      serial_dataout     => serial1_dataout,
+      serial_datain      => serial2_dataout,    
+      si_terminal        => '0',
+      sd_terminal        => '1'
+   );
+   
+   igba_top2 : entity gba.gba_top
+   generic map
+   (
+      is_simu                  => '1',
+      Softmap_GBA_Gamerom_ADDR => 65536+131072,
+      Softmap_GBA_WRam_ADDR    => 131072,
+      Softmap_GBA_FLASH_ADDR   => 0,
+      Softmap_GBA_EEPROM_ADDR  => 0,
+      Softmap_SaveState_ADDR   => 16#3800000#,
+      Softmap_Rewind_ADDR      => 16#2000000#,
+      fb_offset                => 1,
+      turbosound               => '1'
+   )
+   port map
+   (
+      clk100             => clk100,
+      -- settings        
+      GBA_on             => GBA_on(0),        
+      GBA_lockspeed      => GBA_lockspeed(0), 
+      GBA_cputurbo       => GBA_cputurbo(GBA_cputurbo'left), 
+      GBA_flash_1m       => GBA_flash_1m(0),  
+      CyclePrecalc       => CyclePrecalc,  
+      MaxPakAddr         => MaxPakAddr,    
+      CyclesMissing      => CyclesMissing,
+      CyclesVsyncSpeed   => CyclesVsyncSpeed,
+      SramFlashEnable    => GBA_SramFlashEna(GBA_SramFlashEna'left),
+      memory_remap       => GBA_MemoryRemap(GBA_MemoryRemap'left),
+      increaseSSHeaderCount => '0',
+      save_state         => GBA_SaveState(GBA_SaveState'left),
+      load_state         => GBA_LoadState(GBA_LoadState'left),
+      interframe_blend   => "00",
+      maxpixels          => '0',
+      hdmode2x_bg        => '0',
+      hdmode2x_obj       => '0',
+      specialmodule      => '0',
+      rewind_on          => GBA_Rewind_on(GBA_Rewind_on'left),
+      rewind_active      => GBA_Rewind_active(GBA_Rewind_active'left),
+      savestate_number   => 0,
+      -- sdram interface 
+      sdram_read_ena     => sdram2_read_ena,    
+      sdram_read_done    => sdram2_read_done,   
+      sdram_read_addr    => sdram2_read_addr,   
+      sdram_read_data    => sdram2_read_data,   
+      sdram_second_dword => sdram2_second_dword,
+      -- other Memories
+      bus_out_Din        => bus2_out_Din, 
+      bus_out_Dout       => bus2_out_Dout,
+      bus_out_Adr        => bus2_out_Adr, 
+      bus_out_rnw        => bus2_out_rnw,
+      bus_out_ena        => bus2_out_ena, 
+      bus_out_done       => bus2_out_done,
+      -- savestate
+      SAVE_out_Din       => SAVE2_out_Din,   
+      SAVE_out_Dout      => SAVE2_out_Dout,  
+      SAVE_out_Adr       => SAVE2_out_Adr,   
+      SAVE_out_rnw       => SAVE2_out_rnw,   
+      SAVE_out_ena       => SAVE2_out_ena,   
+      SAVE_out_active    => SAVE2_out_active,
+      SAVE_out_be        => SAVE2_out_be,
+      SAVE_out_done      => SAVE2_out_done, 
+      -- Write to BIOS
+      bios_wraddr        => (11 downto 0 => '0'),
+      bios_wrdata        => (31 downto 0 => '0'),
+      bios_wr            => '0',
+      -- save memory used
+      save_eeprom        => open,
+      save_sram          => open,
+      save_flash         => open,
+      -- Keys
+      KeyA               => GBA_KeyA(GBA_KeyA'left),
+      KeyB               => GBA_KeyB(GBA_KeyB'left),
+      KeySelect          => GBA_KeySelect(GBA_KeySelect'left),
+      KeyStart           => GBA_KeyStart(GBA_KeyStart'left),
+      KeyRight           => GBA_KeyRight(GBA_KeyRight'left),
+      KeyLeft            => GBA_KeyLeft(GBA_KeyLeft'left),
+      KeyUp              => GBA_KeyUp(GBA_KeyUp'left),
+      KeyDown            => GBA_KeyDown(GBA_KeyDown'left),
+      KeyR               => GBA_KeyR(GBA_KeyR'left),
+      KeyL               => GBA_KeyL(GBA_KeyL'left),
+      -- debug interface 
+      GBA_BusAddr        => GBA_BusAddr,     
+      GBA_BusRnW         => GBA_BusRnW(GBA_BusRnW'left),      
+      GBA_BusACC         => GBA_BusACC,      
+      GBA_BusWriteData   => GBA_BusWriteData,
+      GBA_BusReadData    => GBA_BusReadData, 
+      GBA_Bus_written    => GBA_Bus_written,
+
+      largeimg_out_addr  => largeimg_out2_addr,
+      largeimg_out_data  => largeimg_out2_data,
+      largeimg_out_req   => largeimg_out2_req, 
+      largeimg_out_done  => largeimg_out2_done,
+      largeimg_newframe  => largeimg_newframe,
+      largeimg_singlebuf => '0',
+      -- serial
+      serial_clockout    => serial2_clockout,
+      serial_clockin     => serial1_clockout,
+      serial_dataout     => serial2_dataout,
+      serial_datain      => serial1_dataout,
+      si_terminal        => '1',
+      sd_terminal        => '1'      
    );
    
    largeimg_newframe <= '1' when unsigned(largeimg_out_addr(19 downto 0)) = 0 else '0';
    
-   ch1_addr <= '0' & sdram_read_addr & "0";
-   ch1_req  <= sdram_read_ena;
+   -- ddrram1
+   ch1_addr <= '0' & sdram1_read_addr & "0";
+   ch1_req  <= sdram1_read_ena;
    ch1_rnw  <= '1';
-   sdram_second_dword <= ch1_dout(63 downto 32);
-   sdram_read_data    <= ch1_dout(31 downto 0);
-   sdram_read_done    <= ch1_ready; 
+   sdram1_second_dword <= ch1_dout(63 downto 32);
+   sdram1_read_data    <= ch1_dout(31 downto 0);
+   sdram1_read_done    <= ch1_ready; 
    
-   ch2_addr <= bus_out_Adr & "0";
-   ch2_din  <= bus_out_Din;
-   ch2_req  <= bus_out_ena;
-   ch2_rnw  <= bus_out_rnw;
-   bus_out_Dout <= ch2_dout;
-   bus_out_done <= ch2_ready;
+   ch2_addr <= bus1_out_Adr & "0";
+   ch2_din  <= bus1_out_Din;
+   ch2_req  <= bus1_out_ena;
+   ch2_rnw  <= bus1_out_rnw;
+   bus1_out_Dout <= ch2_dout;
+   bus1_out_done <= ch2_ready;
    
-   ch4_addr <= SAVE_out_Adr(25 downto 0) & "0";
-   ch4_din  <= SAVE_out_Din;
-   ch4_req  <= SAVE_out_ena;
-   ch4_rnw  <= SAVE_out_rnw;
-   ch4_be   <= SAVE_out_be;
-   SAVE_out_Dout <= ch4_dout;
-   SAVE_out_done <= ch4_ready;
+   ch4_addr <= SAVE1_out_Adr(25 downto 0) & "0";
+   ch4_din  <= SAVE1_out_Din;
+   ch4_req  <= SAVE1_out_ena;
+   ch4_rnw  <= SAVE1_out_rnw;
+   ch4_be   <= SAVE1_out_be;
+   SAVE1_out_Dout <= ch4_dout;
+   SAVE1_out_done <= ch4_ready;
    
    iddrram : entity top.ddram
    port map (
@@ -433,7 +562,12 @@ begin
       ch5_addr         => (27 downto 1 => '0'),        
       ch5_din          => (63 downto 0 => '0'),               
       ch5_req          => largeimg_out_req,                
-      ch5_ready        => largeimg_out_done  
+      ch5_ready        => largeimg_out_done,
+      
+      ch6_addr         => (27 downto 1 => '0'),        
+      ch6_din          => (63 downto 0 => '0'),               
+      ch6_req          => '0',                
+      ch6_ready        => open  
    );
    
    iddrram_model : entity tb.ddrram_model
@@ -451,26 +585,101 @@ begin
       DDRAM_WE         => DDRAM_WE        
    );
    
-   iframebuffer : entity work.framebuffer
-   generic map
-   (
-      FRAMESIZE_X => 240,
-      FRAMESIZE_Y => 160
-   )
+   -- ddrram2
+   c2h1_addr <= '0' & sdram2_read_addr & "0";
+   c2h1_req  <= sdram2_read_ena;
+   c2h1_rnw  <= '1';
+   sdram2_second_dword <= c2h1_dout(63 downto 32);
+   sdram2_read_data    <= c2h1_dout(31 downto 0);
+   sdram2_read_done    <= c2h1_ready; 
+   
+   c2h2_addr <= bus2_out_Adr & "0";
+   c2h2_din  <= bus2_out_Din;
+   c2h2_req  <= bus2_out_ena;
+   c2h2_rnw  <= bus2_out_rnw;
+   bus2_out_Dout <= c2h2_dout;
+   bus2_out_done <= c2h2_ready;
+   
+   c2h4_addr <= SAVE2_out_Adr(25 downto 0) & "0";
+   c2h4_din  <= SAVE2_out_Din;
+   c2h4_req  <= SAVE2_out_ena;
+   c2h4_rnw  <= SAVE2_out_rnw;
+   c2h4_be   <= SAVE2_out_be;
+   SAVE2_out_Dout <= c2h4_dout;
+   SAVE2_out_done <= c2h4_ready;
+   
+   iddrram2 : entity top.ddram
+   port map (
+      DDRAM_CLK        => clk100,      
+      DDRAM_BUSY       => DDRAM2_BUSY,      
+      DDRAM_BURSTCNT   => DDRAM2_BURSTCNT,  
+      DDRAM_ADDR       => DDRAM2_ADDR,      
+      DDRAM_DOUT       => DDRAM2_DOUT,      
+      DDRAM_DOUT_READY => DDRAM2_DOUT_READY,
+      DDRAM_RD         => DDRAM2_RD,        
+      DDRAM_DIN        => DDRAM2_DIN,       
+      DDRAM_BE         => DDRAM2_BE,        
+      DDRAM_WE         => DDRAM2_WE,        
+                                 
+      ch1_addr         => c2h1_addr,        
+      ch1_dout         => c2h1_dout,        
+      ch1_din          => c2h1_din,         
+      ch1_req          => c2h1_req,         
+      ch1_rnw          => c2h1_rnw,         
+      ch1_ready        => c2h1_ready,       
+                                        
+      ch2_addr         => c2h2_addr,       
+      ch2_dout         => c2h2_dout,        
+      ch2_din          => c2h2_din,         
+      ch2_req          => c2h2_req,         
+      ch2_rnw          => c2h2_rnw,         
+      ch2_ready        => c2h2_ready,       
+                                     
+      ch3_addr         => c2h3_addr,        
+      ch3_dout         => c2h3_dout,        
+      ch3_din          => c2h3_din,         
+      ch3_req          => c2h3_req,         
+      ch3_rnw          => c2h3_rnw,         
+      ch3_ready        => c2h3_ready,       
+                                   
+      ch4_addr         => c2h4_addr,        
+      ch4_dout         => c2h4_dout,        
+      ch4_din          => c2h4_din,         
+      ch4_req          => c2h4_req,         
+      ch4_rnw          => c2h4_rnw,         
+      ch4_be           => c2h4_be,       
+      ch4_ready        => c2h4_ready,       
+      
+      ch5_addr         => (27 downto 1 => '0'),        
+      ch5_din          => (63 downto 0 => '0'),               
+      ch5_req          => largeimg_out2_req,                
+      ch5_ready        => largeimg_out2_done,
+      
+      ch6_addr         => (27 downto 1 => '0'),        
+      ch6_din          => (63 downto 0 => '0'),               
+      ch6_req          => '0',                
+      ch6_ready        => open  
+   );
+   
+   iddrram_model2 : entity tb.ddrram_model
    port map
    (
-      clk100             => clk100,
-                          
-      pixel_in_x         => pixel_out_x,
-      pixel_in_y         => pixel_out_y,
-      pixel_in_data      => pixel_out_data,
-      pixel_in_we        => pixel_out_we
+      DDRAM_CLK        => clk100,      
+      DDRAM_BUSY       => DDRAM2_BUSY,      
+      DDRAM_BURSTCNT   => DDRAM2_BURSTCNT,  
+      DDRAM_ADDR       => DDRAM2_ADDR,      
+      DDRAM_DOUT       => DDRAM2_DOUT,      
+      DDRAM_DOUT_READY => DDRAM2_DOUT_READY,
+      DDRAM_RD         => DDRAM2_RD,        
+      DDRAM_DIN        => DDRAM2_DIN,       
+      DDRAM_BE         => DDRAM2_BE,        
+      DDRAM_WE         => DDRAM2_WE        
    );
    
    iframebuffer_large : entity work.framebuffer_large
    generic map
    (
-      FRAMESIZE_X => 480,
+      FRAMESIZE_X => 240,
       FRAMESIZE_Y => 320
    )
    port map
@@ -480,7 +689,12 @@ begin
       pixel_in_addr      => largeimg_out_addr,
       pixel_in_data      => largeimg_out_data,
       pixel_in_we        => largeimg_out_req,
-      pixel_in_done      => open
+      pixel_in_done      => open,
+      
+      pixel2_in_addr     => largeimg_out2_addr,
+      pixel2_in_data     => largeimg_out2_data,
+      pixel2_in_we       => largeimg_out2_req,
+      pixel2_in_done     => open
    );
    
    iTestprocessor : entity procbus.eTestprocessor

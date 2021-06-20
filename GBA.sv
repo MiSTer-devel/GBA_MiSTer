@@ -189,10 +189,10 @@ assign VGA_SCALER= 0;
 
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
-assign FB_EN      = status[21] || status[22];
+assign FB_EN      = 1'b1;
 assign FB_FORMAT  = 5'b00110;
-assign FB_WIDTH   = 12'd480;
-assign FB_HEIGHT  = 12'd320;
+assign FB_WIDTH   = status[9] ? 12'd480 : 12'd240;
+assign FB_HEIGHT  = status[9] ? 12'd160 : 12'd320;
 assign FB_STRIDE  = 0;
 assign FB_FORCE_BLANK = 0;
 assign FB_PAL_CLK = 0;
@@ -227,7 +227,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 
 `include "build_id.v"
 parameter CONF_STR = {
-	"GBA;SS3E000000:80000;",
+	"GBA2P;SS3E000000:80000;",
 	"FS,GBA,Load,300C0000;",
 	"-;",
 	"C,Cheats;",
@@ -237,61 +237,23 @@ parameter CONF_STR = {
 	"D0RD,Save Backup RAM;",
 	"D0ON,Autosave,Off,On;",
 	"D0-;",
-	"o4,Savestates to SDCard,On,Off;",
-	"o56,Savestate Slot,1,2,3,4;",
-	"h4H3RH,Save state (Alt-F1);",
-	"h4H3RI,Restore state (F1);",
 	"h4H3-;",
-
-	"P1,Video & Audio;",
-	"P1-;",
-	"P1o01,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
-	"P1O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",	
-	"P1O78,Stereo Mix,None,25%,50%,100%;",
-	"P1OLM,2XResolution,Off,Background,Sprites,Both;",
-	"P1O9A,Flickerblend,Off,Blend,30Hz;",
-	"P1OOQ,Modify Colors,Off,GBA 2.2,GBA 1.6,NDS 1.6,VBA 1.4,75%,50%,25%;",
-	"P1OK,Spritelimit,Off,On;",	 
-	"P1OB,Sync core to video,Off,On;",
-	"P1o23,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
-
-	"P2,Hardware;",
-	"P2-;",
-	"H6P2OTV,Solar Sensor,0%,15%,30%,42%,55%,70%,85%,100%;",	
-	"H2P2OG,Turbo,Off,On;",
-	"P2OS,Homebrew BIOS(Reset!),Off,On;",
-
-	"P3,Miscellaneous;",
-	"P3-;",
-	"P3OEF,Storage,Auto,SDRAM,DDR3;",
-	"D5P3O5,Pause when OSD is open,Off,On;",
-	"P3OR,Rewind Capture,Off,On;",
-
+	"O9,Split,Vert,Horz;",
+	"o01,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+	"O78,Stereo Mix,None,25%,50%,100%;",
+	"OK,Spritelimit,Off,On;",	 
+	"o23,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
+	"O5,Pause when OSD is open,Off,On;",
 	"- ;",
 	"R0,Reset;",
-	"J1,A,B,L,R,Select,Start,FastForward,Rewind,Savestates;",
-	"jn,A,B,L,R,Select,Start,X,X;",
-	"I,",
-	"Slot=DPAD|Save/Load=Start+DPAD,",
-	"Active Slot 1,",
-	"Active Slot 2,",
-	"Active Slot 3,",
-	"Active Slot 4,",
-	"Save to state 1,",
-	"Restore state 1,",
-	"Save to state 2,",
-	"Restore state 2,",
-	"Save to state 3,",
-	"Restore state 3,",
-	"Save to state 4,",
-	"Restore state 4;",
-	"Rewinding...;",
+	"J1,A,B,L,R,Select,Start;",
+	"jn,A,B,L,R,Select,Start;",
 	"V,v",`BUILD_DATE
 };
 
 wire  [1:0] buttons;
 wire [63:0] status;
-wire [15:0] status_menumask = {~solar_quirk, status[27], cart_loaded, |cart_type, force_turbo, ~gg_active, ~bk_ena};
+wire [15:0] status_menumask = {1'b0, status[27], cart_loaded, |cart_type, force_turbo, 1'b1, ~bk_ena};
 wire        forced_scandoubler;
 reg  [31:0] sd_lba;
 reg         sd_rd = 0;
@@ -311,18 +273,17 @@ wire        ioctl_wr;
 wire  [7:0] ioctl_index;
 reg         ioctl_wait = 0;
 
-wire [15:0] joy;
+wire [15:0] joy1;
+wire [15:0] joy2;
 wire [15:0] joy_unmod;
 wire [10:0] ps2_key;
 
 wire [21:0] gamma_bus;
 wire [15:0] sdram_sz;
 
-wire [15:0] joystick_analog_0;
-
 wire [32:0] RTC_time;
 
-wire [63:0] status_in = cart_download ? {status[63:39],ss_slot,status[36:17],1'b0,status[15:10],1'b0,status[8:0]} : {status[63:39],ss_slot,status[36:0]};
+wire [63:0] status_in = cart_download ? {status[63:39],2'b00,status[36:17],1'b0,status[15:0]} : {status[63:39],2'b00,status[36:0]};
 
 hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 (
@@ -333,15 +294,16 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.buttons(buttons),
 	.forced_scandoubler(forced_scandoubler),
 
-	.joystick_0(joy_unmod),
+	.joystick_0(joy1),
+	.joystick_1(joy2),
 	.ps2_key(ps2_key),
 
 	.status(status),
 	.status_in(status_in),
-	.status_set(cart_download | statusUpdate),
+	.status_set(cart_download),
 	.status_menumask(status_menumask),
-	.info_req(ss_info_req),
-	.info(ss_info),
+	.info_req(1'b0),
+	.info(0),
 
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_dout),
@@ -366,18 +328,13 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.img_size(img_size),
 
 	.sdram_sz(sdram_sz),
-	.gamma_bus(gamma_bus),
-
-   .joystick_analog_0(joystick_analog_0)
+	.gamma_bus(gamma_bus)
 );
-
-assign joy = joy_unmod[12] ? 16'b0 : joy_unmod;
 
 //////////////////////////  ROM DETECT  /////////////////////////////////
 
-reg code_download, bios_download, cart_download;
+reg bios_download, cart_download;
 always @(posedge clk_sys) begin
-	code_download <= ioctl_download & &ioctl_index;
 	bios_download <= ioctl_download & !ioctl_index;
 	cart_download <= ioctl_download & ~&ioctl_index & |ioctl_index;
 end
@@ -386,6 +343,7 @@ reg [26:0] last_addr;
 reg        flash_1m;
 reg  [1:0] cart_type;
 reg        cart_loaded = 0;
+reg        ioctl_download_1;
 always @(posedge clk_sys) begin
 	reg [63:0] str;
 	reg old_download;
@@ -393,6 +351,7 @@ always @(posedge clk_sys) begin
 	old_download <= cart_download;
 	if (old_download & ~cart_download) last_addr <= ioctl_addr;
 
+   ioctl_download_1 <= ioctl_download;
 	if (~ioctl_download && ioctl_download_1 && ioctl_index == 1) begin
 		flash_1m <= 0;
 		cart_type <= ioctl_index[7:6];
@@ -424,80 +383,21 @@ always @(posedge clk_sys) begin
 	end
 end
 
-///////////////////////////  SAVESTATE  /////////////////////////////////
-
-wire [1:0] ss_slot;
-wire [7:0] ss_info;
-wire ss_save, ss_load, ss_info_req;
-wire statusUpdate;
-
-savestate_ui savestate_ui
-(
-	.clk            (clk_sys       ),
-	.ps2_key        (ps2_key[10:0] ),
-	.allow_ss       (cart_loaded   ),
-	.joySS          (joy_unmod[12] ),
-	.joyRight       (joy_unmod[0]  ),
-	.joyLeft        (joy_unmod[1]  ),
-	.joyDown        (joy_unmod[2]  ),
-	.joyUp          (joy_unmod[3]  ),
-	.joyStart       (joy_unmod[9]  ),
-	.joyRewind      (joy_unmod[11] ),
-	.rewindEnable   (status[27]    ), 
-	.status_slot    (status[38:37] ),
-	.OSD_saveload   (status[18:17] ),
-	.ss_save        (ss_save       ),
-	.ss_load        (ss_load       ),
-	.ss_info_req    (ss_info_req   ),
-	.ss_info        (ss_info       ),
-	.statusUpdate   (statusUpdate  ),
-	.selected_slot  (ss_slot       )
-);
-defparam savestate_ui.INFO_TIMEOUT_BITS = 27;
-
 ////////////////////////////  SYSTEM  ///////////////////////////////////
 
 wire save_eeprom, save_sram, save_flash, ss_loaded;
 
-reg fast_forward, pause, cpu_turbo;
-reg ff_latch;
+reg pause;
 
 always @(posedge clk_sys) begin : ffwd
-	reg last_ffw;
-	reg ff_was_held;
-	longint ff_count;
-
-	last_ffw <= joy[10];
-
-	if (joy[10])
-		ff_count <= ff_count + 1;
-
-	if (~last_ffw & joy[10]) begin
-		ff_latch <= 0;
-		ff_count <= 0;
-	end
-
-	if ((last_ffw & ~joy[10])) begin // 100mhz clock, 0.2 seconds
-		ff_was_held <= 0;
-
-		if (ff_count < 10000000 && ~ff_was_held) begin
-			ff_was_held <= 1;
-			ff_latch <= 1;
-		end
-	end
-
-	fast_forward <= (joy[10] | ff_latch) & ~force_turbo;
 	pause <= force_pause | (status[5] & OSD_STATUS & ~status[27]); // pause from "sync to core" or "pause in osd", but not if rewind capture is on
-	cpu_turbo <= ((status[16] & ~fast_forward) | force_turbo) & ~pause;
 end
 
-reg [79:0] time_dout = 41'd0;
-wire [79:0] time_din;
-assign time_din[42 + 32 +: 80 - (42 + 32)] = '0;
-
-wire has_rtc;
-reg RTC_load = 0;
-
+wire serial1_clockout;
+wire serial2_clockout;
+wire serial1_dataout; 
+wire serial2_dataout;
+ 
 gba_top
 #(
    // assume: cart may have either flash or eeprom, not both! (need to verify)
@@ -507,14 +407,14 @@ gba_top
 	.Softmap_GBA_Gamerom_ADDR(65536+131072),        //   32MB of ROM
 	.Softmap_SaveState_ADDR  (58720256),            // 65536 (64bit) -- ~512kbyte Data for SaveState (separate memory)
 	.Softmap_Rewind_ADDR     (33554432),            // 65536 qwords*64 -- 64*512 Kbyte Data for Savestates
-	.turbosound('1)                                 // sound buffer to play sound in turbo mode without sound pitched up
+	.turbosound('0)                                 // sound buffer to play sound in turbo mode without sound pitched up
 )
-gba
+gba1
 (
 	.clk100(clk_sys),
 	.GBA_on(~reset && ~romcopy_active),  // switching from off to on = reset
-	.GBA_lockspeed(~fast_forward),       // 1 = 100% speed, 0 = max speed
-	.GBA_cputurbo(cpu_turbo),
+	.GBA_lockspeed(1'b1),       // 1 = 100% speed, 0 = max speed
+	.GBA_cputurbo(1'b0),
 	.GBA_flash_1m(flash_1m),          // 1 when string "FLASH1M_V" is anywhere in gamepak
 	.CyclePrecalc(pause ? 16'd0 : 16'd100), // 100 seems to be ok to keep fullspeed for all games
 	.MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
@@ -523,55 +423,35 @@ gba
 	.SramFlashEnable(~sram_quirk),
 	.memory_remap(memory_remap_quirk),
    .increaseSSHeaderCount(!status[36]),
-   .save_state(ss_save),
-   .load_state(ss_load),
+   .save_state(1'b0),
+   .load_state(1'b0),
    .interframe_blend(status[10:9]),
    .maxpixels(status[20] | sprite_quirk),
-   .hdmode2x_bg(status[21]),
-   .hdmode2x_obj(status[22]),
-   .shade_mode(shadercolors),
-	.specialmodule(gpio_quirk),
-	.solar_in(status[31:29]),
-	.tilt(tilt_quirk),
-   .rewind_on(status[27]),
-   .rewind_active(status[27] & joy[11]),
-   .savestate_number(ss_slot),
+	.specialmodule(1'b0),
+   .rewind_on(1'b0),
+   .rewind_active(1'b0),
+   .savestate_number(2'b00),
 
-   .RTC_timestampNew(RTC_time[32]),
-   .RTC_timestampIn(RTC_time[31:0]),
-   .RTC_timestampSaved(time_dout[42 +: 32]),
-   .RTC_savedtimeIn(time_dout[0 +: 42]),
-   .RTC_saveLoaded(RTC_load),
-   .RTC_timestampOut(time_din[42 +: 32]),
-   .RTC_savedtimeOut(time_din[0 +: 42]),
-   .RTC_inuse(has_rtc),
+	.sdram_read_ena    (rom1_req),       // triggered once for read request
+	.sdram_read_done   (rom1_ack),      // must be triggered once when sdram_read_data is valid after last read
+	.sdram_read_addr   (rom1_addr),     // all addresses are DWORD addresses!
+	.sdram_read_data   (rom1_dout1),    // data from last request, valid when done = 1
+	.sdram_second_dword(rom1_dout2), // second dword to be read for buffering/prefetch. Must be valid 1 cycle after done = 1
 
-   .cheat_clear(gg_reset),
-   .cheats_enabled(~status[6]),
-   .cheat_on(gg_valid),
-   .cheat_in(gg_code),
-   .cheats_active(gg_active),
+	.bus_out_Din (bus1_din),            // data read from WRam Large, SRAM/Flash/EEPROM
+	.bus_out_Dout(bus1_dout),          // data written to WRam Large, SRAM/Flash/EEPROM
+	.bus_out_Adr (bus1_addr),           // all addresses are DWORD addresses!
+	.bus_out_rnw (bus1_rd),             // read = 1, write = 0
+	.bus_out_ena (bus1_req),            // one cycle high for each action
+	.bus_out_done(bus1_ack),           // should be one cycle high when write is done or read value is valid
 
-	.sdram_read_ena(sdram_req),       // triggered once for read request
-	.sdram_read_done(sdram_ack),      // must be triggered once when sdram_read_data is valid after last read
-	.sdram_read_addr(sdram_addr),     // all addresses are DWORD addresses!
-	.sdram_read_data(sdram_dout1),    // data from last request, valid when done = 1
-	.sdram_second_dword(sdram_dout2), // second dword to be read for buffering/prefetch. Must be valid 1 cycle after done = 1
-
-	.bus_out_Din(bus_din),            // data read from WRam Large, SRAM/Flash/EEPROM
-	.bus_out_Dout(bus_dout),          // data written to WRam Large, SRAM/Flash/EEPROM
-	.bus_out_Adr(bus_addr),           // all addresses are DWORD addresses!
-	.bus_out_rnw(bus_rd),             // read = 1, write = 0
-	.bus_out_ena(bus_req),            // one cycle high for each action
-	.bus_out_done(bus_ack),           // should be one cycle high when write is done or read value is valid
-
-   .SAVE_out_Din(ss_din),            // data read from savestate
-   .SAVE_out_Dout(ss_dout),          // data written to savestate
-   .SAVE_out_Adr(ss_addr),           // all addresses are DWORD addresses!
-   .SAVE_out_rnw(ss_rnw),            // read = 1, write = 0
-   .SAVE_out_ena(ss_req),            // one cycle high for each action
-   .SAVE_out_be(ss_be),              
-   .SAVE_out_done(ss_ack),           // should be one cycle high when write is done or read value is valid
+   .SAVE_out_Din(),            // data read from savestate
+   .SAVE_out_Dout(0),          // data written to savestate
+   .SAVE_out_Adr(),           // all addresses are DWORD addresses!
+   .SAVE_out_rnw(),            // read = 1, write = 0
+   .SAVE_out_ena(),            // one cycle high for each action
+   .SAVE_out_be(),              
+   .SAVE_out_done(1'b0),           // should be one cycle high when write is done or read value is valid
 
 	.save_eeprom(save_eeprom),
 	.save_sram(save_sram),
@@ -582,42 +462,150 @@ gba
 	.bios_wrdata(bios_wrdata),
 	.bios_wr(bios_wr),
 
-	.KeyA(joy[4]),
-	.KeyB(joy[5]),
-	.KeySelect(joy[8]),
-	.KeyStart(joy[9]),
-	.KeyRight(joy[0]),
-	.KeyLeft(joy[1]),
-	.KeyUp(joy[3]),
-	.KeyDown(joy[2]),
-	.KeyR(joy[7]),
-	.KeyL(joy[6]),
-	.AnalogTiltX(joystick_analog_0[7:0]),
-	.AnalogTiltY(joystick_analog_0[15:8]),
+	.KeyA(joy1[4]),
+	.KeyB(joy1[5]),
+	.KeySelect(joy1[8]),
+	.KeyStart(joy1[9]),
+	.KeyRight(joy1[0]),
+	.KeyLeft(joy1[1]),
+	.KeyUp(joy1[3]),
+	.KeyDown(joy1[2]),
+	.KeyR(joy1[7]),
+	.KeyL(joy1[6]),
 
 	.pixel_out_addr(pixel_addr),      // integer range 0 to 38399;       -- address for framebuffer
 	.pixel_out_data(pixel_data),      // RGB data for framebuffer
 	.pixel_out_we(pixel_we),          // new pixel for framebuffer
 
-   .largeimg_out_base(FB_BASE),
-   .largeimg_out_addr(fb_addr),
-   .largeimg_out_data(fb_din),
-   .largeimg_out_req(fb_req),
-   .largeimg_out_done(fb_ack),
+	.fb_hoffset       (1'b0),
+   .fb_voffset       (1'b0),
+   .fb_linesize      (status[9] ? 512  : 256),
+
+   .largeimg_out_base(),
+   .largeimg_out_addr(fb1_addr),
+   .largeimg_out_data(fb1_din),
+   .largeimg_out_req (fb1_req),
+   .largeimg_out_done(fb1_ack),
    .largeimg_newframe(FB_VBL),
    .largeimg_singlebuf(FB_LL),
 
 	.sound_out_left(AUDIO_L),
-	.sound_out_right(AUDIO_R)
+	.sound_out_right(AUDIO_R),
+   
+   .serial_clockout (serial1_clockout), 
+   .serial_clockin  (serial2_clockout), 
+   .serial_dataout  (serial1_dataout ), 
+   .serial_datain   (serial2_dataout ), 
+   .si_terminal     (1'b0), 
+   .sd_terminal     (1'b1) 
+);
+
+gba_top
+#(
+   // assume: cart may have either flash or eeprom, not both! (need to verify)
+	.Softmap_GBA_FLASH_ADDR  (0),                   // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
+	.Softmap_GBA_EEPROM_ADDR (0),                   //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
+	.Softmap_GBA_WRam_ADDR   (131072),              //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
+	.Softmap_GBA_Gamerom_ADDR(65536+131072),        //   32MB of ROM
+	.Softmap_SaveState_ADDR  (58720256),            // 65536 (64bit) -- ~512kbyte Data for SaveState (separate memory)
+	.Softmap_Rewind_ADDR     (33554432),            // 65536 qwords*64 -- 64*512 Kbyte Data for Savestates
+	.turbosound('0)                                 // sound buffer to play sound in turbo mode without sound pitched up
+)
+gba2
+(
+	.clk100(clk_sys),
+	.GBA_on(~reset && ~romcopy_active),  // switching from off to on = reset
+	.GBA_lockspeed(1'b1),       // 1 = 100% speed, 0 = max speed
+	.GBA_cputurbo(1'b0),
+	.GBA_flash_1m(flash_1m),          // 1 when string "FLASH1M_V" is anywhere in gamepak
+	.CyclePrecalc(pause ? 16'd0 : 16'd100), // 100 seems to be ok to keep fullspeed for all games
+	.MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
+	.CyclesMissing(),                 // debug only for speed measurement, keep open
+	.CyclesVsyncSpeed(),              // debug only for speed measurement, keep open
+	.SramFlashEnable(~sram_quirk),
+	.memory_remap(memory_remap_quirk),
+   .increaseSSHeaderCount(!status[36]),
+   .save_state(1'b0),
+   .load_state(1'b0),
+   .interframe_blend(status[10:9]),
+   .maxpixels(status[20] | sprite_quirk),
+	.specialmodule(1'b0),
+   .rewind_on(status[27]),
+   .rewind_active(1'b0),
+   .savestate_number(2'b00),
+
+	.sdram_read_ena    (rom2_req),       // triggered once for read request
+	.sdram_read_done   (rom2_ack),      // must be triggered once when sdram_read_data is valid after last read
+	.sdram_read_addr   (rom2_addr),     // all addresses are DWORD addresses!
+	.sdram_read_data   (rom2_dout1),    // data from last request, valid when done = 1
+	.sdram_second_dword(rom2_dout2), // second dword to be read for buffering/prefetch. Must be valid 1 cycle after done = 1
+
+	.bus_out_Din (bus2_din),            // data read from WRam Large, SRAM/Flash/EEPROM
+	.bus_out_Dout(bus2_dout),          // data written to WRam Large, SRAM/Flash/EEPROM
+	.bus_out_Adr (bus2_addr),           // all addresses are DWORD addresses!
+	.bus_out_rnw (bus2_rd),             // read = 1, write = 0
+	.bus_out_ena (bus2_req),            // one cycle high for each action
+	.bus_out_done(bus2_ack),           // should be one cycle high when write is done or read value is valid
+
+   .SAVE_out_Din(),            // data read from savestate
+   .SAVE_out_Dout(0),          // data written to savestate
+   .SAVE_out_Adr(),           // all addresses are DWORD addresses!
+   .SAVE_out_rnw(),            // read = 1, write = 0
+   .SAVE_out_ena(),            // one cycle high for each action
+   .SAVE_out_be(),              
+   .SAVE_out_done(1'b0),           // should be one cycle high when write is done or read value is valid
+
+	.save_eeprom(),
+	.save_sram(),
+	.save_flash(),
+	.load_done(),
+
+	.bios_wraddr(bios_wraddr),
+	.bios_wrdata(bios_wrdata),
+	.bios_wr(bios_wr),
+
+	.KeyA(joy2[4]),
+	.KeyB(joy2[5]),
+	.KeySelect(joy2[8]),
+	.KeyStart(joy2[9]),
+	.KeyRight(joy2[0]),
+	.KeyLeft(joy2[1]),
+	.KeyUp(joy2[3]),
+	.KeyDown(joy2[2]),
+	.KeyR(joy2[7]),
+	.KeyL(joy2[6]),
+
+	.pixel_out_addr(),      // integer range 0 to 38399;       -- address for framebuffer
+	.pixel_out_data(),      // RGB data for framebuffer
+	.pixel_out_we(),          // new pixel for framebuffer
+
+	.fb_hoffset       (status[9] ? 1'b1 : 1'b0),
+   .fb_voffset       (status[9] ? 1'b0 : 1'b1),
+   .fb_linesize      (status[9] ? 512  : 256),
+
+   .largeimg_out_base(FB_BASE),
+   .largeimg_out_addr(fb2_addr),
+   .largeimg_out_data(fb2_din),
+   .largeimg_out_req (fb2_req),
+   .largeimg_out_done(fb2_ack),
+   .largeimg_newframe(FB_VBL),
+   .largeimg_singlebuf(FB_LL),
+
+	.sound_out_left(),
+	.sound_out_right(),
+   
+   .serial_clockout (serial2_clockout), 
+   .serial_clockin  (serial1_clockout), 
+   .serial_dataout  (serial2_dataout ), 
+   .serial_datain   (serial1_dataout ), 
+   .si_terminal     (1'b1), 
+   .sd_terminal     (1'b1) 
 );
 
 ////////////////////////////  QUIRKS  //////////////////////////////////
 
 reg sram_quirk = 0;            // game tries to use SRAM as emulation detection. This bit forces to pretent we have no SRAM
 reg memory_remap_quirk = 0;    // game uses memory mirroring, e.g. access 4Mbyte but is only 1 Mbyte. 
-reg gpio_quirk = 0;            // game exchanges some addresses to be GPIO lines for e.g. Solar or RTC
-reg tilt_quirk = 0;            // game exchanges some addresses to be Tilt module
-reg solar_quirk = 0;           // game has solar module
 reg sprite_quirk = 0;          // game depends on using max sprite pixels per line, otherwise glitches appear
 always @(posedge clk_sys) begin
 	reg [95:0] cart_id;
@@ -625,9 +613,6 @@ always @(posedge clk_sys) begin
 	if (~ioctl_download && ioctl_download_1 && ioctl_index == 1) begin
       sram_quirk         <= 0;
       memory_remap_quirk <= 0;
-      gpio_quirk         <= 0;
-      tilt_quirk         <= 0;
-      solar_quirk        <= 0;
       sprite_quirk       <= 0;
    end
 
@@ -683,21 +668,6 @@ always @(posedge clk_sys) begin
 				if(cart_id == {"MARIO BROS.", 8'h00} )         begin sram_quirk <= 1; memory_remap_quirk <= 1;                    end // Famicom Mini 11 - Mario Bros.
 				if(cart_id == {"STAR SOLDIER"} )               begin sram_quirk <= 1; memory_remap_quirk <= 1;                    end // Famicom Mini 10 - Star Soldier
 				if(cart_id == {"MAPPY", 56'h00000000000000} )  begin sram_quirk <= 1; memory_remap_quirk <= 1;                    end // Famicom Mini 08 - Mappy
-				if(cart_id == {"POKEMON EMER"} )               begin gpio_quirk <= 1;                                             end // POKEMON Emerald  - All regions
-				if(cart_id == {"POKEMON RUBY"} )               begin gpio_quirk <= 1;                                             end // POKEMON Ruby     - All regions
-				if(cart_id == {"POKEMON SAPP"} )               begin gpio_quirk <= 1;                                             end // POKEMON Sapphire - All regions
-				if(cart_id == {"BOKUTAI", 40'h0000000000} )    begin gpio_quirk <= 1; solar_quirk <= 1;                           end // Boktai 1         - JP
-				if(cart_id == {"BOKTAI", 48'h000000000000} )   begin gpio_quirk <= 1; solar_quirk <= 1;                           end // Boktai 1         - US/EU
-				if(cart_id == {"ZOKTAI", 48'h000000000000} )   begin gpio_quirk <= 1; solar_quirk <= 1;                           end // Boktai 2         - JP
-				if(cart_id == {"BOKTAI2", 40'h0000000000} )    begin gpio_quirk <= 1; solar_quirk <= 1;                           end // Boktai 2         - US/EU
-				if(cart_id == {"BOKTAI3", 40'h0000000000} )    begin gpio_quirk <= 1; solar_quirk <= 1;                           end // Boktai 3         - JP
-				if(cart_id == {"WARIOTWISTED"} )               begin gpio_quirk <= 1;                                             end // WarioWareTwisted - US
-				if(cart_id == {"MAWARUWARIO", 8'h00} )         begin gpio_quirk <= 1;                                             end // WarioWareTwisted - JP
-				if(cart_id == {"HAPPYPANECHU"} )               begin tilt_quirk <= 1;                                             end // Koro Koro Puzzle - JP
-				if(cart_id == {"YOSHI'S U/G", 8'h00} )         begin tilt_quirk <= 1;                                             end // Yoshi Gravi      - JP/EU
-				if(cart_id == {"YOSHI TOPSY", 8'h00} )         begin tilt_quirk <= 1;                                             end // Yoshi Topsy      - US
-				if(cart_id == {"SENNENKAZOKU"} )               begin gpio_quirk <= 1;                                             end // Sennen Kazoku    - JP
-				if(cart_id == {"ROCKEXE4.5RO"} )               begin gpio_quirk <= 1;                                             end // Rockman EXE 4.5  - JP
 				if(cart_id == {"GUNSTAR FH", 12'h000} )        begin                                           sprite_quirk <= 1; end // Gunstar Super/Future Heroes J+EU+US
 			end
 		end
@@ -708,30 +678,48 @@ end
 
 localparam ROM_START = (65536+131072)*4;
 
-reg sdram_en;
-always @(posedge clk_sys) if(reset) sdram_en <= (!status[15:14]) ? |sdram_sz[2:0] : status[14];
+reg sdram_en = 1'b1;
 
 
-wire [25:2] sdram_addr;
-wire [31:0] sdram_dout1 = sdram_en ? sdr_sdram_dout1 : ddr_sdram_dout1;
-wire [31:0] sdram_dout2 = sdram_en ? sdr_sdram_dout2 : ddr_sdram_dout2;
-wire        sdram_ack   = sdram_en ? sdr_sdram_ack   : ddr_sdram_ack;
-wire        sdram_req;
+wire [25:2] rom1_addr;
+wire [31:0] rom1_dout1 = sdr_sdram_dout1;
+wire [31:0] rom1_dout2 = sdr_sdram_dout2;
+wire        rom1_ack   = sdr_sdram_ack;
+wire        rom1_req;
 
-wire [25:2] bus_addr;
-wire [31:0] bus_din;
-wire [31:0] bus_dout = sdram_en ? sdr_bus_dout : ddr_bus_dout;
-wire        bus_ack  = sdram_en ? sdr_bus_ack  : ddr_bus_ack;
-wire        bus_rd, bus_req;
+wire [25:2] rom2_addr;
+wire [31:0] rom2_dout1 = ddr_sdram_dout1;
+wire [31:0] rom2_dout2 = ddr_sdram_dout2;
+wire        rom2_ack   = ddr_sdram_ack;
+wire        rom2_req;
+
+wire [25:2] bus1_addr;
+wire [31:0] bus1_din;
+wire [31:0] bus1_dout = sdr_bus_dout;
+wire        bus1_ack  = sdr_bus_ack ;
+wire        bus1_rd;
+wire        bus1_req;
+
+wire [25:2] bus2_addr;
+wire [31:0] bus2_din;
+wire [31:0] bus2_dout = ddr_bus_dout;
+wire        bus2_ack  = ddr_bus_ack;
+wire        bus2_rd;
+wire        bus2_req;
 
 wire [31:0] sdr_sdram_dout1, sdr_sdram_dout2, sdr_bus_dout;
 wire [15:0] sdr_bram_din;
 wire        sdr_sdram_ack, sdr_bus_ack, sdr_bram_ack;
 
-wire [27:2] fb_addr;
-wire [63:0] fb_din;
-wire        fb_req;
-wire        fb_ack;
+wire [27:2] fb1_addr;
+wire [63:0] fb1_din;
+wire        fb1_req;
+wire        fb1_ack;
+
+wire [27:2] fb2_addr;
+wire [63:0] fb2_din;
+wire        fb2_req;
+wire        fb2_ack;
 
 sdram sdram
 (
@@ -739,32 +727,32 @@ sdram sdram
 	.init(~pll_locked),
 	.clk(clk_sys),
 
-	.ch1_addr({sdram_addr, 1'b0}),
+	.ch1_addr({rom1_addr, 1'b0}),
 	.ch1_din(16'b0),
 	.ch1_dout({sdr_sdram_dout2, sdr_sdram_dout1}),
-	.ch1_req(sdram_req & sdram_en),
+	.ch1_req(rom1_req),
 	.ch1_rnw(cart_download ? 1'b0     : 1'b1     ),
 	.ch1_ready(sdr_sdram_ack),
 
-	.ch2_addr(romcopysd_active ? romcopy_writepos[26:1]+ROM_START[26:1] : {bus_addr, 1'b0}),
-	.ch2_din(romcopysd_active ? romcopy_data : bus_din),
+	.ch2_addr(romcopysd_active ? romcopy_writepos[26:1]+ROM_START[26:1] : {bus1_addr, 1'b0}),
+	.ch2_din(romcopysd_active ? romcopy_data : bus1_din),
 	.ch2_dout(sdr_bus_dout),
-	.ch2_req(romcopysd_active ? romcopysd_req : ~cart_download & bus_req & sdram_en),
-	.ch2_rnw(romcopysd_active ? 1'b0 : bus_rd),
+	.ch2_req(romcopysd_active ? romcopysd_req : ~cart_download & bus1_req),
+	.ch2_rnw(romcopysd_active ? 1'b0 : bus1_rd),
 	.ch2_ready(sdr_bus_ack),
 
 	.ch3_addr({sd_lba[7:0],bram_addr}),
 	.ch3_din(bram_dout),
 	.ch3_dout(sdr_bram_din),
-	.ch3_req(bram_req & sdram_en),
-	.ch3_rnw(~bk_loading || extra_data_addr),
+	.ch3_req(bram_req & ~sd_lba[8]),
+	.ch3_rnw(~bk_loading),
 	.ch3_ready(sdr_bram_ack)
 );
 
 always @(posedge clk_sys) begin
 	if(cart_download) begin
-		if(ioctl_wr)  ioctl_wait <= 1;
-		if(sdram_ack) ioctl_wait <= 0;
+		if(ioctl_wr)      ioctl_wait <= 1;
+		if(ddr_sdram_ack) ioctl_wait <= 0;
 	end
 	else ioctl_wait <= 0;
 end
@@ -773,49 +761,49 @@ wire [31:0] ddr_sdram_dout1, ddr_sdram_dout2, ddr_bus_dout;
 wire [15:0] ddr_bram_din;
 wire        ddr_sdram_ack, ddr_bus_ack, ddr_bram_ack;
 
-wire [63:0] ss_dout, ss_din;
-wire [27:2] ss_addr;
-wire [7:0]  ss_be;
-wire        ss_rnw, ss_req, ss_ack;
-
 assign DDRAM_CLK = clk_sys;
 ddram ddram
 (
 	.*,
 
-	.ch1_addr(romcopy_active ? romcopy_readpos[26:1]+ROM_START[26:1] : {sdram_addr, 1'b0}),
+	.ch1_addr(romcopy_active ? romcopy_readpos[26:1]+ROM_START[26:1] : {rom2_addr, 1'b0}),
 	.ch1_din(16'b0),
 	.ch1_dout({ddr_sdram_dout2, ddr_sdram_dout1}),
-	.ch1_req(romcopy_active ? romcopy_ddrreq : sdram_req & ~sdram_en),
+	.ch1_req(romcopy_active ? romcopy_ddrreq : rom2_req),
 	.ch1_rnw(1'b1),
 	.ch1_ready(ddr_sdram_ack),
 
-	.ch2_addr({bus_addr, 1'b0}),
-	.ch2_din(bus_din),
+	.ch2_addr({bus2_addr, 1'b0}),
+	.ch2_din(bus2_din),
 	.ch2_dout(ddr_bus_dout),
-	.ch2_req(~cart_download & bus_req & ~sdram_en),
-	.ch2_rnw(bus_rd),
+	.ch2_req(~cart_download & bus2_req),
+	.ch2_rnw(bus2_rd),
 	.ch2_ready(ddr_bus_ack),
 
 	.ch3_addr({sd_lba[7:0],bram_addr}),
 	.ch3_din(bram_dout),
 	.ch3_dout(ddr_bram_din),
-	.ch3_req(bram_req & ~sdram_en),
-	.ch3_rnw(~bk_loading || extra_data_addr),
+	.ch3_req(bram_req & sd_lba[8]),
+	.ch3_rnw(~bk_loading),
 	.ch3_ready(ddr_bram_ack),
 
-	.ch4_addr({ss_addr, 1'b0}),
-	.ch4_din(ss_din),
-	.ch4_dout(ss_dout),
-	.ch4_req(ss_req),
-	.ch4_rnw(ss_rnw),
-	.ch4_be(ss_be),
-	.ch4_ready(ss_ack),
+	.ch4_addr(0),
+	.ch4_din(0),
+	.ch4_dout(),
+	.ch4_req(1'b0),
+	.ch4_rnw(1'b0),
+	.ch4_be(0),
+	.ch4_ready(),
    
-   .ch5_addr({fb_addr, 1'b0}),
-   .ch5_din(fb_din),
-   .ch5_req(fb_req),
-   .ch5_ready(fb_ack)
+   .ch5_addr({fb1_addr, 1'b0}),
+   .ch5_din(fb1_din),
+   .ch5_req(fb1_req),
+   .ch5_ready(fb1_ack),
+   
+   .ch6_addr({fb2_addr, 1'b0}),
+   .ch6_din(fb2_din),
+   .ch6_req(fb2_req),
+   .ch6_ready(fb2_ack)
    
 );
 
@@ -941,11 +929,10 @@ end
 
 /////////////////
 
-wire [127:0] time_din_h = {32'd0, time_din, "RT"};
 wire [15:0] bram_dout;
-wire [15:0] bram_din = sdram_en ? sdr_bram_din : ddr_bram_din;
-wire        bram_ack = sdram_en ? sdr_bram_ack : ddr_bram_ack;
-assign sd_buff_din = extra_data_addr ? (time_din_h[{sd_buff_addr[2:0], 4'b0000} +: 16]) : bram_buff_out;
+wire [15:0] bram_din = sd_lba[8] ? ddr_bram_din : sdr_bram_din;
+wire        bram_ack = sd_lba[8] ? ddr_bram_ack : sdr_bram_ack;
+assign sd_buff_din = bram_buff_out;
 wire [15:0] bram_buff_out;
 
 altsyncram	altsyncram_component
@@ -957,7 +944,7 @@ altsyncram	altsyncram_component
 	.data_a (bram_din),
 	.data_b (sd_buff_dout),
 	.wren_a (~bk_loading & bram_ack),
-	.wren_b (sd_buff_wr && ~extra_data_addr),
+	.wren_b (sd_buff_wr),
 	.q_a (bram_dout),
 	.q_b (bram_buff_out),
 	.byteena_a (1'b1),
@@ -998,22 +985,24 @@ reg [7:0] bram_addr;
 reg bram_tx_start;
 reg bram_tx_finish;
 reg bram_req;
+reg [1:0] bram_acked;
 
 always @(posedge clk_sys) begin
 	reg state;
 
 	bram_req <= 0;
+   
+   if (sdr_bram_ack) bram_acked[0] <= 1'b1;
+   if (ddr_bram_ack) bram_acked[1] <= 1'b1;
 
-	if (extra_data_addr && bram_tx_start) begin
-		if (~&bram_addr)
-			bram_tx_finish <= 1;
-	end else if(~bram_tx_start) {bram_addr, state, bram_tx_finish} <= 0;
+	if(~bram_tx_start) {bram_addr, state, bram_tx_finish} <= 0;
 	else if(~bram_tx_finish) begin
 		if(!state) begin
-			bram_req <= 1;
-			state <= 1;
+			bram_req   <= 1;
+			state      <= 1;
+         bram_acked <= 2'b00;
 		end
-		else if(bram_ack) begin
+		else if(bram_acked > 2'd0) begin
 			state <= 0;
 			if(~&bram_addr) bram_addr <= bram_addr + 1'd1;
 			else bram_tx_finish <= 1;
@@ -1027,26 +1016,9 @@ wire [15:0] pixel_addr;
 wire [17:0] pixel_data;
 wire        pixel_we;
 
-reg vsync;
-always @(posedge clk_sys) begin
-	reg [7:0] sync;
-
-	sync <= sync << 1;
-	if(pixel_we && pixel_addr == 0) sync <= 1;
-
-	vsync <= |sync;
-end
-
-reg [17:0] vram[38400];
-always @(posedge clk_sys) if(pixel_we) vram[pixel_addr] <= pixel_data;
-always @(posedge CLK_VIDEO) rgb <= vram[px_addr];
-
 wire [15:0] px_addr;
-reg  [17:0] rgb;
-wire sync_core = status[11];
 
 reg hs, vs, hbl, vbl, ce_pix;
-reg [5:0] r,g,b;
 reg hold_reset, force_pause;
 reg [13:0] force_pause_cnt;
 
@@ -1055,15 +1027,12 @@ always @(posedge CLK_VIDEO) begin
 
 	reg [8:0] x,y;
 	reg [2:0] div;
-	reg old_vsync;
 
 	div <= div + 1'd1;
 
 	ce_pix <= 0;
 	if(!div) begin
 		ce_pix <= 1;
-
-		{r,g,b} <= rgb;
 
 		if(x == 240) hbl <= 1;
 		if(x == 000) hbl <= 0;
@@ -1089,13 +1058,7 @@ always @(posedge CLK_VIDEO) begin
 		if(x == 398) begin
 			x <= 0;
 			if (~&y) y <= y + 1'd1;
-			if (sync_core && y >= 263) y <= 0;
-
-			if (y == V_START-1) begin
-				// Pause the core for 22 Gameboy lines to avoid reading & writing overlap (tearing)
-				force_pause <= (sync_core && ~fast_forward && pixel_addr < (240*22));
-				force_pause_cnt <= 14'd10164; // 22* 264/228 *399
-			end
+			if (y >= 263) y <= 0;
 		end
 
 		if (force_pause) begin
@@ -1107,20 +1070,10 @@ always @(posedge CLK_VIDEO) begin
 
 	end
 
-	old_vsync <= vsync;
-	if(~old_vsync & vsync) begin
-		if(~sync_core & vbl) begin
-			x <= 0;
-			y <= 0;
-			vs <= 0;
-			hs <= 0;
-		end
-	end
-
 	// Avoid lost sync by reset
 	if (x == 0 && y == 0)
 		hold_reset <= 1'b0;
-	else if (reset & sync_core)
+	else if (reset)
 		hold_reset <= 1'b1;
 
 end
@@ -1132,63 +1085,17 @@ wire [2:0] scale = status[4:2];
 wire [2:0] sl = scale ? scale - 1'd1 : 3'd0;
 wire       scandoubler = (scale || forced_scandoubler);
 
-wire [7:0] r_in = {r,r[5:4]};
-wire [7:0] g_in = {g,g[5:4]};
-wire [7:0] b_in = {b,b[5:4]};
-
-//wire [7:0] luma = r_in[7:3] + g_in[7:1] + g_in[7:2] + b_in[7:3];
-wire [7:0] luma = r_in[7:2] + g_in[7:1] + g_in[7:3] + b_in[7:3];
-
-wire [7:0] r_out, g_out, b_out;
-always_comb begin
-	case(desatcolors)
-		0: begin
-				r_out = r_in;
-				g_out = g_in;
-				b_out = b_in;
-			end
-		1: begin
-				r_out = r_in[7:1] + r_in[7:2] + luma[7:2];
-				g_out = g_in[7:1] + g_in[7:2] + luma[7:2];
-				b_out = b_in[7:1] + b_in[7:2] + luma[7:2];
-			end
-		2: begin
-				r_out = r_in[7:1] + luma[7:1];
-				g_out = g_in[7:1] + luma[7:1];
-				b_out = b_in[7:1] + luma[7:1];
-			end
-      3: begin
-				r_out = luma[7:1] + luma[7:2] + r_in[7:2];
-				g_out = luma[7:1] + luma[7:2] + g_in[7:2];
-				b_out = luma[7:1] + luma[7:2] + b_in[7:2];
-			end
-	endcase
-end
-
-reg [2:0] shadercolors;
-reg [1:0] desatcolors;
-always @(posedge clk_sys) begin
-	if(status[26:24] < 5) begin
-      shadercolors = status[26:24];
-      desatcolors  = 0;
-   end
-   else begin
-      shadercolors = 0;
-      desatcolors  = status[25:24];
-   end
-end
-
 video_mixer #(.LINE_LENGTH(520), .GAMMA(1)) video_mixer
 (
 	.*,
-	.hq2x(scale==1),
+	.hq2x(1'b0),
 	.HSync(hs),
 	.VSync(vs),
 	.HBlank(hbl),
 	.VBlank(vbl),
-	.R(r_out),
-	.G(g_out),
-	.B(b_out)
+	.R(8'b0),
+	.G(8'b0),
+	.B(8'b0)
 );
 
 wire [1:0] ar = status[33:32];
@@ -1198,8 +1105,8 @@ video_freak video_freak
 	.VGA_DE_IN(VGA_DE),
 	.VGA_DE(),
 
-	.ARX((!ar) ? 12'd3 : (ar - 1'd1)),
-	.ARY((!ar) ? 12'd2 : 12'd0),
+	.ARX((!ar) ? (status[9] ? 12'd3 : 12'd3) : (ar - 1'd1)),
+	.ARY((!ar) ? (status[9] ? 12'd1 : 12'd4) : 12'd0),
 	.CROP_SIZE(0),
 	.CROP_OFF(0),
 	.SCALE(status[35:34])
@@ -1210,44 +1117,15 @@ video_freak video_freak
 wire bk_load     = status[12];
 wire bk_save     = status[13];
 wire bk_autosave = status[23];
-wire bk_write    = (save_eeprom|save_sram|save_flash) && bus_req;
+wire bk_write    = (save_eeprom|save_sram|save_flash) && (bus1_req || bus2_req);
 
-reg  bk_ena      = 0;
+reg  bk_ena      = 1'b1;
 reg  bk_pending  = 0;
 reg  bk_loading  = 0;
-
-reg bk_record_rtc = 0;
-
-wire extra_data_addr = sd_lba[8:0] > save_sz;
 
 always @(posedge clk_sys) begin
 	if (bk_write)      bk_pending <= 1;
 	else if (bk_state) bk_pending <= 0;
-end
-reg use_img;
-reg [8:0] save_sz;
-
-always @(posedge clk_sys) begin : size_block
-	reg old_downloading;
-
-	old_downloading <= cart_download;
-	if(~old_downloading & cart_download) {use_img, save_sz} <= 0;
-
-	if(bus_req & ~use_img) begin
-		if(save_eeprom) save_sz <= save_sz | 8'hF;
-		if(save_sram)   save_sz <= save_sz | 8'h3F;
-		if(save_flash)  save_sz <= save_sz | {flash_1m, 7'h7F};
-	end
-
-	if(img_mounted && img_size && !img_readonly) begin
-		use_img <= 1;
-		if (!(img_size[17:9] & (img_size[17:9] - 9'd1))) // Power of two
-			save_sz <= img_size[17:9] - 1'd1;
-		else                                             // Assume one extra sector of RTC data
-			save_sz <= img_size[17:9] - 2'd2;
-	end
-
-	bk_ena <= |save_sz;
 end
 
 reg  bk_state  = 0;
@@ -1268,7 +1146,6 @@ always @(posedge clk_sys) begin
 		bram_tx_start <= 0;
 		state <= 0;
 		sd_lba <= 0;
-		time_dout <= {5'd0, RTC_time, 42'd0};
 		bk_loading <= 0;
 		if(bk_ena & ((~old_load & bk_load) | (~old_save & bk_save) | (~old_save_a & bk_save_a & bk_pending) | (cart_download & img_mounted))) begin
 			bk_state <= 1;
@@ -1291,31 +1168,12 @@ always @(posedge clk_sys) begin
 					sd_lba <= sd_lba + 1'd1;
 
 					// always read max possible size
-					if(sd_lba[8:0] == 9'h100) begin
-						bk_record_rtc <= 0;
+					if(sd_lba[8:0] == 9'h1FF) begin
 						bk_state <= 0;
-						RTC_load <= 0;
 					end
 				end
 		endcase
 
-		if (extra_data_addr) begin
-			if (~|sd_buff_addr && sd_buff_wr && sd_buff_dout == "RT") begin
-				bk_record_rtc <= 1;
-				RTC_load <= 0;
-			end
-		end
-
-		if (bk_record_rtc) begin
-			if (sd_buff_addr < 6 && sd_buff_addr >= 1)
-				time_dout[{sd_buff_addr[2:0] - 3'd1, 4'b0000} +: 16] <= sd_buff_dout;
-
-			if (sd_buff_addr > 5)
-				RTC_load <= 1;
-
-			if (&sd_buff_addr)
-				bk_record_rtc <= 0;
-		end
 	end
 	else begin
 		case(state)
@@ -1325,54 +1183,16 @@ always @(posedge clk_sys) begin
 				end
 			1: if(bram_tx_finish) begin
 					bram_tx_start <= 0;
-					sd_wr <= 1;
-					state <= 2;
+					sd_wr  <= 1;
+					state  <= 2;
 				end
 			2: if(old_ack & ~sd_ack) begin
 					state <= 0;
 					sd_lba <= sd_lba + 1'd1;
 
-					if (sd_lba[8:0] == {1'b0, save_sz} + (has_rtc ? 9'd1 : 9'd0))
+					if (sd_lba[8:0] == 9'h1FF)
 						bk_state <= 0;
 				end
-		endcase
-	end
-end
-
-////////////////////////////  CODES  ///////////////////////////////////
-
-// Code layout:
-// {code flags,     32'b address, 32'b compare, 32'b replace}
-//  127:96          95:64         63:32         31:0
-// Integer values are in BIG endian byte order, so it up to the loader
-// or generator of the code to re-arrange them correctly.
-reg [127:0] gg_code;
-reg gg_valid;
-reg gg_reset;
-reg ioctl_download_1;
-wire gg_active;
-always_ff @(posedge clk_sys) begin
-
-   gg_reset <= 0;
-   ioctl_download_1 <= ioctl_download;
-	if (ioctl_download && ~ioctl_download_1 && ioctl_index == 255) begin
-      gg_reset <= 1;
-   end
-
-   gg_valid <= 0;
-	if (code_download & ioctl_wr) begin
-		case (ioctl_addr[3:0])
-			0:  gg_code[111:96]  <= ioctl_dout; // Flags Bottom Word
-			2:  gg_code[127:112] <= ioctl_dout; // Flags Top Word
-			4:  gg_code[79:64]   <= ioctl_dout; // Address Bottom Word
-			6:  gg_code[95:80]   <= ioctl_dout; // Address Top Word
-			8:  gg_code[47:32]   <= ioctl_dout; // Compare Bottom Word
-			10: gg_code[63:48]   <= ioctl_dout; // Compare top Word
-			12: gg_code[15:0]    <= ioctl_dout; // Replace Bottom Word
-			14: begin
-				gg_code[31:16]    <= ioctl_dout; // Replace Top Word
-				gg_valid          <= 1;          // Clock it in
-			end
 		endcase
 	end
 end

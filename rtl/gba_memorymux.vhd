@@ -105,16 +105,6 @@ entity gba_memorymux is
       PALETTE_OAM_we       : out    std_logic_vector(3 downto 0);
       
       specialmodule        : in     std_logic;
-      GPIO_readEna         : out    std_logic;
-      GPIO_done            : in     std_logic;
-      GPIO_Din             : in     std_logic_vector(3 downto 0);
-      GPIO_Dout            : out    std_logic_vector(3 downto 0);
-      GPIO_writeEna        : out    std_logic := '0';
-      GPIO_addr            : out    std_logic_vector(1 downto 0);
-      
-      tilt                 : in     std_logic;
-      AnalogTiltX          : in     signed(7 downto 0);
-      AnalogTiltY          : in     signed(7 downto 0);
       
       debug_mem            : out    std_logic_vector(31 downto 0)  
    );
@@ -142,7 +132,6 @@ architecture arch of gba_memorymux is
       READAFTERPAK,
       READ_UNREADABLE,
       ROTATE,
-      READ_GPIO,
       WAIT_WRAMREADMODIFYWRITE,
       WRITE_WRAMLARGE,
       WRITE_WRAMSMALL,
@@ -248,10 +237,6 @@ architecture arch of gba_memorymux is
    signal flash_saveaddr  : std_logic_vector(busadr_bits-1 downto 0);
    signal flash_savecount : integer range 0 to 131072;
    signal flash_savedata  : std_logic_vector(7 downto 0);
-   
-   -- tilt
-   signal tilt_x : unsigned(11 downto 0);
-   signal tilt_y : unsigned(11 downto 0);
    
    -- savestate
    signal SAVESTATE_EEPROM  : std_logic_vector(31 downto 0);
@@ -408,10 +393,6 @@ begin
                sdram_data_buf(63 downto 32) <= sdram_second_dword;
             end if;
          end if;
-         
-         -- tilt
-         tilt_x <= to_unsigned(16#3A0# + to_integer(AnalogTiltX), 12);
-         tilt_y <= to_unsigned(16#3A0# + to_integer(AnalogTiltY), 12);
 
          -- default pulse regs
          bus_out_ena      <= '0';
@@ -430,8 +411,6 @@ begin
          OAMRAM_PROC_we  <= (others => '0');
          PALETTE_BG_we   <= (others => '0');
          PALETTE_OAM_we  <= (others => '0');
-         GPIO_readEna    <= '0';
-         GPIO_writeEna   <= '0';
          
          mem_bus_done    <= '0';
          mem_bus_unread  <= '0';
@@ -558,15 +537,6 @@ begin
                                  end if;
                                  state             <= WAIT_SDRAM;
                               end if;
-                              if (specialmodule = '1') then
-                                 if (unsigned(mem_bus_Adr(27 downto 0)) >= 16#80000C4# and unsigned(mem_bus_Adr(27 downto 0)) <= 16#80000C8#) then
-                                    state             <= READ_GPIO;
-                                    mem_bus_done      <= '0';
-                                    cache_read_enable <= '0';
-                                    GPIO_readEna      <= '1';
-                                    GPIO_addr         <= std_logic_vector(to_unsigned(to_integer(unsigned(mem_bus_Adr(3 downto 1))) - 4 / 2, 2));
-                                 end if;
-                              end if;
                            
                            when x"D" =>
                               state            <= EEPROMREAD;  
@@ -622,16 +592,7 @@ begin
                            when x"5" => state <= WRITE_PALETTE;   mem_bus_done <= '1';
                            when x"6" => state <= WRITE_VRAM;      mem_bus_done <= not vram_blocked or mem_bus_Adr(16); vramwait <= vram_blocked;
                            when x"7" => state <= WRITE_OAM;       mem_bus_done <= '1';
-                           when x"8" =>
-                              mem_bus_done <= '1';
-                              if (specialmodule = '1') then
-                                 if (unsigned(mem_bus_Adr(27 downto 0)) >= 16#80000C4# and unsigned(mem_bus_Adr(27 downto 0)) <= 16#80000C8#) then
-                                    GPIO_writeEna <= '1';
-                                    GPIO_addr     <= std_logic_vector(to_unsigned(to_integer(unsigned(mem_bus_Adr(3 downto 1))) - 4 / 2, 2));
-                                    GPIO_Dout     <= mem_bus_dout(3 downto 0);
-                                 end if;
-                              end if;
-                           
+                           when x"8" => mem_bus_done <= '1';
                            when x"D" => state <= EEPROMWRITE;  
                            when x"E" | x"F" => state <= FLASHSRAMWRITEDECIDE1; adr_save(1 downto 0) <= mem_bus_Adr(1 downto 0) or bus_lowbits;
                            when others => mem_bus_done <= '1'; --report "writing here not implemented!" severity failure;
@@ -869,15 +830,7 @@ begin
                end if;
                mem_bus_done   <= '1'; 
                mem_bus_unread <= unread_next;
-               state <= IDLE;
-               
-            when READ_GPIO =>
-               if (GPIO_done = '1') then
-                  mem_bus_done   <= '1'; 
-                  mem_bus_din    <= x"0000000" & GPIO_Din;
-                  state <= IDLE;
-               end if;
-               
+               state <= IDLE;   
             
             ----- writing
             
@@ -1221,38 +1174,27 @@ begin
                state       <= rotate;
                rotate_data <= (others => '0');
                
-               if (tilt = '1') then
-               
-                  if (adr_save = x"E008200") then rotate_data(7 downto 0) <= std_logic_vector(tilt_x( 7 downto 0)); end if;
-                  if (adr_save = x"E008300") then rotate_data(3 downto 0) <= std_logic_vector(tilt_x(11 downto 8)); rotate_data(7) <= '1'; end if; -- bit 7 for sampling done
-                  if (adr_save = x"E008400") then rotate_data(7 downto 0) <= std_logic_vector(tilt_y( 7 downto 0)); end if;
-                  if (adr_save = x"E008500") then rotate_data(3 downto 0) <= std_logic_vector(tilt_y(11 downto 8)); end if;
-               
-               else
-               
-                  case (flashReadState) is
-                     when FLASH_READ_ARRAY =>
-                        state <= FLASH_WAITREAD;
-                        bus_out_Adr  <= std_logic_vector(to_unsigned(Softmap_GBA_FLASH_ADDR, busadr_bits) + unsigned((flashBank & adr_save(15 downto 0))));
-                        bus_out_rnw  <= '1';
-                        bus_out_ena  <= '1'; 
-                        
-                     when FLASH_AUTOSELECT => 
-                        if (adr_save(7 downto 0) = x"00") then
-                           rotate_data <= flashManufacturerID & flashManufacturerID & flashManufacturerID & flashManufacturerID;
-                        elsif (adr_save(7 downto 0) = x"01") then
-                           rotate_data <= flashDeviceID & flashDeviceID & flashDeviceID & flashDeviceID;
-                        end if;
-                        
-                     when FLASH_ERASE_COMPLETE =>
-                        flashState     <= FLASH_READ_ARRAY;
-                        flashReadState <= FLASH_READ_ARRAY;
-                        rotate_data    <= (others => '1');
-                        
-                     when others => null;
-                  end case;
-               
-               end if;
+               case (flashReadState) is
+                  when FLASH_READ_ARRAY =>
+                     state <= FLASH_WAITREAD;
+                     bus_out_Adr  <= std_logic_vector(to_unsigned(Softmap_GBA_FLASH_ADDR, busadr_bits) + unsigned((flashBank & adr_save(15 downto 0))));
+                     bus_out_rnw  <= '1';
+                     bus_out_ena  <= '1'; 
+                     
+                  when FLASH_AUTOSELECT => 
+                     if (adr_save(7 downto 0) = x"00") then
+                        rotate_data <= flashManufacturerID & flashManufacturerID & flashManufacturerID & flashManufacturerID;
+                     elsif (adr_save(7 downto 0) = x"01") then
+                        rotate_data <= flashDeviceID & flashDeviceID & flashDeviceID & flashDeviceID;
+                     end if;
+                     
+                  when FLASH_ERASE_COMPLETE =>
+                     flashState     <= FLASH_READ_ARRAY;
+                     flashReadState <= FLASH_READ_ARRAY;
+                     rotate_data    <= (others => '1');
+                     
+                  when others => null;
+               end case;
                
             when FLASH_WAITREAD =>
                if (bus_out_done = '1') then
