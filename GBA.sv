@@ -223,21 +223,17 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// X XXXXXXXXXXXXXXXXX XXXXXXXXXXXX XXXXXXX
+// x    x xxx  xx      x  x         xxxx
 
 `include "build_id.v"
 parameter CONF_STR = {
 	"GBA2P;SS3E000000:80000;",
 	"FS,GBA,Load,300C0000;",
 	"-;",
-	"C,Cheats;",
-	"H1O6,Cheats Enabled,Yes,No;",
-	"-;",
 	"D0RC,Reload Backup RAM;",
 	"D0RD,Save Backup RAM;",
 	"D0ON,Autosave,Off,On;",
 	"D0-;",
-	"h4H3-;",
 	"O9,Split,Vert,Horz;",
 	"o01,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O78,Stereo Mix,None,25%,50%,100%;",
@@ -253,7 +249,7 @@ parameter CONF_STR = {
 
 wire  [1:0] buttons;
 wire [63:0] status;
-wire [15:0] status_menumask = {1'b0, status[27], cart_loaded, |cart_type, force_turbo, 1'b1, ~bk_ena};
+wire [15:0] status_menumask = {1'b0, 1'b0, cart_loaded, |cart_type, force_turbo, 1'b1, ~bk_ena};
 wire        forced_scandoubler;
 reg  [31:0] sd_lba;
 reg         sd_rd = 0;
@@ -373,7 +369,7 @@ reg [31:0] bios_wrdata;
 reg        bios_wr;
 always @(posedge clk_sys) begin
 	bios_wr <= 0;
-	if(bios_download & ioctl_wr & ~status[28]) begin
+	if(bios_download & ioctl_wr) begin
 		if(~ioctl_addr[1]) bios_wrdata[15:0] <= ioctl_dout;
 		else begin
 			bios_wrdata[31:16] <= ioctl_dout;
@@ -390,7 +386,7 @@ wire save_eeprom, save_sram, save_flash, ss_loaded;
 reg pause;
 
 always @(posedge clk_sys) begin : ffwd
-	pause <= force_pause | (status[5] & OSD_STATUS & ~status[27]); // pause from "sync to core" or "pause in osd", but not if rewind capture is on
+	pause <= (status[5] & OSD_STATUS); // pause from "pause in osd"
 end
 
 wire serial1_clockout;
@@ -422,10 +418,10 @@ gba1
 	.CyclesVsyncSpeed(),              // debug only for speed measurement, keep open
 	.SramFlashEnable(~sram_quirk),
 	.memory_remap(memory_remap_quirk),
-   .increaseSSHeaderCount(!status[36]),
+   .increaseSSHeaderCount(1'b0),
    .save_state(1'b0),
    .load_state(1'b0),
-   .interframe_blend(status[10:9]),
+   .interframe_blend(2'b00),
    .maxpixels(status[20] | sprite_quirk),
 	.specialmodule(1'b0),
    .rewind_on(1'b0),
@@ -524,13 +520,13 @@ gba2
 	.CyclesVsyncSpeed(),              // debug only for speed measurement, keep open
 	.SramFlashEnable(~sram_quirk),
 	.memory_remap(memory_remap_quirk),
-   .increaseSSHeaderCount(!status[36]),
+   .increaseSSHeaderCount(1'b0),
    .save_state(1'b0),
    .load_state(1'b0),
-   .interframe_blend(status[10:9]),
+   .interframe_blend(2'b00),
    .maxpixels(status[20] | sprite_quirk),
 	.specialmodule(1'b0),
-   .rewind_on(status[27]),
+   .rewind_on(1'b0),
    .rewind_active(1'b0),
    .savestate_number(2'b00),
 
@@ -1019,8 +1015,7 @@ wire        pixel_we;
 wire [15:0] px_addr;
 
 reg hs, vs, hbl, vbl, ce_pix;
-reg hold_reset, force_pause;
-reg [13:0] force_pause_cnt;
+reg hold_reset;
 
 always @(posedge CLK_VIDEO) begin
 	localparam V_START = 62;
@@ -1060,14 +1055,6 @@ always @(posedge CLK_VIDEO) begin
 			if (~&y) y <= y + 1'd1;
 			if (y >= 263) y <= 0;
 		end
-
-		if (force_pause) begin
-			if (force_pause_cnt > 0)
-				force_pause_cnt <= force_pause_cnt - 1'b1;
-			else
-				force_pause <= 0;
-		end
-
 	end
 
 	// Avoid lost sync by reset
@@ -1081,7 +1068,7 @@ end
 assign VGA_F1 = 0;
 assign VGA_SL = sl[1:0];
 
-wire [2:0] scale = status[4:2];
+wire [2:0] scale = 3'b000;
 wire [2:0] sl = scale ? scale - 1'd1 : 3'd0;
 wire       scandoubler = (scale || forced_scandoubler);
 
