@@ -191,8 +191,8 @@ assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
 assign FB_EN      = 1'b1;
 assign FB_FORMAT  = 5'b00110;
-assign FB_WIDTH   = status[9] ? 12'd480 : 12'd240;
-assign FB_HEIGHT  = status[9] ? 12'd160 : 12'd320;
+assign FB_WIDTH   = status[10] ? 12'd240 : status[9] ? 12'd480 : 12'd240;
+assign FB_HEIGHT  = status[10] ? 12'd160 : status[9] ? 12'd160 : 12'd320;
 assign FB_STRIDE  = 0;
 assign FB_FORCE_BLANK = 0;
 assign FB_PAL_CLK = 0;
@@ -223,7 +223,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// x    x xxx  xx      x  x         xxxx
+// x    x xxxx xx xx   x  x         xxxx
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -234,7 +234,8 @@ parameter CONF_STR = {
 	"D0RD,Save Backup RAM;",
 	"D0ON,Autosave,Off,On;",
 	"D0-;",
-	"O9,Split,Vert,Horz;",
+	"O9A,Split,Vert,Horz,Screen 1,Screen 2;",
+	"OFG,Audioselect,GBA 1,GBA 2,Mixed,Split 1=L 2=R;",
 	"o01,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O78,Stereo Mix,None,25%,50%,100%;",
 	"OK,Spritelimit,Off,On;",	 
@@ -393,6 +394,11 @@ wire serial1_clockout;
 wire serial2_clockout;
 wire serial1_dataout; 
 wire serial2_dataout;
+
+wire [15:0] AUDIO_L1;
+wire [15:0] AUDIO_R1;	
+wire [15:0] AUDIO_L2;
+wire [15:0] AUDIO_R2;
  
 gba_top
 #(
@@ -474,8 +480,8 @@ gba1
 	.pixel_out_we(pixel_we),          // new pixel for framebuffer
 
 	.fb_hoffset       (1'b0),
-   .fb_voffset       (1'b0),
-   .fb_linesize      (status[9] ? 512  : 256),
+   .fb_voffset       ((status[10:9] == 2'd3) ? 1'b1 : 1'b0),
+   .fb_linesize      ((status[10:9] == 2'd1) ? 512  : 256),
 
    .largeimg_out_base(),
    .largeimg_out_addr(fb1_addr),
@@ -485,8 +491,8 @@ gba1
    .largeimg_newframe(FB_VBL),
    .largeimg_singlebuf(FB_LL),
 
-	.sound_out_left(AUDIO_L),
-	.sound_out_right(AUDIO_R),
+	.sound_out_left (AUDIO_L1),
+	.sound_out_right(AUDIO_R1),
    
    .serial_clockout (serial1_clockout), 
    .serial_clockin  (serial2_clockout), 
@@ -495,6 +501,16 @@ gba1
    .si_terminal     (1'b0), 
    .sd_terminal     (1'b1) 
 );
+
+assign AUDIO_L = (status[16:15] == 3'd0) ? AUDIO_L1 : 
+                 (status[16:15] == 3'd1) ? AUDIO_L2 : 
+                 (status[16:15] == 3'd2) ? ({AUDIO_L1[15], AUDIO_L1[15:1]} + {AUDIO_L2[15], AUDIO_L2[15:1]}) : 
+                                           ({AUDIO_L1[15], AUDIO_L1[15:1]} + {AUDIO_R1[15], AUDIO_R1[15:1]});
+
+assign AUDIO_R = (status[16:15] == 3'd0) ? AUDIO_R1 : 
+                 (status[16:15] == 3'd1) ? AUDIO_R2 : 
+                 (status[16:15] == 3'd2) ? ({AUDIO_R1[15], AUDIO_R1[15:1]} + {AUDIO_R2[15], AUDIO_R2[15:1]}) : 
+                                           ({AUDIO_L2[15], AUDIO_L2[15:1]} + {AUDIO_R2[15], AUDIO_R2[15:1]});
 
 gba_top
 #(
@@ -575,9 +591,9 @@ gba2
 	.pixel_out_data(),      // RGB data for framebuffer
 	.pixel_out_we(),          // new pixel for framebuffer
 
-	.fb_hoffset       (status[9] ? 1'b1 : 1'b0),
-   .fb_voffset       (status[9] ? 1'b0 : 1'b1),
-   .fb_linesize      (status[9] ? 512  : 256),
+	.fb_hoffset       ((status[10:9] == 2'd1) ? 1'b1 : 1'b0),
+   .fb_voffset       (status[9]  ? 1'b0 : 1'b1),
+   .fb_linesize      ((status[10:9] == 2'd1) ? 512 : 256),
 
    .largeimg_out_base(FB_BASE),
    .largeimg_out_addr(fb2_addr),
@@ -587,8 +603,8 @@ gba2
    .largeimg_newframe(FB_VBL),
    .largeimg_singlebuf(FB_LL),
 
-	.sound_out_left(),
-	.sound_out_right(),
+	.sound_out_left (AUDIO_L2),
+	.sound_out_right(AUDIO_R2),
    
    .serial_clockout (serial2_clockout), 
    .serial_clockin  (serial1_clockout), 
@@ -1092,8 +1108,8 @@ video_freak video_freak
 	.VGA_DE_IN(VGA_DE),
 	.VGA_DE(),
 
-	.ARX((!ar) ? (status[9] ? 12'd3 : 12'd3) : (ar - 1'd1)),
-	.ARY((!ar) ? (status[9] ? 12'd1 : 12'd4) : 12'd0),
+	.ARX((!ar) ? (status[10] ? 12'd3 : status[9] ? 12'd3 : 12'd3) : (ar - 1'd1)),
+	.ARY((!ar) ? (status[10] ? 12'd2 : status[9] ? 12'd1 : 12'd4) : 12'd0),
 	.CROP_SIZE(0),
 	.CROP_OFF(0),
 	.SCALE(status[35:34])
