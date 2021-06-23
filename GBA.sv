@@ -223,7 +223,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// x    x xxxx xx xx   x  x         xxxx
+// x xxxx xxxx xx xx   x  x         xxxx
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -237,6 +237,7 @@ parameter CONF_STR = {
 	"O9A,Split,Vert,Horz,Screen 1,Screen 2;",
 	"OFG,Audioselect,GBA 1,GBA 2,Mixed,Split 1=L 2=R;",
 	"o01,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+   "O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"O78,Stereo Mix,None,25%,50%,100%;",
 	"OK,Spritelimit,Off,On;",	 
 	"o23,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
@@ -475,9 +476,9 @@ gba1
 	.KeyR(joy1[7]),
 	.KeyL(joy1[6]),
 
-	.pixel_out_addr(pixel_addr),      // integer range 0 to 38399;       -- address for framebuffer
-	.pixel_out_data(pixel_data),      // RGB data for framebuffer
-	.pixel_out_we(pixel_we),          // new pixel for framebuffer
+	.pixel_out_addr(),      // integer range 0 to 38399;       -- address for framebuffer
+	.pixel_out_data(),      // RGB data for framebuffer
+	.pixel_out_we(),          // new pixel for framebuffer
 
 	.fb_hoffset       (1'b0),
    .fb_voffset       ((status[10:9] == 2'd3) ? 1'b1 : 1'b0),
@@ -587,9 +588,9 @@ gba2
 	.KeyR(joy2[7]),
 	.KeyL(joy2[6]),
 
-	.pixel_out_addr(),      // integer range 0 to 38399;       -- address for framebuffer
-	.pixel_out_data(),      // RGB data for framebuffer
-	.pixel_out_we(),          // new pixel for framebuffer
+	.pixel_out_addr(pixel_addr),      // integer range 0 to 38399;       -- address for framebuffer
+	.pixel_out_data(pixel_data),      // RGB data for framebuffer
+	.pixel_out_we(pixel_we),          // new pixel for framebuffer
 
 	.fb_hoffset       ((status[10:9] == 2'd1) ? 1'b1 : 1'b0),
    .fb_voffset       (status[9]  ? 1'b0 : 1'b1),
@@ -1028,10 +1029,17 @@ wire [15:0] pixel_addr;
 wire [17:0] pixel_data;
 wire        pixel_we;
 
+reg [17:0] vram[38400];
+always @(posedge clk_sys) if(pixel_we) vram[pixel_addr] <= pixel_data;
+always @(posedge CLK_VIDEO) rgb <= vram[px_addr];
+
 wire [15:0] px_addr;
+reg  [17:0] rgb;
 
 reg hs, vs, hbl, vbl, ce_pix;
 reg hold_reset;
+
+reg [5:0] r,g,b;
 
 always @(posedge CLK_VIDEO) begin
 	localparam V_START = 62;
@@ -1044,6 +1052,8 @@ always @(posedge CLK_VIDEO) begin
 	ce_pix <= 0;
 	if(!div) begin
 		ce_pix <= 1;
+      
+      {r,g,b} <= rgb;
 
 		if(x == 240) hbl <= 1;
 		if(x == 000) hbl <= 0;
@@ -1084,9 +1094,13 @@ end
 assign VGA_F1 = 0;
 assign VGA_SL = sl[1:0];
 
-wire [2:0] scale = 3'b000;
+wire [2:0] scale = status[4:2];
 wire [2:0] sl = scale ? scale - 1'd1 : 3'd0;
 wire       scandoubler = (scale || forced_scandoubler);
+
+wire [7:0] r_in = {r,r[5:4]};
+wire [7:0] g_in = {g,g[5:4]};
+wire [7:0] b_in = {b,b[5:4]};
 
 video_mixer #(.LINE_LENGTH(520), .GAMMA(1)) video_mixer
 (
@@ -1096,9 +1110,9 @@ video_mixer #(.LINE_LENGTH(520), .GAMMA(1)) video_mixer
 	.VSync(vs),
 	.HBlank(hbl),
 	.VBlank(vbl),
-	.R(8'b0),
-	.G(8'b0),
-	.B(8'b0)
+	.R(r_in),
+	.G(g_in),
+	.B(b_in)
 );
 
 wire [1:0] ar = status[33:32];
