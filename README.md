@@ -38,8 +38,16 @@ Saves can be copied from singleplayer, but only player 1 will have a savegame th
 
 Saves can be copied to singleplayer, but when saved in singleplayer, the second player savegame is lost.
 
+# Video Output
+VGA will always output screen/core 2.
+
+HDMi output can be selected to show:
+- horizontal splitscreen
+- vertical splitscreen
+- screen 1
+- screen 2
+
 # Not included in this version:
-- VGA output
 - Savestates/rewind
 - Fastforward
 - 2x rendering
