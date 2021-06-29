@@ -223,7 +223,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// X XXXXXXXXXXXXXXXXX XXXXXXXXXXXX XXXXXXX
+// X XXXXXXXXXRXXXXXXX XXXXXXXXXXXX XXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -252,7 +252,7 @@ parameter CONF_STR = {
 	"P1O9A,Flickerblend,Off,Blend,30Hz;",
 	"P1OOQ,Modify Colors,Off,GBA 2.2,GBA 1.6,NDS 1.6,VBA 1.4,75%,50%,25%;",
 	"P1OK,Spritelimit,Off,On;",	 
-	"P1OB,Sync core to video,Off,On;",
+	"P1o7,Sync core to video,On,Off;",
 	"P1o23,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
 
 	"P2,Hardware;",
@@ -1043,7 +1043,7 @@ always @(posedge CLK_VIDEO) rgb <= vram[px_addr];
 
 wire [15:0] px_addr;
 reg  [17:0] rgb;
-wire sync_core = status[11];
+wire sync_core = ~status[39];
 
 reg hs, vs, hbl, vbl, ce_pix;
 reg [5:0] r,g,b;
