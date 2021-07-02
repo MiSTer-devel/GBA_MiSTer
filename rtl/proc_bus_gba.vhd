@@ -138,7 +138,7 @@ begin
    
    Dout <= Dout_buffer;
    
-   goutput : if (Reg.acccesstype = readwrite or Reg.acccesstype = readonly) generate
+   goutput : if (Reg.acccesstype = readwrite or Reg.acccesstype = readonly or Reg.acccesstype = writeDone) generate
    begin
       goutputbit: for i in Reg.lower to Reg.upper generate
          proc_bus.Dout(i) <= Din(i) when proc_bus.Adr = Adr else 'Z';

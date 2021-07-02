@@ -98,6 +98,10 @@ entity gba_top is
       pixel_out_data        : buffer std_logic_vector(17 downto 0);  -- RGB data for framebuffer 
       pixel_out_we          : buffer std_logic;                      -- new pixel for framebuffer 
                                   
+      seperate_h_l          : in     std_logic;
+      seperate_h_r          : in     std_logic;
+      seperate_v_u          : in     std_logic;
+      seperate_v_d          : in     std_logic;
       fb_hoffset            : in     integer;
       fb_voffset            : in     integer;
       fb_linesize           : in     integer;
@@ -998,11 +1002,16 @@ begin
             pixel_write_addr <= pixel_out_x / 2;
             if (pixel_out_x mod 2 = 0) then
                pixel_write_data(17 downto 0) <= pixel_out_data;
+               if (seperate_h_l = '1' and pixel_out_x = 0) then pixel_write_data(17 downto 0) <= (others => '0'); end if;
             else
                pixel_write_data(35 downto 18) <= pixel_out_data;
                pixel_write_ena <= '1';
+               if (seperate_h_r = '1' and pixel_out_x = 239) then pixel_write_data(35 downto 18) <= (others => '0'); end if;
             end if;
          end if;
+      
+         if (seperate_v_u = '1' and pixel_out_y =   0) then pixel_write_data <= (others => '0'); end if;
+         if (seperate_v_d = '1' and pixel_out_y = 159) then pixel_write_data <= (others => '0'); end if;
    
       end if;
    end process;

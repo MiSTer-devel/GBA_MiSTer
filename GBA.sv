@@ -223,18 +223,20 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// x xxxx xxxx xx xx   x  x         xxxx
+// x xxxxxxxxxxxx xx   x  x         xxxx
 
 `include "build_id.v"
 parameter CONF_STR = {
 	"GBA2P;SS3E000000:80000;",
 	"FS,GBA,Load,300C0000;",
+   //"O6,Single Pak,Off,On;",
 	"-;",
 	"D0RC,Reload Backup RAM;",
 	"D0RD,Save Backup RAM;",
 	"D0ON,Autosave,Off,On;",
 	"D0-;",
 	"O9A,Split,Vert,Horz,Screen 1,Screen 2;",
+	"OB,Seperator Line,Off,On;",
 	"OFG,Audioselect,GBA 1,GBA 2,Mixed,Split 1=L 2=R;",
 	"o01,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
    "O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
@@ -480,6 +482,10 @@ gba1
 	.pixel_out_data(),      // RGB data for framebuffer
 	.pixel_out_we(),          // new pixel for framebuffer
 
+   .seperate_h_l     (1'b0),
+   .seperate_h_r     (status[11] && (status[10:9] == 2'd1)),
+   .seperate_v_u     (1'b0),
+   .seperate_v_d     (status[11] && (status[10:9] == 2'd0)),
 	.fb_hoffset       (1'b0),
    .fb_voffset       ((status[10:9] == 2'd3) ? 1'b1 : 1'b0),
    .fb_linesize      ((status[10:9] == 2'd1) ? 512  : 256),
@@ -592,6 +598,10 @@ gba2
 	.pixel_out_data(pixel_data),      // RGB data for framebuffer
 	.pixel_out_we(pixel_we),          // new pixel for framebuffer
 
+   .seperate_h_l     (status[11] && (status[10:9] == 2'd1)),
+   .seperate_h_r     (1'b0),
+   .seperate_v_u     (status[11] && (status[10:9] == 2'd0)),
+   .seperate_v_d     (1'b0),
 	.fb_hoffset       ((status[10:9] == 2'd1) ? 1'b1 : 1'b0),
    .fb_voffset       (status[9]  ? 1'b0 : 1'b1),
    .fb_linesize      ((status[10:9] == 2'd1) ? 512 : 256),
@@ -701,8 +711,8 @@ wire        rom1_ack   = sdr_sdram_ack;
 wire        rom1_req;
 
 wire [25:2] rom2_addr;
-wire [31:0] rom2_dout1 = ddr_sdram_dout1;
-wire [31:0] rom2_dout2 = ddr_sdram_dout2;
+wire [31:0] rom2_dout1 = (status[6]) ? 32'd0 : ddr_sdram_dout1;
+wire [31:0] rom2_dout2 = (status[6]) ? 32'd0 : ddr_sdram_dout2;
 wire        rom2_ack   = ddr_sdram_ack;
 wire        rom2_req;
 

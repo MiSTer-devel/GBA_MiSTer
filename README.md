@@ -29,6 +29,8 @@ UART and GPIO modes are missing.
 
 Most popular games should work in multiplayer mode, but there are some games known that are not working.
 
+Single Cart multiplayer is currently unsupported.
+
 # Savegames
 Saves created contain savegames for both players. 
 
@@ -46,6 +48,15 @@ HDMi output can be selected to show:
 - vertical splitscreen
 - screen 1
 - screen 2
+
+In case of splitscreen, a seperation line can be enabled in OSD, which will turn the last/first pixel black.
+
+# Audio Output
+Selectable in OSD:
+- Core 1 to both Channels(left/right)
+- Core 2 to both Channels(left/right)
+- Mix both cores
+- Core 1 to left Channel, Core 2 to right Channel
 
 # Not included in this version:
 - Savestates/rewind

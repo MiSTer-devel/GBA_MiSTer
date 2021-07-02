@@ -15,7 +15,7 @@ entity gba_serial is
       
       clockout          : out std_logic;
       clockin           : in  std_logic;
-      dataout           : out std_logic := '1';
+      dataout           : buffer std_logic := '1';
       datain            : in  std_logic;
       si_terminal       : in  std_logic;
       sd_terminal       : in  std_logic;
@@ -47,6 +47,8 @@ architecture arch of gba_serial is
    signal REG_SIODATA8_READBACK   : std_logic_vector(15 downto 0) := (others => '0');
    signal SIODATA32_written  : std_logic;
    signal SIODATA8_written  : std_logic;
+   
+   signal RCNT_READBACK   : std_logic_vector(RCNT       .upper downto RCNT       .lower) := (others => '0');
 
    signal SIO_start       : std_logic := '0';
    signal cycles          : unsigned(11 downto 0) := (others => '0');
@@ -69,7 +71,7 @@ begin
    iSIOMULTI3   : entity work.eProcReg_gba generic map (SIOMULTI3  ) port map  (clk100, gb_bus, x"FFFF"               , REG_SIOMULTI3  );  
    iSIOCNT      : entity work.eProcReg_gba generic map (SIOCNT     ) port map  (clk100, gb_bus, SIOCNT_READBACK       , REG_SIOCNT     , SIOCNT_written);  
    iSIODATA8    : entity work.eProcReg_gba generic map (SIODATA8   ) port map  (clk100, gb_bus, REG_SIODATA8_READBACK , REG_SIODATA8   , SIODATA8_written);  
-   iRCNT        : entity work.eProcReg_gba generic map (RCNT       ) port map  (clk100, gb_bus, REG_RCNT              , REG_RCNT       );  
+   iRCNT        : entity work.eProcReg_gba generic map (RCNT       ) port map  (clk100, gb_bus, RCNT_READBACK         , REG_RCNT       );  
    iIR          : entity work.eProcReg_gba generic map (IR         ) port map  (clk100, gb_bus, REG_IR                , REG_IR         );  
    iJOYCNT      : entity work.eProcReg_gba generic map (JOYCNT     ) port map  (clk100, gb_bus, REG_JOYCNT            , REG_JOYCNT     );  
    iJOY_RECV    : entity work.eProcReg_gba generic map (JOY_RECV   ) port map  (clk100, gb_bus, REG_JOY_RECV          , REG_JOY_RECV   );  
@@ -78,6 +80,10 @@ begin
    
    SIOCNT_READBACK <= REG_SIOCNT(15 downto 8) & SIO_start & REG_SIOCNT(6 downto 0) when REG_SIOCNT(13) = '0' else
                       REG_SIOCNT(15 downto 8) & SIO_start & '0' & '0' & si_terminal & sd_terminal & si_terminal & REG_SIOCNT(1 downto 0);
+   
+   
+   RCNT_READBACK <= REG_RCNT when REG_SIOCNT(13) = '0' else
+                    REG_RCNT(15 downto 4) & dataout & si_terminal & sd_terminal & '1';
    
    process (clk100)
    begin

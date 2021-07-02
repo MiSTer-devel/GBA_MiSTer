@@ -295,7 +295,6 @@ begin
       Softmap_GBA_EEPROM_ADDR  => 0,
       Softmap_SaveState_ADDR   => 16#3800000#,
       Softmap_Rewind_ADDR      => 16#2000000#,
-      fb_offset                => 0,
       turbosound               => '1'
    )
    port map
@@ -317,8 +316,6 @@ begin
       load_state         => GBA_LoadState(GBA_LoadState'left),
       interframe_blend   => "00",
       maxpixels          => '0',
-      hdmode2x_bg        => '0',
-      hdmode2x_obj       => '0',
       specialmodule      => '0',
       rewind_on          => GBA_Rewind_on(GBA_Rewind_on'left),
       rewind_active      => GBA_Rewind_active(GBA_Rewind_active'left),
@@ -372,6 +369,9 @@ begin
       GBA_BusReadData    => GBA_BusReadData, 
       GBA_Bus_written    => GBA_Bus_written,
 
+      fb_hoffset         => 0,
+      fb_voffset         => 0,
+      fb_linesize        => 256,
       largeimg_out_addr  => largeimg_out_addr,
       largeimg_out_data  => largeimg_out_data,
       largeimg_out_req   => largeimg_out_req, 
@@ -400,7 +400,6 @@ begin
       Softmap_GBA_EEPROM_ADDR  => 0,
       Softmap_SaveState_ADDR   => 16#3800000#,
       Softmap_Rewind_ADDR      => 16#2000000#,
-      fb_offset                => 1,
       turbosound               => '1'
    )
    port map
@@ -422,8 +421,6 @@ begin
       load_state         => GBA_LoadState(GBA_LoadState'left),
       interframe_blend   => "00",
       maxpixels          => '0',
-      hdmode2x_bg        => '0',
-      hdmode2x_obj       => '0',
       specialmodule      => '0',
       rewind_on          => GBA_Rewind_on(GBA_Rewind_on'left),
       rewind_active      => GBA_Rewind_active(GBA_Rewind_active'left),
@@ -477,6 +474,9 @@ begin
       GBA_BusReadData    => GBA_BusReadData, 
       GBA_Bus_written    => GBA_Bus_written,
 
+      fb_hoffset         => 0,
+      fb_voffset         => 1,
+      fb_linesize        => 256,
       largeimg_out_addr  => largeimg_out2_addr,
       largeimg_out_data  => largeimg_out2_data,
       largeimg_out_req   => largeimg_out2_req, 
