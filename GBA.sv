@@ -283,8 +283,6 @@ wire [15:0] sdram_sz;
 
 wire [32:0] RTC_time;
 
-wire [63:0] status_in = cart_download ? {status[63:39],2'b00,status[36:17],1'b0,status[15:0]} : {status[63:39],2'b00,status[36:0]};
-
 hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 (
 	.clk_sys(clk_sys),
@@ -299,7 +297,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.ps2_key(ps2_key),
 
 	.status(status),
-	.status_in(status_in),
+	.status_in(status),
 	.status_set(cart_download),
 	.status_menumask(status_menumask),
 	.info_req(1'b0),
