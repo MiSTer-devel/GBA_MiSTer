@@ -325,7 +325,8 @@ begin
                         OAM_data0(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "11" -- obj shape prohibited
                      ) then
                      if (OAM_currentobj = 127) then
-                        OAMFetch <= IDLE;
+                        OAMFetch      <= IDLE;
+                        wait_busydone <= 7;
                      else
                         OAMFetch           <= WAITFIRST;
                         OAMRAM_Drawer_addr <= (OAM_currentobj * 2) + 2;
@@ -340,7 +341,8 @@ begin
                      OAMFetch <= IDLE;
                   elsif (PIXELGen = WAITOAM) then
                      if (OAM_currentobj = 127) then
-                        OAMFetch <= IDLE;
+                        OAMFetch      <= IDLE;
+                        wait_busydone <= 7;
                      else
                         OAMFetch           <= WAITFIRST;
                         OAMRAM_Drawer_addr <= (OAM_currentobj * 2) + 2;
