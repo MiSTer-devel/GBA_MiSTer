@@ -50,7 +50,6 @@ vcom -quiet -work sim/gba ^
 ../rtl/gba_gpu_timing.vhd ^
 ../rtl/gba_drawer_mode0.vhd ^
 ../rtl/gba_drawer_mode2.vhd ^
-../rtl/gba_drawer_mode2_2x.vhd ^
 ../rtl/gba_drawer_mode345.vhd ^
 ../rtl/gba_drawer_obj.vhd ^
 ../rtl/gba_drawer_merge.vhd ^
