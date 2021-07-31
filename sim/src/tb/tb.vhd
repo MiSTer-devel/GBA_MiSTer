@@ -369,6 +369,10 @@ begin
       GBA_BusReadData    => GBA_BusReadData, 
       GBA_Bus_written    => GBA_Bus_written,
 
+      seperate_h_l       => '0',
+      seperate_h_r       => '0',
+      seperate_v_u       => '0',
+      seperate_v_d       => '0',
       fb_hoffset         => 0,
       fb_voffset         => 0,
       fb_linesize        => 256,
@@ -474,6 +478,10 @@ begin
       GBA_BusReadData    => GBA_BusReadData, 
       GBA_Bus_written    => GBA_Bus_written,
 
+      seperate_h_l       => '0',
+      seperate_h_r       => '0',
+      seperate_v_u       => '0',
+      seperate_v_d       => '0',
       fb_hoffset         => 0,
       fb_voffset         => 1,
       fb_linesize        => 256,
