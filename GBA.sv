@@ -640,20 +640,20 @@ always @(posedge clk_sys) begin
 			if(cart_id[31:8] == "ARO") begin sram_quirk <= 1;                                             end // Rocky EU
 			if(cart_id[31:8] == "ALG") begin sram_quirk <= 1;                                             end // Dragon Ball Z - The Legacy of Goku
 			if(cart_id[31:8] == "ALF") begin sram_quirk <= 1;                                             end // Dragon Ball Z - The Legacy of Goku II
-			if(cart_id[31:8] == "BLF") begin sram_quirk <= 1;                                             end // 2 Games in 1 - Dragon Ball Z - The Legacy of Goku I & II US
+			if(cart_id[31:8] == "BLF") begin sram_quirk <= 1;                                             end // 2 Games in 1 - Dragon Ball Z - The Legacy of Goku I & II
 			if(cart_id[31:8] == "BDB") begin sram_quirk <= 1;                                             end // Dragon Ball Z - Taiketsu
-			if(cart_id[31:8] == "BG3") begin sram_quirk <= 1;                                             end // Dragon Ball Z - Buu's Fury US
+			if(cart_id[31:8] == "BG3") begin sram_quirk <= 1;                                             end // Dragon Ball Z - Buu's Fury
 			if(cart_id[31:8] == "BDV") begin sram_quirk <= 1;                                             end // Dragon Ball Z - Advanced Adventure
-			if(cart_id[31:8] == "A2Y") begin sram_quirk <= 1;                                             end // Top Gun - Combat Zones US
+			if(cart_id[31:8] == "A2Y") begin sram_quirk <= 1;                                             end // Top Gun - Combat Zones
 			if(cart_id[31:8] == "AI2") begin sram_quirk <= 1;                                             end // Iridion II
 			if(cart_id[31:8] == "BPE") begin gpio_quirk <= 1;                                             end // POKEMON Emerald
 			if(cart_id[31:8] == "AXV") begin gpio_quirk <= 1;                                             end // POKEMON Ruby
 			if(cart_id[31:8] == "AXP") begin gpio_quirk <= 1;                                             end // POKEMON Sapphire
 			if(cart_id[31:8] == "RZW") begin gpio_quirk <= 1;                                             end // WarioWare Twisted
-			if(cart_id[31:8] == "BKA") begin gpio_quirk <= 1;                                             end // Sennen Kazoku JP
-			if(cart_id[31:8] == "BR4") begin gpio_quirk <= 1;                                             end // Rockman EXE 4.5 JP
-			if(cart_id[31:8] == "BHG") begin                                           sprite_quirk <= 1; end // Gunstar Super Heroes US/EU
-			if(cart_id[31:8] == "BGX") begin                                           sprite_quirk <= 1; end // Gunstar Super Heroes JP
+			if(cart_id[31:8] == "BKA") begin gpio_quirk <= 1;                                             end // Sennen Kazoku
+			if(cart_id[31:8] == "BR4") begin gpio_quirk <= 1;                                             end // Rockman EXE 4.5
+			if(cart_id[31:8] == "BHG") begin                                           sprite_quirk <= 1; end // Gunstar Super Heroes
+			if(cart_id[31:8] == "BGX") begin                                           sprite_quirk <= 1; end // Gunstar Super Heroes
 			if(cart_id[31:24] == "K")  begin tilt_quirk <= 1;                                             end // All tilt sensor games
 			if(cart_id[31:24] == "U")  begin gpio_quirk <= 1; solar_quirk <= 1;                           end // All solar sensor games
 			if(cart_id[31:24] == "F")  begin
@@ -671,7 +671,6 @@ always @(posedge clk_sys) begin
 			end
 		end
 	end
-
 end
 
 ////////////////////////////  MEMORY  ///////////////////////////////////
