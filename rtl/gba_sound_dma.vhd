@@ -78,6 +78,8 @@ architecture arch of gba_sound_dma is
    signal SAVESTATE_DMASOUND       : std_logic_vector(4 downto 0);
    signal SAVESTATE_DMASOUND_back  : std_logic_vector(4 downto 0);
    
+   signal loading_fifo             : std_logic := '0';
+   
 begin 
 
 
@@ -137,9 +139,21 @@ begin
             sound_out      <= (others => '0');
             afterfifo_data <= (others => '0');
             
-            fifo_reset    <= '1';
-            fifo_cnt      <= to_integer(unsigned(SAVESTATE_DMASOUND(2 downto 0)));
             afterfifo_cnt <= to_integer(unsigned(SAVESTATE_DMASOUND(4 downto 3)));
+            
+            fifo_reset    <= '1';
+            fifo_cnt      <= 0;
+            loading_fifo  <= '1';
+         
+         elsif (loading_fifo = '1') then
+         
+            if (fifo_cnt < to_integer(unsigned(SAVESTATE_DMASOUND(2 downto 0)))) then
+               fifo_Wr  <= '1';
+               fifo_Din <= (others => '0');
+               fifo_cnt <= fifo_cnt + 1;
+            else
+               loading_fifo <= '0';
+            end if;
          
          else
          
@@ -199,12 +213,10 @@ begin
                
                if (afterfifo_cnt < 3) then
                   afterfifo_cnt <= afterfifo_cnt + 1;
-               else
+               elsif (fifo_Empty = '0') then
                   afterfifo_cnt <= 0;
                   if (fifo_cnt > 0) then 
                      fifo_cnt <= fifo_cnt - 1;
-                  end if;
-                  if (fifo_Empty = '0') then
                      fifo_Rd  <= '1';
                   end if;
                end if;
