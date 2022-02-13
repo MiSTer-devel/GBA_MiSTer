@@ -196,10 +196,6 @@ assign FB_WIDTH   = 12'd480;
 assign FB_HEIGHT  = 12'd320;
 assign FB_STRIDE  = 0;
 assign FB_FORCE_BLANK = 0;
-assign FB_PAL_CLK = 0;
-assign FB_PAL_ADDR= 0;
-assign FB_PAL_DOUT= 0;
-assign FB_PAL_WR  = 0;
 
 
 ///////////////////////  CLOCK/RESET  ///////////////////////////////////
