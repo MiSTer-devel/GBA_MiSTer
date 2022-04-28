@@ -106,6 +106,7 @@ entity gba_top is
       KeyL                  : in     std_logic;
       AnalogTiltX           : in     signed(7 downto 0);
       AnalogTiltY           : in     signed(7 downto 0);
+      Rumble                : out    std_logic;
       -- debug interface          
       GBA_BusAddr           : in     std_logic_vector(27 downto 0);
       GBA_BusRnW            : in     std_logic;
@@ -607,7 +608,8 @@ begin
       RTC_timestampOut     => RTC_timestampOut,  
       RTC_savedtimeOut     => RTC_savedtimeOut,  
       RTC_inuse            => RTC_inuse,         
-      
+
+      rumble               => Rumble,
       AnalogX              => AnalogTiltX,
       solar_in             => solar_in
    );

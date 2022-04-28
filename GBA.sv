@@ -309,6 +309,7 @@ wire [15:0] ioctl_dout;
 wire        ioctl_wr;
 wire  [7:0] ioctl_index;
 reg         ioctl_wait = 0;
+wire [15:0] joy_rumble;
 
 wire [15:0] joy;
 wire [15:0] joy_unmod;
@@ -332,6 +333,7 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 	.forced_scandoubler(forced_scandoubler),
 
 	.joystick_0(joy_unmod),
+	.joystick_0_rumble(joy_rumble),
 	.ps2_key(ps2_key),
 
 	.status(status),
@@ -494,7 +496,16 @@ wire [79:0] time_din;
 assign time_din[42 + 32 +: 80 - (42 + 32)] = '0;
 
 wire has_rtc;
+wire cart_rumble;
 reg RTC_load = 0;
+
+reg [7:0] rumble_reg = 0;
+
+always @(posedge clk_sys) begin
+	rumble_reg <= (cart_rumble ? 8'd128 : 8'd0);
+end
+
+assign joy_rumble = {8'd0, rumble_reg};
 
 gba_top
 #(
@@ -592,6 +603,7 @@ gba
 	.KeyL(joy[6]),
 	.AnalogTiltX(joystick_analog_0[7:0]),
 	.AnalogTiltY(joystick_analog_0[15:8]),
+	.Rumble(cart_rumble),
 
 	.pixel_out_addr(pixel_addr),      // integer range 0 to 38399;       -- address for framebuffer
 	.pixel_out_data(pixel_data),      // RGB data for framebuffer
