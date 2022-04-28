@@ -83,13 +83,13 @@ Please don't add bugs in such cases.
 - Solar Sensor: Boktai 1+2+3
 - Gyro: Wario Ware Twisted
 - Tilt: Yoshi Topsy Turvy/Universal Gravitation, Koro Koro Puzzle - Happy Panechu!
+- Rumble: Wario Ware Twisted, Drill Dozer
 
 If there is a game you want to play that also uses one of these features, but is not listed, please open a bug request.
 
 # Not included
 - Multiplayer features like Serials
 - E-Reader support
-- other cartridge hardware
 
 # Information for developers
 
