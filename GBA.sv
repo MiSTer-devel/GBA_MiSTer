@@ -253,7 +253,7 @@ parameter CONF_STR = {
 	"P1OK,Spritelimit,Off,On;",	
 	"P1-;",
 	"P1O78,Stereo Mix,None,25%,50%,100%;",
-	""P1OJ,Fast Forward Sound,On,Off;",
+	"P1OJ,Fast Forward Sound,On,Off;",
 
 	"P2,Hardware;",
 	"P2-;",
