@@ -53,6 +53,7 @@ module emu
 	output        VGA_F1,
 	output [1:0]  VGA_SL,
 	output        VGA_SCALER, // Force VGA scaler
+	output        VGA_DISABLE,
 
 	input  [11:0] HDMI_WIDTH,
 	input  [11:0] HDMI_HEIGHT,
@@ -181,12 +182,13 @@ assign USER_OUT = '1;
 assign AUDIO_S   = 1;
 assign AUDIO_MIX = status[8:7];
 
-assign LED_USER  = cart_download | bk_pending;
-assign LED_DISK  = 0;
-assign LED_POWER = 0;
-assign BUTTONS   = 0;
-assign VGA_SCALER= 0;
-assign HDMI_FREEZE=0;
+assign LED_USER    = cart_download | bk_pending;
+assign LED_DISK    = 0;
+assign LED_POWER   = 0;
+assign BUTTONS     = 0;
+assign VGA_SCALER  = 0;
+assign VGA_DISABLE = 0;
+assign HDMI_FREEZE = 0;
 
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
@@ -220,7 +222,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// X XXXXXXXXXRXXXXXXXXXXXXXXXXXXXX XXXXXXXX
+// X XXXXXXXXXRXXXXXXXXXXXXXXXXXXXX XXXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -266,6 +268,9 @@ parameter CONF_STR = {
 	"P3OEF,Storage,Auto,SDRAM,DDR3;",
 	"D5P3O5,Pause when OSD is open,Off,On;",
 	"P3OR,Rewind Capture,Off,On;",
+	"P3-;",
+	"P3-,Only Romhacks or Crash!;",
+	"P3o8,GPIO HACK(RTC+Rumble),Off,On;",
 
 	"- ;",
 	"R0,Reset;",
@@ -543,7 +548,7 @@ gba
    .hdmode2x_bg(status[21]),
    .hdmode2x_obj(status[22]),
    .shade_mode(shadercolors),
-	.specialmodule(gpio_quirk),
+	.specialmodule(gpio_quirk | status[40]),
 	.solar_in(status[31:29]),
 	.tilt(tilt_quirk),
    .rewind_on(status[27]),
@@ -730,7 +735,12 @@ end
 localparam ROM_START = (65536+131072)*4;
 
 reg sdram_en;
-always @(posedge clk_sys) if(reset) sdram_en <= (!status[15:14]) ? |sdram_sz[2:0] : status[14];
+always @(posedge clk_sys) begin
+   if(reset) sdram_en <= (!status[15:14]) ? |sdram_sz[2:0] : status[14];
+   
+   if (sdram_sz[1:0] == 2'b01 && last_addr[25]) sdram_en <= 1'b0; // use ddr3 if game is 32mbyte in size
+   
+end
 
 
 wire [25:2] sdram_addr;
@@ -834,11 +844,57 @@ ddram ddram
 	.ch4_ready(ss_ack),
    
    .ch5_addr({fb_addr, 1'b0}),
-   .ch5_din(fb_din),
-   .ch5_req(fb_req),
+   .ch5_din(gamma_en ? fb_gamma_din : fb_din),
+   .ch5_req(fb_ddr3_req),
    .ch5_ready(fb_ack)
    
 );
+
+// gamma for 2x rendering
+(* ramstyle="no_rw_check" *) reg [7:0] gamma_curve_r1[256];
+(* ramstyle="no_rw_check" *) reg [7:0] gamma_curve_g1[256];
+(* ramstyle="no_rw_check" *) reg [7:0] gamma_curve_b1[256];
+(* ramstyle="no_rw_check" *) reg [7:0] gamma_curve_r2[256];
+(* ramstyle="no_rw_check" *) reg [7:0] gamma_curve_g2[256];
+(* ramstyle="no_rw_check" *) reg [7:0] gamma_curve_b2[256];
+
+wire       gamma_en = gamma_bus[19];
+wire       gamma_wr = gamma_bus[18];
+wire [9:0] gamma_wr_addr = gamma_bus[17:8];
+wire [7:0] gamma_value = gamma_bus[7:0];
+
+reg [63:0] fb_gamma_din;
+reg        fb_ddr3_req;
+
+wire [7:0] gamma_index_r1 = fb_din[ 7: 0];
+wire [7:0] gamma_index_g1 = fb_din[15: 8];
+wire [7:0] gamma_index_b1 = fb_din[23:16];
+
+wire [7:0] gamma_index_r2 = fb_din[39:32];
+wire [7:0] gamma_index_g2 = fb_din[47:40];
+wire [7:0] gamma_index_b2 = fb_din[55:48];
+
+always @(posedge clk_sys) begin
+
+   if (gamma_wr) begin
+      case(gamma_wr_addr[9:8])
+         0: begin gamma_curve_r1[gamma_wr_addr[7:0]] <= gamma_value; gamma_curve_r2[gamma_wr_addr[7:0]] <= gamma_value; end
+         1: begin gamma_curve_g1[gamma_wr_addr[7:0]] <= gamma_value; gamma_curve_g2[gamma_wr_addr[7:0]] <= gamma_value; end
+         2: begin gamma_curve_b1[gamma_wr_addr[7:0]] <= gamma_value; gamma_curve_b2[gamma_wr_addr[7:0]] <= gamma_value; end
+      endcase
+   end
+
+   fb_gamma_din[ 7: 0] <= gamma_curve_r1[gamma_index_r1];
+   fb_gamma_din[15: 8] <= gamma_curve_g1[gamma_index_g1];
+   fb_gamma_din[23:16] <= gamma_curve_b1[gamma_index_b1];
+   fb_gamma_din[31:24] <= 8'd0;
+   fb_gamma_din[39:32] <= gamma_curve_r2[gamma_index_r2];
+   fb_gamma_din[47:40] <= gamma_curve_g2[gamma_index_g2];
+   fb_gamma_din[55:48] <= gamma_curve_b2[gamma_index_b2];
+   fb_gamma_din[63:56] <= 8'd0;
+ 
+   fb_ddr3_req  <= fb_req;                 
+end
 
 ///////////////// copy rom data from ddrram to sdram
 
@@ -1138,8 +1194,8 @@ always @(posedge CLK_VIDEO) begin
 		end
 	end
 
-	// Avoid lost sync by reset
-	if (x == 0 && y == 0)
+	// Avoid lost sync by reset, but force clearing reset at initial core load
+	if (x == 0 && (y == 0 || y == 511))
 		hold_reset <= 1'b0;
 	else if (reset & sync_core)
 		hold_reset <= 1'b1;

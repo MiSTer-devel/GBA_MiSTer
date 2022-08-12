@@ -1240,12 +1240,12 @@ begin
                   case (pixelcnt) is
                      when 0 => 
                         largeimg_out_addr <= "1" & std_logic_vector(to_unsigned(pixeladdress + current_frame * 16#100000#, 25));
-                        largeimg_out_data(31 downto  0) <= x"00" & linebuffer_data( 5 downto  0) & "00" & linebuffer_data(11 downto  6) & "00" & linebuffer_data(17 downto 12) & "00";
-                        largeimg_out_data(63 downto 32) <= x"00" & linebuffer_data(23 downto 18) & "00" & linebuffer_data(29 downto 24) & "00" & linebuffer_data(35 downto 30) & "00";
+                        largeimg_out_data(31 downto  0) <= x"00" & linebuffer_data( 5 downto  0) & linebuffer_data( 5 downto  4) & linebuffer_data(11 downto  6) & linebuffer_data(11 downto 10) & linebuffer_data(17 downto 12) & linebuffer_data(17 downto 16);
+                        largeimg_out_data(63 downto 32) <= x"00" & linebuffer_data(23 downto 18) & linebuffer_data(23 downto 22) & linebuffer_data(29 downto 24) & linebuffer_data(29 downto 28) & linebuffer_data(35 downto 30) & linebuffer_data(35 downto 34);
                      when 1 => 
                         largeimg_out_addr <= "1" & std_logic_vector(to_unsigned(pixeladdress + 512 + current_frame * 16#100000#, 25));
-                        largeimg_out_data(31 downto  0) <= x"00" & linebuffer2_data( 5 downto  0) & "00" & linebuffer2_data(11 downto  6) & "00" & linebuffer2_data(17 downto 12) & "00";
-                        largeimg_out_data(63 downto 32) <= x"00" & linebuffer2_data(23 downto 18) & "00" & linebuffer2_data(29 downto 24) & "00" & linebuffer2_data(35 downto 30) & "00";
+                        largeimg_out_data(31 downto  0) <= x"00" & linebuffer2_data( 5 downto  0) & linebuffer2_data( 5 downto  4) & linebuffer2_data(11 downto  6) & linebuffer2_data(11 downto 10) & linebuffer2_data(17 downto 12) & linebuffer2_data(17 downto 16);
+                        largeimg_out_data(63 downto 32) <= x"00" & linebuffer2_data(23 downto 18) & linebuffer2_data(23 downto 22) & linebuffer2_data(29 downto 24) & linebuffer2_data(29 downto 28) & linebuffer2_data(35 downto 30) & linebuffer2_data(35 downto 34);
                      when others => null;
                   end case;
                   
