@@ -222,14 +222,15 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// x xxxxxxxxxxxx xx   x  x         xxxx
+// x xxxxxxxxxxxx xxx  x  x         xxxx
 
 `include "build_id.v"
 parameter CONF_STR = {
 	"GBA2P;SS3E000000:80000;",
 	"FS,GBA,Load,300C0000;",
-   //"O6,Single Pak,Off,On;",
+	"O6,Rom for second GBA,Off,On;",
 	"-;",
+	"OH,Dupe Save to GBA 2,Off,On;",
 	"D0RC,Reload Backup RAM;",
 	"D0RD,Save Backup RAM;",
 	"D0ON,Autosave,Off,On;",
@@ -252,7 +253,7 @@ parameter CONF_STR = {
 
 wire  [1:0] buttons;
 wire [63:0] status;
-wire [15:0] status_menumask = {1'b0, 1'b0, cart_loaded, |cart_type, force_turbo, 1'b1, ~bk_ena};
+wire [15:0] status_menumask = {1'b0, 1'b0, cart_loaded, |cart_type, 1'b0, 1'b1, ~bk_ena};
 wire        forced_scandoubler;
 reg  [31:0] sd_lba;
 reg         sd_rd = 0;
@@ -335,8 +336,10 @@ always @(posedge clk_sys) begin
 	cart_download <= ioctl_download & ~&ioctl_index & |ioctl_index;
 end
 
-reg [26:0] last_addr;
-reg        flash_1m;
+reg [26:0] last_addr1;
+reg [26:0] last_addr2;
+reg        flash_1m1;
+reg        flash_1m2;
 reg  [1:0] cart_type;
 reg        cart_loaded = 0;
 reg        ioctl_download_1;
@@ -345,24 +348,32 @@ always @(posedge clk_sys) begin
 	reg old_download;
 
 	old_download <= cart_download;
-	if (old_download & ~cart_download) last_addr <= ioctl_addr;
 
-   ioctl_download_1 <= ioctl_download;
+	if (~status[6] && old_download & ~cart_download) last_addr1 <= ioctl_addr;
+	if (old_download & ~cart_download)               last_addr2 <= ioctl_addr;
+
+	ioctl_download_1 <= ioctl_download;
 	if (~ioctl_download && ioctl_download_1 && ioctl_index == 1) begin
-		flash_1m <= 0;
+		if (~status[6]) flash_1m1 <= 0;
+		flash_1m2 <= 0;
 		cart_type <= ioctl_index[7:6];
 		cart_loaded <= 1;
 	end
 
 	if(rom_wr) begin
-		if({str, rom_dout[7:0]} == "FLASH1M_V") flash_1m <= 1;
-		if({str[55:0], rom_dout[7:0], rom_dout[15:8]} == "FLASH1M_V") flash_1m <= 1;
+		if({str, rom_dout[7:0]} == "FLASH1M_V") begin
+			if (~status[6]) flash_1m1 <= 1;
+			flash_1m2 <= 1;
+		end
+
+		if({str[55:0], rom_dout[7:0], rom_dout[15:8]} == "FLASH1M_V") begin
+			if (~status[6]) flash_1m1 <= 1;
+			flash_1m2 <= 1;
+		end
 
 		str <= {str[47:0], rom_dout[7:0], rom_dout[15:8]};
 	end
 end
-
-wire force_turbo = |cart_type;
 
 reg [11:0] bios_wraddr;
 reg [31:0] bios_wrdata;
@@ -416,9 +427,9 @@ gba1
 	.GBA_on(~reset && ~romcopy_active),  // switching from off to on = reset
 	.GBA_lockspeed(1'b1),       // 1 = 100% speed, 0 = max speed
 	.GBA_cputurbo(1'b0),
-	.GBA_flash_1m(flash_1m),          // 1 when string "FLASH1M_V" is anywhere in gamepak
+	.GBA_flash_1m(flash_1m1),          // 1 when string "FLASH1M_V" is anywhere in gamepak
 	.CyclePrecalc(pause ? 16'd0 : 16'd100), // 100 seems to be ok to keep fullspeed for all games
-	.MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
+	.MaxPakAddr(last_addr1[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
 	.CyclesMissing(),                 // debug only for speed measurement, keep open
 	.CyclesVsyncSpeed(),              // debug only for speed measurement, keep open
 	.SramFlashEnable(~sram_quirk),
@@ -532,9 +543,9 @@ gba2
 	.GBA_on(~reset && ~romcopy_active),  // switching from off to on = reset
 	.GBA_lockspeed(1'b1),       // 1 = 100% speed, 0 = max speed
 	.GBA_cputurbo(1'b0),
-	.GBA_flash_1m(flash_1m),          // 1 when string "FLASH1M_V" is anywhere in gamepak
+	.GBA_flash_1m(flash_1m2),          // 1 when string "FLASH1M_V" is anywhere in gamepak
 	.CyclePrecalc(pause ? 16'd0 : 16'd100), // 100 seems to be ok to keep fullspeed for all games
-	.MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
+	.MaxPakAddr(last_addr2[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
 	.CyclesMissing(),                 // debug only for speed measurement, keep open
 	.CyclesVsyncSpeed(),              // debug only for speed measurement, keep open
 	.SramFlashEnable(~sram_quirk),
@@ -707,8 +718,8 @@ wire        rom1_ack   = sdr_sdram_ack;
 wire        rom1_req;
 
 wire [25:2] rom2_addr;
-wire [31:0] rom2_dout1 = (status[6]) ? 32'd0 : ddr_sdram_dout1;
-wire [31:0] rom2_dout2 = (status[6]) ? 32'd0 : ddr_sdram_dout2;
+wire [31:0] rom2_dout1 = ddr_sdram_dout1;
+wire [31:0] rom2_dout2 = ddr_sdram_dout2;
 wire        rom2_ack   = ddr_sdram_ack;
 wire        rom2_req;
 
@@ -763,7 +774,7 @@ sdram sdram
 	.ch3_addr({sd_lba[7:0],bram_addr}),
 	.ch3_din(bram_dout),
 	.ch3_dout(sdr_bram_din),
-	.ch3_req(bram_req & ~sd_lba[8]),
+	.ch3_req(bram_req[0]),
 	.ch3_rnw(~bk_loading),
 	.ch3_ready(sdr_bram_ack)
 );
@@ -802,7 +813,7 @@ ddram ddram
 	.ch3_addr({sd_lba[7:0],bram_addr}),
 	.ch3_din(bram_dout),
 	.ch3_dout(ddr_bram_din),
-	.ch3_req(bram_req & sd_lba[8]),
+	.ch3_req(bram_req[1]),
 	.ch3_rnw(~bk_loading),
 	.ch3_ready(ddr_bram_ack),
 
@@ -906,7 +917,7 @@ always @(posedge clk_sys) begin
          if (romcopy_state == STATE_ROMCOPY_ACK) begin
             romcopysd_state  <= STATE_ROMCOPYSD_WAIT1;
             romcopysd_active <= 1;
-            romcopysd_req    <= sdram_en;
+            romcopysd_req    <= sdram_en & ~status[6];
             romcopy_data     <= ddr_sdram_dout1;
             romcopy_datanext <= ddr_sdram_dout2;
             
@@ -917,16 +928,16 @@ always @(posedge clk_sys) begin
       end
       
       STATE_ROMCOPYSD_WAIT1 : begin
-         if (sdr_bus_ack || ~sdram_en) begin
+         if (sdr_bus_ack || ~sdram_en || status[6]) begin
             romcopy_writepos <= romcopy_writepos + 3'd4;
             romcopysd_state  <= STATE_ROMCOPYSD_WAIT2;
-            romcopysd_req    <= sdram_en;
+            romcopysd_req    <= sdram_en & ~status[6];
             romcopy_data     <= romcopy_datanext;
          end
       end
       
       STATE_ROMCOPYSD_WAIT2 : begin
-         if (sdr_bus_ack || ~sdram_en) begin
+         if (sdr_bus_ack || ~sdram_en || status[6]) begin
             romcopy_writepos <= romcopy_writepos + 3'd4;
             romcopysd_state  <= STATE_ROMCOPYSD_IDLE;
             romcopysd_active <= 0;
@@ -1003,25 +1014,34 @@ defparam
 reg [7:0] bram_addr;
 reg bram_tx_start;
 reg bram_tx_finish;
-reg bram_req;
+reg [1:0] bram_req;
+reg [1:0] bram_ackneeded;
 reg [1:0] bram_acked;
 
 always @(posedge clk_sys) begin
 	reg state;
 
-	bram_req <= 0;
-   
-   if (sdr_bram_ack) bram_acked[0] <= 1'b1;
-   if (ddr_bram_ack) bram_acked[1] <= 1'b1;
+	bram_req <= 2'b00;
+
+	if (sdr_bram_ack) bram_acked[0] <= 1'b1;
+	if (ddr_bram_ack) bram_acked[1] <= 1'b1;
 
 	if(~bram_tx_start) {bram_addr, state, bram_tx_finish} <= 0;
 	else if(~bram_tx_finish) begin
 		if(!state) begin
-			bram_req   <= 1;
+			bram_ackneeded <= 2'b00;
+			if (sd_lba[8] || (status[17] && bk_loading)) begin
+				bram_req[1]       <= 1'b1;
+				bram_ackneeded[1] <= 1'b1;
+			end 
+			if (~sd_lba[8]) begin
+				bram_req[0]       <= 1'b1;
+				bram_ackneeded[0] <= 1'b1;
+			end
 			state      <= 1;
-         bram_acked <= 2'b00;
+			bram_acked <= 2'b00;
 		end
-		else if(bram_acked > 2'd0) begin
+		else if(bram_acked == bram_ackneeded) begin
 			state <= 0;
 			if(~&bram_addr) bram_addr <= bram_addr + 1'd1;
 			else bram_tx_finish <= 1;
@@ -1191,8 +1211,8 @@ always @(posedge clk_sys) begin
 					state <= 0;
 					sd_lba <= sd_lba + 1'd1;
 
-					// always read max possible size
-					if(sd_lba[8:0] == 9'h1FF) begin
+					// read max possible size or read half size for dupe mode
+					if(sd_lba[8:0] == 9'h1FF || (sd_lba[8:0] == 9'h0FF && status[17])) begin
 						bk_state <= 0;
 					end
 				end
@@ -1214,8 +1234,10 @@ always @(posedge clk_sys) begin
 					state <= 0;
 					sd_lba <= sd_lba + 1'd1;
 
-					if (sd_lba[8:0] == 9'h1FF)
+					// always write max possible size
+					if (sd_lba[8:0] == 9'h1FF) begin
 						bk_state <= 0;
+					end
 				end
 		endcase
 	end
