@@ -250,7 +250,7 @@ begin
       GBA_lockspeed      => GBA_lockspeed(0), 
       GBA_cputurbo       => GBA_cputurbo(GBA_cputurbo'left), 
       GBA_flash_1m       => GBA_flash_1m(0),  
-      CyclePrecalc       => CyclePrecalc,  
+      CyclePrecalc       => CyclePrecalc, 
       MaxPakAddr         => MaxPakAddr,    
       CyclesMissing      => CyclesMissing,
       CyclesVsyncSpeed   => CyclesVsyncSpeed,
@@ -388,7 +388,7 @@ begin
    SAVE_out_Dout <= ch4_dout;
    SAVE_out_done <= ch4_ready;
    
-   iddrram : entity top.ddram
+   iddrram : entity tb.ddram
    port map (
       DDRAM_CLK        => clk100,      
       DDRAM_BUSY       => DDRAM_BUSY,      

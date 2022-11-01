@@ -65,10 +65,8 @@ vcom -2008 -quiet -work sim/gba ^
 ../rtl/gba_cpu.vhd ^
 ../rtl/gba_top.vhd
 
-vlog -sv -quiet -work sim/top ^
-../rtl/ddram.sv
-
 vcom -quiet -work sim/tb ^
+src/tb/ddram.vhd ^
 src/tb/stringprocessor.vhd ^
 src/tb/tb_interpreter.vhd ^
 src/tb/ddrram_model.vhd ^
