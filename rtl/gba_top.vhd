@@ -28,6 +28,7 @@ entity gba_top is
       GBA_cputurbo          : in     std_logic;  -- 1 = cpu free running, all other 16 mhz
       GBA_flash_1m          : in     std_logic;  -- 1 when string "FLASH1M_V" is anywhere in gamepak
       CyclePrecalc          : in     std_logic_vector(15 downto 0); -- 100 seems to be ok to keep fullspeed for all games
+      Underclock            : in     std_logic_vector(1 downto 0);
       MaxPakAddr            : in     std_logic_vector(24 downto 0); -- max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
       CyclesMissing         : buffer std_logic_vector(31 downto 0); -- debug only for speed measurement, keep open
       CyclesVsyncSpeed      : out    std_logic_vector(31 downto 0); -- debug only for speed measurement, keep open
@@ -947,6 +948,8 @@ begin
       
       wait_cnt_value   => unsigned(REG_WAITCNT),
       wait_cnt_update  => WAITCNT_written,
+      
+      Underclock       => Underclock,
       
       settle           => settle,
       dma_on           => dma_on,

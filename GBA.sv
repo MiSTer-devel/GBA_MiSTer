@@ -222,7 +222,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// X XXXXXXXXXRXXXXXXXXXXXXXXXXXXXX XXXXXXXXX
+// X XXXXXXXXXRXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -271,6 +271,7 @@ parameter CONF_STR = {
 	"P3-;",
 	"P3-,Only Romhacks or Crash!;",
 	"P3o8,GPIO HACK(RTC+Rumble),Off,On;",
+	"P3o9A,Underclock CPU,0,1,2,3;",
 
 	"- ;",
 	"R0,Reset;",
@@ -535,7 +536,8 @@ gba
 	.GBA_cputurbo(cpu_turbo),
 	.GBA_flash_1m(flash_1m),          // 1 when string "FLASH1M_V" is anywhere in gamepak
 	.CyclePrecalc(pause ? 16'd0 : 16'd100), // 100 seems to be ok to keep fullspeed for all games
-	.MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
+	.Underclock(status[42:41]),
+   .MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
 	.CyclesMissing(),                 // debug only for speed measurement, keep open
 	.CyclesVsyncSpeed(),              // debug only for speed measurement, keep open
 	.SramFlashEnable(~sram_quirk),
@@ -1081,7 +1083,7 @@ always @(posedge clk_sys) begin
 
 	bram_req <= 0;
 
-	if (extra_data_addr && bram_tx_start) begin
+	if (sd_lba[8] || (extra_data_addr && bram_tx_start)) begin
 		if (~&bram_addr)
 			bram_tx_finish <= 1;
 	end else if(~bram_tx_start) {bram_addr, state, bram_tx_finish} <= 0;

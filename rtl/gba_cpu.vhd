@@ -29,6 +29,8 @@ entity gba_cpu is
         
       wait_cnt_value   : in    unsigned(14 downto 0);
       wait_cnt_update  : in    std_logic;
+      
+      Underclock       : in     std_logic_vector(1 downto 0);
         
       bus_lowbits      : out   std_logic_vector(1 downto 0) := "00";
         
@@ -1175,7 +1177,7 @@ begin
                   if ((execute_writeback_calc = '0' or writeback_reg /= x"F") and calc_done = '1' and branchnext = '0') then
                      state_execute <= FETCH_OP;
                      done             <= '1';
-                     new_cycles_out   <= to_unsigned(execute_cycles + execute_addcycles, new_cycles_out'length);
+                     new_cycles_out   <= to_unsigned(execute_cycles + execute_addcycles + to_integer(unsigned(Underclock)), new_cycles_out'length);
                      new_cycles_valid <= '1';
                   end if;
                  
