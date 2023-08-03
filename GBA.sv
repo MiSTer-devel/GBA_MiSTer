@@ -222,7 +222,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// X XXXXXXXXXRXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXX
+// X XXXXXXXXXRXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -237,6 +237,7 @@ parameter CONF_STR = {
 	"D0O[23],Autosave,Off,On;",
 	"D0-;",
 	"O[36],Savestates to SDCard,On,Off;",
+	"O[43],Autoincrement Slot,Off,On;",
 	"O[38:37],Savestate Slot,1,2,3,4;",
 	"h4H3R[17],Save state (Alt-F1);",
 	"h4H3R[18],Restore state (F1);",
@@ -278,7 +279,7 @@ parameter CONF_STR = {
 	"J1,A,B,L,R,Select,Start,FastForward,Rewind,Savestates;",
 	"jn,A,B,L,R,Select,Start,X,X;",
 	"I,",
-	"Slot=DPAD|Save/Load=Start+DPAD,",
+	"Load=DPAD Up|Save=Down|Slot=L+R,",
 	"Active Slot 1,",
 	"Active Slot 2,",
 	"Active Slot 3,",
@@ -329,7 +330,7 @@ wire [15:0] joystick_analog_0;
 
 wire [32:0] RTC_time;
 
-wire [63:0] status_in = cart_download ? {status[63:39],ss_slot,status[36:17],1'b0,status[15:0]} : {status[63:39],ss_slot,status[36:0]};
+wire [63:0] status_in = cart_download ? {status[63:39],ss_slot,status[36:19],3'b000,status[15:0]} : {status[63:39],ss_slot,status[36:19],2'b00,status[16:0]};
 
 hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 (
@@ -450,8 +451,9 @@ savestate_ui savestate_ui
 	.joyUp          (joy_unmod[3]  ),
 	.joyStart       (joy_unmod[9]  ),
 	.joyRewind      (joy_unmod[11] ),
-	.rewindEnable   (status[27]    ), 
+	.rewindEnable   (status[27]    ),
 	.status_slot    (status[38:37] ),
+	.autoincslot    (status[43]    ),
 	.OSD_saveload   (status[18:17] ),
 	.ss_save        (ss_save       ),
 	.ss_load        (ss_load       ),
