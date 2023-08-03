@@ -124,6 +124,12 @@ module sys_top
 	inout   [6:0] USER_IO
 );
 
+`ifdef MISTER_DUAL_SDRAM
+	`ifndef MISTER_DISABLE_YC
+		`define MISTER_DISABLE_YC
+	`endif
+`endif
+
 //////////////////////  Secondary SD  ///////////////////////////////////
 wire SD_CS, SD_CLK, SD_MOSI;
 
