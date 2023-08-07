@@ -12,6 +12,7 @@ module savestate_ui #(parameter INFO_TIMEOUT_BITS)
 	input            joyRewind,    
 	input            rewindEnable,      
 	input      [1:0] status_slot, 
+	input            autoincslot, 
 	input      [1:0] OSD_saveload,
 	output reg       ss_save,
 	output reg       ss_load,
@@ -56,8 +57,6 @@ always @(posedge clk) begin
 	ss_info_req  <= 1'b0;
 	statusUpdate <= 1'b0;
 	
-	lastOSDsetting <= status_slot;
-	
 	if(allow_ss) begin
 	
 		// keyboard
@@ -71,6 +70,7 @@ always @(posedge clk) begin
 			endcase
 		end
 		
+		lastOSDsetting <= status_slot;
 		if (lastOSDsetting != status_slot) begin
 			ss_base      <= status_slot;
 			statusUpdate <= 1'b1;
@@ -98,13 +98,17 @@ always @(posedge clk) begin
 				slotswitched <= 1'b1;
 				InfoWaitcnt  <= 25'b0;
 			end
-			// save and load
-			if (joyStart & joyDown & ~lastDown) begin
+			// save
+			if (joyDown & ~lastDown) begin
 				ss_save     <= 1'b1;
 				InfoWaitcnt <= 25'b0;
+			if (autoincslot) begin
+				ss_base      <= ss_base + 1'd1;
+				statusUpdate <= 1'b1;
 			end
-			// save and load
-			if (joyStart & joyUp & ~lastUp) begin
+			end
+			// load
+			if (joyUp & ~lastUp) begin
 				ss_load     <= 1'b1;
 				InfoWaitcnt <= 25'b0;
 			end
@@ -114,8 +118,15 @@ always @(posedge clk) begin
 		
 		// OSD
 		old_st <= OSD_saveload;
-		if(old_st[0] ^ OSD_saveload[0]) ss_save <= OSD_saveload[0];
-		if(old_st[1] ^ OSD_saveload[1]) ss_load <= OSD_saveload[1];
+		if(~old_st[0] && OSD_saveload[0]) begin
+			ss_save <= 1'b1;
+			if (autoincslot) begin
+				ss_base      <= ss_base + 1'd1;
+				statusUpdate <= 1'b1;
+			end
+		end
+
+		if(~old_st[1] && OSD_saveload[1]) ss_load <= 1'b1;
 
 		// infotexts
 		if (slotswitched) begin

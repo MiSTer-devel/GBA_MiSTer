@@ -222,7 +222,7 @@ wire reset = RESET | buttons[1] | status[0] | cart_download | bk_loading | hold_
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// X XXXXXXXXXRXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXX
+// X XXXXXXXXXRXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -230,55 +230,56 @@ parameter CONF_STR = {
 	"FS,GBA,Load,300C0000;",
 	"-;",
 	"C,Cheats;",
-	"H1O6,Cheats Enabled,Yes,No;",
+	"H1O[6],Cheats Enabled,Yes,No;",
 	"-;",
-	"D0RC,Reload Backup RAM;",
-	"D0RD,Save Backup RAM;",
-	"D0ON,Autosave,Off,On;",
+	"D0R[12],Reload Backup RAM;",
+	"D0R[13],Save Backup RAM;",
+	"D0O[23],Autosave,Off,On;",
 	"D0-;",
-	"o4,Savestates to SDCard,On,Off;",
-	"o56,Savestate Slot,1,2,3,4;",
-	"h4H3RH,Save state (Alt-F1);",
-	"h4H3RI,Restore state (F1);",
+	"O[36],Savestates to SDCard,On,Off;",
+	"O[43],Autoincrement Slot,Off,On;",
+	"O[38:37],Savestate Slot,1,2,3,4;",
+	"h4H3R[17],Save state (Alt-F1);",
+	"h4H3R[18],Restore state (F1);",
 	"-;",
 	"P1,Video & Audio;",
 	"P1-;",
-	"P1o01,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
-	"P1O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
-	"P1o23,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
+	"P1O[33:32],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+	"P1O[4:2],Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
+	"P1O[35:34],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
 	"P1-;",
-	"P1OOQ,Modify Colors,Off,GBA 2.2,GBA 1.6,NDS 1.6,VBA 1.4,75%,50%,25%;",
+	"P1O[26:24],Modify Colors,Off,GBA 2.2,GBA 1.6,NDS 1.6,VBA 1.4,75%,50%,25%;",
 	"P1-;",
-	"P1o7,Sync core to video,On,Off;",
-	"P1O9A,Flickerblend,Off,Blend,30Hz;",
-	"P1OLM,2XResolution,Off,Background,Sprites,Both;",
-	"P1OK,Spritelimit,Off,On;",	
+	"P1O[39],Sync core to video,On,Off;",
+	"P1O[10:9],Flickerblend,Off,Blend,30Hz;",
+	"P1O[22:21],2XResolution,Off,Background,Sprites,Both;",
+	"P1O[20],Spritelimit,Off,On;",
 	"P1-;",
-	"P1O78,Stereo Mix,None,25%,50%,100%;",
-	"P1OJ,Fast Forward Sound,On,Off;",
+	"P1O[8:7],Stereo Mix,None,25%,50%,100%;",
+	"P1O[19],Fast Forward Sound,On,Off;",
 
 	"P2,Hardware;",
 	"P2-;",
-	"H6P2OTV,Solar Sensor,0%,15%,30%,42%,55%,70%,85%,100%;",	
-	"H2P2OG,Turbo,Off,On;",
-	"P2OS,Homebrew BIOS(Reset!),Off,On;",
+	"H6P2O[31:29],Solar Sensor,0%,15%,30%,42%,55%,70%,85%,100%;",
+	"H2P2O[16],Turbo,Off,On;",
+	"P2O[28],Homebrew BIOS(Reset!),Off,On;",
 
 	"P3,Miscellaneous;",
 	"P3-;",
-	"P3OEF,Storage,Auto,SDRAM,DDR3;",
-	"D5P3O5,Pause when OSD is open,Off,On;",
-	"P3OR,Rewind Capture,Off,On;",
+	"P3O[15:14],Storage,Auto,SDRAM,DDR3;",
+	"D5P3O[5],Pause when OSD is open,Off,On;",
+	"P3O[27],Rewind Capture,Off,On;",
 	"P3-;",
 	"P3-,Only Romhacks or Crash!;",
-	"P3o8,GPIO HACK(RTC+Rumble),Off,On;",
-	"P3o9A,Underclock CPU,0,1,2,3;",
+	"P3O[40],GPIO HACK(RTC+Rumble),Off,On;",
+	"P3O[42:41],Underclock CPU,0,1,2,3;",
 
 	"- ;",
 	"R0,Reset;",
 	"J1,A,B,L,R,Select,Start,FastForward,Rewind,Savestates;",
 	"jn,A,B,L,R,Select,Start,X,X;",
 	"I,",
-	"Slot=DPAD|Save/Load=Start+DPAD,",
+	"Load=DPAD Up|Save=Down|Slot=L+R,",
 	"Active Slot 1,",
 	"Active Slot 2,",
 	"Active Slot 3,",
@@ -329,7 +330,7 @@ wire [15:0] joystick_analog_0;
 
 wire [32:0] RTC_time;
 
-wire [63:0] status_in = cart_download ? {status[63:39],ss_slot,status[36:17],1'b0,status[15:0]} : {status[63:39],ss_slot,status[36:0]};
+wire [63:0] status_in = cart_download ? {status[63:39],ss_slot,status[36:19],3'b000,status[15:0]} : {status[63:39],ss_slot,status[36:19],2'b00,status[16:0]};
 
 hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 (
@@ -450,8 +451,9 @@ savestate_ui savestate_ui
 	.joyUp          (joy_unmod[3]  ),
 	.joyStart       (joy_unmod[9]  ),
 	.joyRewind      (joy_unmod[11] ),
-	.rewindEnable   (status[27]    ), 
+	.rewindEnable   (status[27]    ),
 	.status_slot    (status[38:37] ),
+	.autoincslot    (status[43]    ),
 	.OSD_saveload   (status[18:17] ),
 	.ss_save        (ss_save       ),
 	.ss_load        (ss_load       ),

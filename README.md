@@ -54,8 +54,8 @@ Keyboard Hotkeys for save states:
 
 Gamepad:
 - Savestatebutton+Left or Right switches the savestate slot
-- Savestatebutton+Start+Down saves to the selected slot
-- Savestatebutton+Start+Up loads from the selected slot
+- Savestatebutton+Down saves to the selected slot
+- Savestatebutton+Up loads from the selected slot
 
 # Rewind
 To use rewind, turn on the OSD Option "Rewind Capture" and map the rewind button.
