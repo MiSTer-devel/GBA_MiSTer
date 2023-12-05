@@ -679,6 +679,7 @@ always @(posedge clk_sys) begin
 			if(cart_id[31:8] == "BKA" ) begin gpio_quirk <= 1;                                             end // Sennen Kazoku
 			if(cart_id[31:8] == "BR4" ) begin gpio_quirk <= 1;                                             end // Rockman EXE 4.5
 			if(cart_id[31:8] == "V49" ) begin gpio_quirk <= 1;                                             end // Drill Dozer
+			if(cart_id[31:8] == "2GB" ) begin gpio_quirk <= 1;                                             end // Goodboy Galaxy
 			if(cart_id[31:8] == "BHG" ) begin                                           sprite_quirk <= 1; end // Gunstar Super Heroes
 			if(cart_id[31:8] == "BGX" ) begin                                           sprite_quirk <= 1; end // Gunstar Super Heroes
 			if(cart_id[31:8] == "KHP" ) begin tilt_quirk <= 1;                                             end // Koro Koro Puzzle JP
