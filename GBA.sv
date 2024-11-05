@@ -672,6 +672,7 @@ always @(posedge clk_sys) begin
 			if(cart_id[31:8] == "BDV" ) begin sram_quirk <= 1;                                             end // Dragon Ball Z - Advanced Adventure
 			if(cart_id[31:8] == "A2Y" ) begin sram_quirk <= 1;                                             end // Top Gun - Combat Zones
 			if(cart_id[31:8] == "AI2" ) begin sram_quirk <= 1;                                             end // Iridion II
+			if(cart_id[31:8] == "BT4" ) begin sram_quirk <= 1;                                             end // Dragon Ball GT Transformation			
 			if(cart_id[31:8] == "BPE" ) begin gpio_quirk <= 1;                                             end // POKEMON Emerald
 			if(cart_id[31:8] == "AXV" ) begin gpio_quirk <= 1;                                             end // POKEMON Ruby
 			if(cart_id[31:8] == "AXP" ) begin gpio_quirk <= 1;                                             end // POKEMON Sapphire
