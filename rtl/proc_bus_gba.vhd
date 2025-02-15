@@ -89,7 +89,8 @@ entity eProcReg_gba  is
       proc_bus  : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
       Din       : in    std_logic_vector(Reg.upper downto Reg.lower);
       Dout      : out   std_logic_vector(Reg.upper downto Reg.lower);
-      written   : out   std_logic := '0'
+      written   : out   std_logic := '0';
+      bEna      : out   std_logic_vector(3 downto 0) := "0000"
    );
 end entity;
 
@@ -111,6 +112,7 @@ begin
          if rising_edge(clk) then
          
             written <= '0';
+            bEna <= "0000";
             
             if (proc_bus.rst = '1') then
             
@@ -126,6 +128,7 @@ begin
                      (proc_bus.bEna(3) = '1' and i >= 24)) then
                         Dout_buffer(i) <= proc_bus.Din(i);  
                         written        <= '1';
+                        bEna           <= proc_bus.bEna;
                      end if;
                   end loop;
                end if;

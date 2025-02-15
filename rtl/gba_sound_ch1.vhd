@@ -57,8 +57,9 @@ architecture arch of gba_sound_ch1 is
                                                                                                                                                      
    signal Channel_Sound_length_written                : std_logic;                                                                                                                                                      
    signal Channel_Wave_Pattern_Duty_written           : std_logic;                                                                                                                                                                                                                                                                                                            
-   signal Channel_Initial_Volume_of_envelope_written  : std_logic;                                                                                                                                                      
-   signal Channel_Frequency_written                   : std_logic;                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+   signal Channel_Initial_Volume_of_envelope_written  : std_logic;
+   signal Channel_Initial_written                     : std_logic;
+   signal Channel_Frequency_written_be                : std_logic_vector(3 downto 0);
                                                                                                                                                      
    signal wavetable_ptr        : unsigned(2 downto 0)  := (others => '0');
    signal wavetable            : std_logic_vector(0 to 7)  := (others => '0');
@@ -74,7 +75,6 @@ architecture arch of gba_sound_ch1 is
    signal volume               : integer range 0 to 15 := 0;
                                
    signal freq_divider         : unsigned(11 downto 0) := (others => '0');
-   signal freq_check           : unsigned(11 downto 0) := (others => '0');
    signal length_on            : std_logic := '0';
    signal ch_on                : std_logic := '0';
    signal freq_cnt             : unsigned(11 downto 0) := (others => '0');
@@ -99,9 +99,9 @@ begin
    iReg_Channel_Envelope_Step_Time         : entity work.eProcReg_gba generic map ( Reg_Envelope_Step_Time         ) port map  (clk100, gb_bus, Channel_Envelope_Step_Time        , Channel_Envelope_Step_Time        );  
    iReg_Channel_Envelope_Direction         : entity work.eProcReg_gba generic map ( Reg_Envelope_Direction         ) port map  (clk100, gb_bus, Channel_Envelope_Direction        , Channel_Envelope_Direction        );  
    iReg_Channel_Initial_Volume_of_envelope : entity work.eProcReg_gba generic map ( Reg_Initial_Volume_of_envelope ) port map  (clk100, gb_bus, Channel_Initial_Volume_of_envelope, Channel_Initial_Volume_of_envelope, Channel_Initial_Volume_of_envelope_written);  
-   iReg_Channel_Frequency                  : entity work.eProcReg_gba generic map ( Reg_Frequency                  ) port map  (clk100, gb_bus, "00000000000"                     , Channel_Frequency                 , Channel_Frequency_written                 );  
+   iReg_Channel_Frequency                  : entity work.eProcReg_gba generic map ( Reg_Frequency                  ) port map  (clk100, gb_bus, "00000000000"                     , Channel_Frequency                 , open ,  Channel_Frequency_written_be      );
    iReg_Channel_Length_Flag                : entity work.eProcReg_gba generic map ( Reg_Length_Flag                ) port map  (clk100, gb_bus, Channel_Length_Flag               , Channel_Length_Flag               );  
-   iReg_Channel_Initial                    : entity work.eProcReg_gba generic map ( Reg_Initial                    ) port map  (clk100, gb_bus, "0"                               , Channel_Initial                   );  
+   iReg_Channel_Initial                    : entity work.eProcReg_gba generic map ( Reg_Initial                    ) port map  (clk100, gb_bus, "0"                               , Channel_Initial                   , Channel_Initial_written);
    iReg_Channel_HighZero                   : entity work.eProcReg_gba generic map ( Reg_HighZero                   ) port map  (clk100, gb_bus, Channel_HighZero);   
   
    process (clk100)
@@ -122,7 +122,6 @@ begin
             envelope_add         <= (others => '0');
             volume               <= 0;
             freq_divider         <= (others => '0');
-            freq_check           <= (others => '0');
             length_on            <= '0';  
             ch_on                <= '0';  
             freq_cnt             <= (others => '0');
@@ -152,16 +151,24 @@ begin
                envelope_add <= (others => '0');
                volume       <= to_integer(unsigned(Channel_Initial_Volume_of_envelope));
             end if;
+
+            if (Channel_Frequency_written_be(0) = '1') then
+               freq_divider(7 downto 0) <= unsigned(Channel_Frequency(7 downto 0));
+            end if;
+
+            if (Channel_Frequency_written_be(1) = '1') then
+               freq_divider(11 downto 8) <= '0' & unsigned(Channel_Frequency(10 downto 8));
+            end if;
+
+            length_on <= Channel_Length_Flag(Channel_Length_Flag'left);
             
-            if (Channel_Frequency_written = '1') then
-               freq_divider <= '0' & unsigned(Channel_Frequency);
-               length_on <= Channel_Length_Flag(Channel_Length_Flag'left);
+            if (Channel_Initial_written = '1') then
                if (Channel_Initial = "1") then
                   sweepcnt      <= (others => '0');
                   envelope_cnt  <= (others => '0');
                   envelope_add  <= (others => '0');
                   ch_on         <= not loading_savestate;
-                  freq_cnt      <= (others => '0');
+                  freq_cnt      <= freq_divider;
                   wavetable_ptr <= (others => '0');
                end if;
             end if;
@@ -177,17 +184,16 @@ begin
                
                -- freq / wavetable
                if (new_cycles_valid = '0' and soundcycles_freq >= 4) then
-                  freq_cnt <= freq_cnt + 1;
                   soundcycles_freq <= soundcycles_freq - 4;
+
+                  if (freq_cnt = 2047) then
+                     freq_cnt <= freq_divider;
+                     wavetable_ptr <= wavetable_ptr + 1;
+                  else
+                     freq_cnt <= freq_cnt + 1;
+                  end if;
                end if;
-               
-               freq_check <= 2048 - freq_divider;
-               
-               if (freq_cnt >= freq_check) then
-                  freq_cnt <= freq_cnt - freq_check;
-                  wavetable_ptr <= wavetable_ptr + 1;
-               end if;
-               
+
                -- sweep
                sweep_next <= freq_divider srl to_integer(unsigned(Channel_Number_of_sweep_shift));
                
