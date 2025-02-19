@@ -222,6 +222,11 @@ architecture arch of gba_gpu_drawer is
    signal ref3_x_written : std_logic;
    signal ref3_y_written : std_logic;
    
+   signal ref2_x_reload : std_logic;
+   signal ref2_y_reload : std_logic;
+   signal ref3_x_reload : std_logic;
+   signal ref3_y_reload : std_logic;
+
    signal enables_wnd0   : std_logic_vector(5 downto 0);
    signal enables_wnd1   : std_logic_vector(5 downto 0);
    signal enables_wndobj : std_logic_vector(5 downto 0);
@@ -264,7 +269,8 @@ architecture arch of gba_gpu_drawer is
    signal VRAM_Drawer_cnt_Hi   : std_logic := '0';
    
    -- background multiplexing
-   signal line_trigger_1       : std_logic := '0';  
+   signal line_trigger_1       : std_logic := '0';
+   signal line_trigger_11      : std_logic := '0';
    signal drawline_1           : std_logic := '0';
    signal hblank_trigger_1     : std_logic := '0';
    
@@ -1124,7 +1130,7 @@ begin
    port map
    (
       clk100               => clk100,
-      line_trigger         => line_trigger,
+      line_trigger         => line_trigger_1,
       drawline             => drawline_mode2_2,
       busy                 => busy_mode2_2,
       mapbase              => unsigned(REG_BG2CNT_Screen_Base_Block),
@@ -1159,7 +1165,7 @@ begin
    port map
    (
       clk100               => clk100,
-      line_trigger         => line_trigger_1,
+      line_trigger         => line_trigger_11,
       drawline             => drawline_mode2_2_hd0,
       busy                 => busy_mode2_2_hd0,
       mapbase              => unsigned(REG_BG2CNT_Screen_Base_Block),
@@ -1194,7 +1200,7 @@ begin
    port map
    (
       clk100               => clk100,
-      line_trigger         => line_trigger_1,
+      line_trigger         => line_trigger_11,
       drawline             => drawline_mode2_2_hd1,
       busy                 => busy_mode2_2_hd1,
       mapbase              => unsigned(REG_BG2CNT_Screen_Base_Block),
@@ -1224,7 +1230,7 @@ begin
    port map
    (
       clk100               => clk100,
-      line_trigger         => line_trigger,
+      line_trigger         => line_trigger_1,
       drawline             => drawline_mode2_3,
       busy                 => busy_mode2_3,
       mapbase              => unsigned(REG_BG3CNT_Screen_Base_Block),
@@ -1259,7 +1265,7 @@ begin
    port map
    (
       clk100               => clk100,
-      line_trigger         => line_trigger_1,
+      line_trigger         => line_trigger_11,
       drawline             => drawline_mode2_3_hd0,
       busy                 => busy_mode2_3_hd0,
       mapbase              => unsigned(REG_BG3CNT_Screen_Base_Block),
@@ -1294,7 +1300,7 @@ begin
    port map
    (
       clk100               => clk100,
-      line_trigger         => line_trigger_1,
+      line_trigger         => line_trigger_11,
       drawline             => drawline_mode2_3_hd1,
       busy                 => busy_mode2_3_hd1,
       mapbase              => unsigned(REG_BG3CNT_Screen_Base_Block),
@@ -1325,7 +1331,7 @@ begin
    (
       clk100               => clk100,
       BG_Mode              => BG_Mode,
-      line_trigger         => line_trigger,
+      line_trigger         => line_trigger_1,
       drawline             => drawline_mode345,
       busy                 => busy_mode345,
       second_frame         => REG_DISPCNT_Display_Frame_Select(REG_DISPCNT_Display_Frame_Select'left),
@@ -2339,21 +2345,30 @@ begin
       if rising_edge(clk100) then
 
          -- ref point written
-         if (refpoint_update = '1' or ref2_x_written = '1') then 
+         if (ref2_x_written = '1') then ref2_x_reload <= '1'; end if;
+         if (ref2_y_written = '1') then ref2_y_reload <= '1'; end if;
+         if (ref3_x_written = '1') then ref3_x_reload <= '1'; end if;
+         if (ref3_y_written = '1') then ref3_y_reload <= '1'; end if;
+
+         if (refpoint_update = '1' or (line_trigger = '1' and ref2_x_reload = '1')) then 
             ref2_x        <= signed(REG_BG2RefX); 
-            mosaic_ref2_x <= signed(REG_BG2RefX); 
+            mosaic_ref2_x <= signed(REG_BG2RefX);
+            ref2_x_reload <= '0';
          end if;
-         if (refpoint_update = '1' or ref2_y_written = '1') then 
+         if (refpoint_update = '1' or (line_trigger = '1' and ref2_y_reload = '1')) then 
             ref2_y        <= signed(REG_BG2RefY); 
             mosaic_ref2_y <= signed(REG_BG2RefY);
+            ref2_y_reload <= '0';
          end if;
-         if (refpoint_update = '1' or ref3_x_written = '1') then 
+         if (refpoint_update = '1' or (line_trigger = '1' and ref3_x_reload = '1')) then 
             ref3_x        <= signed(REG_BG3RefX); 
-            mosaic_ref3_x <= signed(REG_BG3RefX); 
+            mosaic_ref3_x <= signed(REG_BG3RefX);
+            ref3_x_reload <= '0';
          end if;
-         if (refpoint_update = '1' or ref3_y_written = '1') then 
+         if (refpoint_update = '1' or (line_trigger = '1' and ref3_y_reload = '1')) then 
             ref3_y        <= signed(REG_BG3RefY); 
-            mosaic_ref3_y <= signed(REG_BG3RefY);           
+            mosaic_ref3_y <= signed(REG_BG3RefY);
+            ref3_y_reload <= '0';
          end if;
          
          -- hd d(m)x/y
@@ -2375,7 +2390,8 @@ begin
          end if;
          
          line_trigger_1 <= line_trigger;
-         if (line_trigger = '1') then
+         line_trigger_11 <= line_trigger_1;
+         if (line_trigger_1 = '1') then
             ref2_x_last   <= ref2_x;
             if (new_dx2 = '1') then
                ref2_x_hd0    <= ref2_x & '0';
