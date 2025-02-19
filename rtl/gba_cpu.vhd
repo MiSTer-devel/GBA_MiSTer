@@ -245,7 +245,6 @@ architecture arch of gba_cpu is
    signal execute_writeback_r17     : std_logic := '0';
    signal execute_writeback_userreg : std_logic := '0';
    signal execute_switchregs        : std_logic := '0';
-   signal execute_saveregs          : std_logic := '0';
    signal execute_saveState         : std_logic := '0';
    signal execute_SWI               : std_logic := '0';
    signal execute_IRP               : std_logic := '0';
@@ -925,28 +924,35 @@ begin
                end case;
             end if;
             
-            if (execute_saveregs = '1') then
-                     
+            if (execute_saveState = '1' or (cpu_mode = CPUMODE_USER or cpu_mode = CPUMODE_SYSTEM)) then
+               regs(17) <= regs(16); -- User mode reads SPSR as CPSR
+            end if;
+
+            if (execute_switchregs = '1') then
+
+               -- Store current regs into mode regs
+               if (cpu_mode = CPUMODE_FIQ) then
+                  regs_0_8  <= regs(8);
+                  regs_0_9  <= regs(9);
+                  regs_0_10 <= regs(10);
+                  regs_0_11 <= regs(11);
+                  regs_0_12 <= regs(12);
+               end if;
+               if (cpu_mode_old = CPUMODE_FIQ) then
+                  regs_1_8  <= regs(8);
+                  regs_1_9  <= regs(9);
+                  regs_1_10 <= regs(10);
+                  regs_1_11 <= regs(11);
+                  regs_1_12 <= regs(12);
+                  regs_1_13 <= regs(13);
+               end if;
+
                case (cpu_mode_old) is
                   when CPUMODE_USER | CPUMODE_SYSTEM =>
-                     if (cpu_mode = CPUMODE_FIQ) then
-                        regs_0_8  <= regs(8);
-                        regs_0_9  <= regs(9);
-                        regs_0_10 <= regs(10);
-                        regs_0_11 <= regs(11);
-                        regs_0_12 <= regs(12);
-                     end if;
                      regs_0_13 <= regs(13);
                      regs_0_14 <= regs(14);
-                     regs(17)  <= regs(16);
-  
+
                   when CPUMODE_FIQ =>
-                     regs_1_8  <= regs(8);
-                     regs_1_9  <= regs(9);
-                     regs_1_10 <= regs(10);
-                     regs_1_11 <= regs(11);
-                     regs_1_12 <= regs(12);
-                     regs_1_13 <= regs(13);
                      regs_1_14 <= regs(14);
                      regs_1_17 <= regs(17);
 
@@ -972,60 +978,70 @@ begin
                      
                   when others => report "should never happen" severity failure; 
                end case;
-                  
-            end if;
-               
-            if (execute_switchregs = '1') then
-            
+
+               -- Restore mode regs into current regs
+               if (cpu_mode_old = CPUMODE_FIQ) then
+                  regs(8)  <= regs_0_8;
+                  regs(9)  <= regs_0_9;
+                  regs(10) <= regs_0_10;
+                  regs(11) <= regs_0_11;
+                  regs(12) <= regs_0_12;
+               end if;
+               if (cpu_mode = CPUMODE_FIQ) then
+                  regs(8)  <= regs_1_8;
+                  regs(9)  <= regs_1_9;
+                  regs(10) <= regs_1_10;
+                  regs(11) <= regs_1_11;
+                  regs(12) <= regs_1_12;
+               end if;
+
                case (cpu_mode) is
                   when CPUMODE_USER | CPUMODE_SYSTEM =>
-                     if (cpu_mode_old = CPUMODE_FIQ) then
-                        regs(8)  <= regs_0_8; 
-                        regs(9)  <= regs_0_9; 
-                        regs(10) <= regs_0_10;
-                        regs(11) <= regs_0_11;
-                        regs(12) <= regs_0_12;
-                     end if;
                      regs(13) <= regs_0_13;
                      regs(14) <= regs_0_14;
   
                   when CPUMODE_FIQ =>
-                     regs(8)  <= regs_1_8 ;
-                     regs(9)  <= regs_1_9 ;
-                     regs(10) <= regs_1_10;
-                     regs(11) <= regs_1_11;
-                     regs(12) <= regs_1_12;
                      regs(13) <= regs_1_13;
                      regs(14) <= regs_1_14;
-                     if (execute_saveState = '1') then regs(17) <= regs(16); else regs(17) <= regs_1_17; end if;
+                     if (execute_saveState = '0') then
+                        regs(17) <= regs_1_17;
+                     end if;
 
                   when CPUMODE_IRQ =>
                      regs(13) <= regs_2_13;
                      if (execute_IRP = '0') then
                         regs(14) <= regs_2_14;
                      end if;
-                     if (execute_saveState = '1') then regs(17) <= regs(16); else regs(17) <= regs_2_17; end if;
+                     if (execute_saveState = '0') then
+                        regs(17) <= regs_2_17;
+                     end if;
 
                   when CPUMODE_SUPERVISOR =>
                      regs(13) <= regs_3_13;
                      if (execute_SWI = '0') then
                         regs(14) <= regs_3_14;
                      end if;
-                     if (execute_saveState = '1') then regs(17) <= regs(16); else regs(17) <= regs_3_17; end if;
+                     if (execute_saveState = '0') then
+                        regs(17) <= regs_3_17;
+                     end if;
 
                   when CPUMODE_ABORT =>
                      regs(13) <= regs_4_13;
                      regs(14) <= regs_4_14;
-                     if (execute_saveState = '1') then regs(17) <= regs(16); else regs(17) <= regs_4_17; end if;
+                     if (execute_saveState = '0') then
+                        regs(17) <= regs_4_17;
+                     end if;
 
                   when CPUMODE_UNDEFINED =>
                      regs(13) <= regs_5_13;
                      regs(14) <= regs_5_14;
-                     if (execute_saveState = '1') then regs(17) <= regs(16); else regs(17) <= regs_5_17; end if;
-                     
+                     if (execute_saveState = '0') then
+                        regs(17) <= regs_5_17;
+                     end if;
+
                   when others => report "should never happen" severity failure; 
                end case;
-            
+
             end if;
             
             if (cpu_IRP = '1' and IRQ_disable = '0' and irq_delay = 0 and irq_calc = '0' and irq_triggerhold = '0') then
@@ -2104,7 +2120,6 @@ begin
             execute_writeback_r17      <= '0';
             execute_writeback_userreg  <= '0';
             execute_switchregs         <= '0';
-            execute_saveregs           <= '0';
             execute_saveState          <= '0';
             execute_SWI                <= '0';
             execute_IRP                <= '0';
@@ -2137,8 +2152,9 @@ begin
                writeback_reg          <= x"E";
                
                execute_saveState  <= '1';
-               execute_switchregs <= '1';
-               execute_saveregs   <= '1';
+               if (cpu_mode /= CPUMODE_IRQ) then
+                  execute_switchregs <= '1';
+               end if;
                execute_IRP        <= '1';
                cpu_mode_old       <= cpu_mode;
                cpu_mode           <= CPUMODE_IRQ;
@@ -2340,12 +2356,13 @@ begin
                         calc_done              <= '1';
                         execute_writeback_calc <= execute_writeback;
                         writeback_reg          <= execute_rdest;
-                        execute_saveregs       <= '1';
                         execute_saveState      <= '0';
-                        execute_switchregs     <= '1';
+                        if (cpu_mode /= std_logic_vector(regs(17)(3 downto 0))) then
+                           execute_switchregs     <= '1';
+                        end if;
                         if (
-                              (cpu_mode = CPUMODE_USER   and (std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER or std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM)) or
-                              (cpu_mode = CPUMODE_SYSTEM and (std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER or std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM))
+                              (cpu_mode = CPUMODE_USER   and (std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM)) or
+                              (cpu_mode = CPUMODE_SYSTEM and (std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER))
                           ) then
                            execute_switchregs  <= '0';
                         end if;
@@ -2502,7 +2519,7 @@ begin
                      when MSR_START =>
                         if (execute_start = '1') then
                            if (execute_alu_use_immi = '1') then
-                              msr_value <= execute_immidiate(31 downto 24) & x"00000" & execute_immidiate(3 downto 0); -- immidiate is for flags only
+                              msr_value <= execute_immidiate;
                            else
                               msr_value <= regs(to_integer(unsigned(execute_Rm_op2)));
                            end if;
@@ -2532,9 +2549,6 @@ begin
                         calc_done      <= '1';
                         MSR_Stage      <= MSR_START;
                         new_value := regs(16);
-                        if (execute_alu_use_immi = '1') then
-                           new_value(31 downto 24) := msr_value(31 downto 24);
-                        end if;
                         if (cpu_mode /= CPUMODE_USER) then
                            if (execute_Rn_op1(0) = '1') then new_value( 7 downto  0) := msr_value( 7 downto  0); end if;
                            if (execute_Rn_op1(1) = '1') then new_value(15 downto  8) := msr_value(15 downto  8); end if;
@@ -2545,12 +2559,11 @@ begin
                            execute_switchregs <= '1';
                         end if;
                         if (
-                              (cpu_mode = CPUMODE_USER   and (std_logic_vector(new_value(3 downto 0)) = CPUMODE_USER or std_logic_vector(new_value(3 downto 0)) = CPUMODE_SYSTEM)) or
-                              (cpu_mode = CPUMODE_SYSTEM and (std_logic_vector(new_value(3 downto 0)) = CPUMODE_USER or std_logic_vector(new_value(3 downto 0)) = CPUMODE_SYSTEM))
+                              (cpu_mode = CPUMODE_USER   and (std_logic_vector(new_value(3 downto 0)) = CPUMODE_SYSTEM)) or
+                              (cpu_mode = CPUMODE_SYSTEM and (std_logic_vector(new_value(3 downto 0)) = CPUMODE_USER))
                           ) then
                            execute_switchregs  <= '0';
                         end if;
-                        execute_saveregs   <= '1';
                         cpu_mode_old       <= cpu_mode;
                         cpu_mode           <= std_logic_vector(new_value(3 downto 0));
                         thumbmode          <= new_value(5);
@@ -2949,15 +2962,16 @@ begin
                      when BLOCKSWITCHMODE =>
                         block_rw_stage     <= BLOCKFETCHADDR;
                         calc_done          <= '1';
-                        execute_saveState  <= '1';
-                        execute_switchregs <= '1';
+                        execute_saveState  <= '1'; -- is this correct?
+                        if (cpu_mode /= std_logic_vector(regs(17)(3 downto 0))) then
+                           execute_switchregs     <= '1';
+                        end if;
                         if (
-                              (cpu_mode = CPUMODE_USER   and (std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER or std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM)) or
-                              (cpu_mode = CPUMODE_SYSTEM and (std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER or std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM))
+                              (cpu_mode = CPUMODE_USER   and (std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_SYSTEM)) or
+                              (cpu_mode = CPUMODE_SYSTEM and (std_logic_vector(regs(17)(3 downto 0)) = CPUMODE_USER))
                           ) then
                            execute_switchregs  <= '0';
                         end if;
-                        execute_saveregs   <= '1';
                         cpu_mode_old       <= cpu_mode;
                         cpu_mode           <= std_logic_vector(regs(17)(3 downto 0));
                         thumbmode          <= regs(17)(5);
@@ -3001,9 +3015,10 @@ begin
                      --}
                      
                      execute_saveState  <= '1';
-                     execute_switchregs <= '1';
-                     execute_saveregs   <= '1';
                      execute_SWI        <= '1';
+                     if (cpu_mode /= CPUMODE_SUPERVISOR) then
+                       execute_switchregs <= '1';
+                     end if;
                      cpu_mode_old       <= cpu_mode;
                      cpu_mode           <= CPUMODE_SUPERVISOR;
                      thumbmode          <= '0';
