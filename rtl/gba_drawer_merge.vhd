@@ -5,7 +5,7 @@ use IEEE.numeric_std.all;
 entity gba_drawer_merge is
    port 
    (
-      clk100               : in  std_logic;                     
+      clk                  : in  std_logic;                     
         
       enable               : in  std_logic;
       hblank               : in  std_logic;
@@ -227,9 +227,9 @@ begin
    -- ####################################
    -- #### latch on hsync
    -- ####################################
-   process (clk100)
+   process (clk)
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
          if (hblank = '1') then
             WND0_on           <= in_WND0_on;          
             WND1_on           <= in_WND1_on;          
@@ -287,9 +287,9 @@ begin
    first_target  <= effect_1st_BD & effect_1st_obj & effect_1st_bg3 & effect_1st_bg2 & effect_1st_bg1 & effect_1st_bg0;
    second_target <= effect_2nd_BD & effect_2nd_obj & effect_2nd_bg3 & effect_2nd_bg2 & effect_2nd_bg1 & effect_2nd_bg0;
    
-   process (clk100)
+   process (clk)
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
 
          if (EVA  < 16) then EVA_MAXED  <= to_integer(EVA);  else EVA_MAXED  <= 16; end if;
          if (EVB  < 16) then EVB_MAXED  <= to_integer(EVB);  else EVB_MAXED  <= 16; end if;
@@ -320,10 +320,10 @@ begin
    -- ####################################
    -- #### clock cycle zero
    -- ####################################
-   process (clk100)
+   process (clk)
       variable enables_var    : std_logic_vector(4 downto 0);
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
 
          enable_cycle1        <= enable;      
          xpos_cycle1          <= xpos;        
@@ -370,10 +370,10 @@ begin
    -- ####################################
    -- #### clock cycle one
    -- ####################################
-   process (clk100)
+   process (clk)
       variable topprio_var : std_logic_vector(5 downto 0);
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
 
          enable_cycle2         <= enable_cycle1        ;
          xpos_cycle2           <= xpos_cycle1          ;   
@@ -418,11 +418,11 @@ begin
    -- ####################################
    -- #### clock cycle two
    -- ####################################
-   process (clk100)
+   process (clk)
       variable firstprio_var  : std_logic_vector(5 downto 0);
       variable secondprio_var : std_logic_vector(5 downto 0);
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
          
          enable_cycle3           <= enable_cycle2        ;
          xpos_cycle3             <= xpos_cycle2          ;
@@ -484,11 +484,11 @@ begin
    -- ####################################
    -- #### clock cycle three
    -- ####################################
-   process (clk100)
+   process (clk)
       variable special_effect_var : unsigned(1 downto 0);
       variable secondpixel        : std_logic_vector(14 downto 0);
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
          
          enable_cycle4           <= enable_cycle3       ;
          xpos_cycle4             <= xpos_cycle3         ;
@@ -564,10 +564,10 @@ begin
    -- ####################################
    -- #### clock cycle four
    -- ####################################
-   process (clk100)
+   process (clk)
       variable special_pixel : unsigned(14 downto 0);
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
 
          pixel_we <= '0';
          

@@ -1,5 +1,6 @@
 # [Gameboy Advance](https://en.wikipedia.org/wiki/Game_Boy_Advance) for [MiSTer Platform](https://github.com/MiSTer-devel/Main_MiSTer/wiki)
 
+Accuracy branch
 
 # HW Requirements/Features
 The games can run from a naked DE10-Nano with the build-in DDR-RAM.
@@ -29,19 +30,14 @@ Some small video glitches remain, see issue list.
 # Features
 - saving as in GBA
 - Savestates
-- FastForward - speed up game by factor 2-4
-- CPU Turbomode - give games additional CPU power
 - Flickerblend - set to blend or 30Hz mode for games like F-Zero, Mario Kart or NES Classics to prevent flickering effects
-- Spritelimit - turn on to prevent wrong sprites for games that rely on the limit (opt-in)
-- Cheats
+- Cheats - not working yet
 - Color optimizations: shader colors and desaturate
-- Rewind: go back up to 60 seconds in time
 - Tilt: use analog stick (map stick in Mister Main before)
 - Solar Sensor: Set brightness in OSD
 - Gyro: use analog stick (map stick in Mister Main before)
 - RTC: automatically used, works with RTC board or internet connection
 - Rumble: for Drill Dozer, Wario Ware Twisted and some romhacks
-- 2x Resolution: game is rendered at 480x320 instead of 240x160 pixels
 
 # Savestates
 Core provides 4 slots to save and restore the state. 
@@ -56,28 +52,6 @@ Gamepad:
 - Savestatebutton+Left or Right switches the savestate slot
 - Savestatebutton+Down saves to the selected slot
 - Savestatebutton+Up loads from the selected slot
-
-# Rewind
-To use rewind, turn on the OSD Option "Rewind Capture" and map the rewind button.
-You may have to restart the game for the function to work properly.
-Attention: Rewind capture will slow down your game by about 0.5% and may lead to light audio stutter.
-Rewind capture is not compatible to "Pause when OSD is open", so pause is disabled when Rewind capture is on.
-
-# Spritelimit
-There are only very few games known that produce glitches without sprite pixel limit.
-Those games use the sprite pixel limit automatically.
-You can optionally also turn this on if you notice problems.
-
-# 2x Resolution
-Only works over HDMI, Analog output is not changed in 2x Resolution mode. 
-
-Improved rendering resolution for:
-- Affine background: "Mode7" games, typically racing games like Mario Kart
-- Affine sprites: games that scale or rotate sprites
-
-This rendering is experimental and can cause glitches, as not all game behavior can be supported.
-Those glitches can not be fixed without gamespecific hacks and therefore will not be fixed. 
-Please don't add bugs in such cases.
 
 # Cartridge Hardware supported games
 - RTC: Pokemon Sapphire+Ruby+Emerald, Boktai 1+2+3, Sennen Kazoku, Rockman EXE 4.5
@@ -94,11 +68,3 @@ For romhacks you can activate the option "GPIO HACK(RTC+Rumble)". Make sure to d
 - Multiplayer features like serial communication
 - E-Reader support
 - Gameboy Player features
-
-# Information for developers
-
-How to simulate:
-https://github.com/MiSTer-devel/GBA_MiSTer/tree/master/sim
-
-How to implement a GPIO module:
-https://github.com/MiSTer-devel/GBA_MiSTer/blob/master/gpio_readme.md

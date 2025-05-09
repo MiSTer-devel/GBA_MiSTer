@@ -18,13 +18,18 @@ entity gba_sound_dma is
    );
    port 
    (
-      clk100              : in    std_logic;  
+      clk1x               : in    std_logic;  
+      ce                  : in    std_logic;  
       reset               : in    std_logic;  
       
       loading_savestate   : in    std_logic;  
-      savestate_bus       : inout proc_bus_gb_type;
+      savestate_bus       : in    proc_bus_gb_type;
+      ss_wired_out        : out   std_logic_vector(proc_buswidth-1 downto 0) := (others => '0');
+      ss_wired_done       : out   std_logic;
       
-      gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
+      gb_bus              : in    proc_bus_gb_type;
+      wired_out           : out   std_logic_vector(proc_buswidth-1 downto 0) := (others => '0');
+      wired_done          : out   std_logic;
       
       settings_new        : in    std_logic;
       Enable_RIGHT        : in    std_logic;
@@ -43,7 +48,7 @@ entity gba_sound_dma is
       
       new_sample_out      : out   std_logic;
       
-      debug_fifocount     : out   integer
+      debug_fifocount     : out   unsigned(7 downto 0)
    );
 end entity;
 
@@ -84,12 +89,13 @@ begin
 
 
 
-   iFIFO_REGISTER : entity work.eProcReg_gba generic map (REG_FIFO) port map  (clk100, gb_bus, x"00000000", FIFO_REGISTER, FIFO_REGISTER_written);  
+   iFIFO_REGISTER : entity work.eProcReg_gba generic map (REG_FIFO) port map  (clk1x, gb_bus, wired_out, wired_done, x"00000000", FIFO_REGISTER, FIFO_REGISTER_written);  
   
    any_on   <= Enable_LEFT or Enable_RIGHT;
    sound_on <= any_on;
    
-   debug_fifocount <= fifo_cnt;
+   debug_fifocount(7 downto 4) <= to_unsigned(fifo_cnt, 4);
+   debug_fifocount(3 downto 0) <= to_unsigned(afterfifo_cnt, 4);
    
    sound_out_left  <= sound_out when Enable_LEFT  = '1' else (others => '0');
    sound_out_right <= sound_out when Enable_RIGHT = '1' else (others => '0');
@@ -105,7 +111,7 @@ begin
    )
    port map
    ( 
-      clk      => clk100,
+      clk      => clk1x,
       reset    => fifo_reset,
                
       Din      => fifo_Din,  
@@ -118,14 +124,14 @@ begin
    );
    
    -- save state
-   iSAVESTATE_DMASOUND : entity work.eProcReg_gba generic map (REG_SAVESTATE_DMASOUND) port map (clk100, savestate_bus, SAVESTATE_DMASOUND_back, SAVESTATE_DMASOUND);
+   iSAVESTATE_DMASOUND : entity work.eProcReg_gba generic map (REG_SAVESTATE_DMASOUND) port map (clk1x, savestate_bus, ss_wired_out, ss_wired_done, SAVESTATE_DMASOUND_back, SAVESTATE_DMASOUND);
 
    SAVESTATE_DMASOUND_back(2 downto 0) <= std_logic_vector(to_unsigned(fifo_cnt, 3));
    SAVESTATE_DMASOUND_back(4 downto 3) <= std_logic_vector(to_unsigned(afterfifo_cnt, 2));
 
-   process (clk100)
+   process (clk1x)
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk1x) then
          
          dma_req <= '0';
          
@@ -187,7 +193,7 @@ begin
             end if;
             
             -- keep new request if fifo is not idling to make sure the sample counter works correct
-            if (any_on = '1' and ((timer0_tick = '1' and Timer_Select = '0') or (timer1_tick = '1' and Timer_Select = '1'))) then 
+            if (ce = '1' and any_on = '1' and ((timer0_tick = '1' and Timer_Select = '0') or (timer1_tick = '1' and Timer_Select = '1'))) then 
                new_sample_request <= '1';
             end if;
             

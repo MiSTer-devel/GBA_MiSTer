@@ -9,16 +9,16 @@ use work.pProc_bus_gba.all;
 entity gba_savestates is
    generic
    (
-      Softmap_GBA_WRam_ADDR    : integer; -- count:   65536  -- 256 Kbyte Data for GBA WRam Large
       Softmap_GBA_FLASH_ADDR   : integer; -- count:  131072  -- 128/512 Kbyte Data for GBA Flash
       Softmap_GBA_EEPROM_ADDR  : integer; -- count:    8192  -- 8/32 Kbyte Data for GBA EEProm 
       is_simu                  : std_logic := '0'
    );
    port 
    (
-      clk100                 : in     std_logic;  
+      clk                    : in     std_logic;  
       gb_on                  : in     std_logic;
       reset                  : out    std_logic := '0';
+      register_reset         : out    std_logic := '0';
 
       load_done              : out    std_logic := '0';
       
@@ -27,16 +27,17 @@ entity gba_savestates is
       load                   : in     std_logic;
       savestate_address      : in     integer;
       savestate_busy         : out    std_logic;
-
-      cpu_jump               : in     std_logic;
       
-      internal_bus_out       : inout  proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
+      internal_bus_out       : buffer proc_bus_gb_type := ((others => '0'), (others => '0'), '0', '0', "00", "0000", '0'); 
+      wired_out              : in     std_logic_vector(proc_buswidth-1 downto 0) := (others => '0');
+      wired_done             : in     std_logic;     
+      
       loading_savestate      : out    std_logic := '0';
       saving_savestate       : out    std_logic := '0';
       sleep_savestate        : out    std_logic := '0';
-      bus_ena_in             : in     std_logic;
+      pause_active           : in     std_logic;
       
-      gb_bus                 : inout  proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
+      gb_bus                 : in      proc_bus_gb_type;      
        
       SAVE_BusAddr           : buffer std_logic_vector(27 downto 0);
       SAVE_BusRnW            : out    std_logic;
@@ -62,7 +63,6 @@ architecture arch of gba_savestates is
 
    constant STATESIZE      : integer := 16#18346#;
    
-   constant SETTLECOUNT    : integer := 100;
    constant HEADERCOUNT    : integer := 2;
    constant INTERNALSCOUNT : integer := 68;
    constant REGISTERCOUNT  : integer := 256;
@@ -108,7 +108,8 @@ architecture arch of gba_savestates is
       IDLE,
       RESET_CLEAR,
       RESET_REGISTER,
-      SAVE_WAITJUMP,
+      RESET_CORE,
+      SAVE_WAITPAUSE,
       SAVE_WAITSETTLE,
       SAVEINTERNALS_WAIT,
       SAVEINTERNALS_READ,
@@ -136,8 +137,6 @@ architecture arch of gba_savestates is
    
    signal count    : integer range 0 to 131072 := 0;
    signal maxcount : integer range 0 to 131072;
-   
-   signal settle   : integer range 0 to SETTLECOUNT := 0;
    
    signal gb_on_1  : std_logic := '0';
    
@@ -174,7 +173,7 @@ begin
       )
       port map
       (
-         clk        => clk100,
+         clk        => clk,
          
          addr_a     => registerram_addr_r,
          datain_a   => x"00",
@@ -195,15 +194,16 @@ begin
    
    savestate_busy <= '0' when state = IDLE else '1';
 
-   process (clk100)
+   process (clk)
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
    
          SAVE_Bus_ena         <= '0';
          bus_out_ena          <= '0';
          internal_bus_out.ena <= '0';
          internal_bus_out.rst <= '0';
          reset                <= '0';
+         register_reset       <= '0';
          registerram_we       <= "0000";
          registerram_readen   <= '0';
          load_done            <= '0';
@@ -213,6 +213,10 @@ begin
          gb_on_1 <= gb_on;
          
          registerram_readvalid <= registerram_readen;
+
+         if (gb_on = '1' and gb_on_1 = '0') then
+            register_reset <= '1';
+         end if;
 
          case state is
          
@@ -225,11 +229,11 @@ begin
                   registerram_addr_w   <= to_integer(unsigned(gb_bus.adr(9 downto 2)));
                   registerram_we       <= gb_bus.bEna;
                elsif (save = '1') then
-                  state                <= SAVE_WAITJUMP;
+                  state                <= SAVE_WAITPAUSE;
                   header_amount        <= header_amount + 1;
+                  sleep_savestate      <= '1';
                elsif (load = '1') then
                   state                <= LOAD_WAITSETTLE;
-                  settle               <= 0;
                   sleep_savestate      <= '1';
                end if;
                
@@ -249,27 +253,32 @@ begin
                   registerram_we       <= "1111";
                   regdefault_counter   <= regdefault_counter + 1;
                else
+                  state <= RESET_CORE;
+                  count <= 100;
+               end if;
+               
+            when RESET_CORE =>
+               reset <= '1';
+               if (count > 0) then
+                  count <= count - 1;
+               else
                   state <= IDLE;
-                  reset <= '1';
                end if;
 
             -- #################
             -- SAVE
             -- #################
             
-            when SAVE_WAITJUMP =>
-               if (cpu_jump = '1') then
-                  state                <= SAVE_WAITSETTLE;
-                  settle               <= 0;
-                  sleep_savestate      <= '1';
+            when SAVE_WAITPAUSE =>
+               if (pause_active = '1') then
+                  count <= 100;
+                  state <= SAVE_WAITSETTLE;
                end if;
             
             when SAVE_WAITSETTLE =>
-               if (bus_ena_in = '1') then
-                  settle <= 0;
-               elsif (settle < SETTLECOUNT) then
-                  settle <= settle + 1;
-               else
+               if (count > 0) then
+                  count <= count - 1;
+               elsif (pause_active = '1') then
                   state                <= SAVEINTERNALS_WAIT;
                   first_dword          <= '1';
                   SAVE_BusRnW          <= '1';
@@ -283,24 +292,24 @@ begin
                end if;            
             
             when SAVEINTERNALS_WAIT =>
-               if (internal_bus_out.done = '1') then
+               if (wired_done = '1') then
                   if (first_dword = '1') then
                      first_dword          <= '0';
                      internal_bus_out.adr <= std_logic_vector(unsigned(internal_bus_out.adr) + 1);
                      internal_bus_out.ena <= '1';
                      if (is_simu = '0') then
-                        internal_databuffer(31 downto 0) <= internal_bus_out.Dout;
+                        internal_databuffer(31 downto 0) <= wired_out;
                      else
                         for i in 0 to 31 loop
-                           if (internal_bus_out.Dout(i) = '0') then internal_databuffer(i) <= '0'; else internal_databuffer(i) <= '1'; end if;
+                           if (wired_out(i) = '0') then internal_databuffer(i) <= '0'; else internal_databuffer(i) <= '1'; end if;
                         end loop;
                      end if;
                   else
                      if (is_simu = '0') then
-                        internal_databuffer(63 downto 32) <= internal_bus_out.Dout;
+                        internal_databuffer(63 downto 32) <= wired_out;
                      else
                         for i in 0 to 31 loop
-                           if (internal_bus_out.Dout(i) = '0') then internal_databuffer(32 + i) <= '0'; else internal_databuffer(32 + i) <= '1'; end if;
+                           if (wired_out(i) = '0') then internal_databuffer(32 + i) <= '0'; else internal_databuffer(32 + i) <= '1'; end if;
                         end loop;
                      end if;
                      state       <= SAVEINTERNALS_READ;
@@ -308,7 +317,7 @@ begin
                end if;
               
             when SAVEINTERNALS_READ =>
-               if (internal_bus_out.done = '1') then
+               if (wired_done = '1') then
                   state          <= SAVEINTERNALS_WRITE;
                   bus_out_Din    <= internal_databuffer;
                   bus_out_ena    <= '1';
@@ -428,11 +437,7 @@ begin
             -- #################
             
             when LOAD_WAITSETTLE =>
-               if (bus_ena_in = '1') then
-                  settle <= 0;
-               elsif (settle < SETTLECOUNT) then
-                  settle <= settle + 1;
-               else
+               if (pause_active = '1') then
                   state                <= LOAD_HEADERAMOUNTCHECK;
                   bus_out_Adr          <= std_logic_vector(to_unsigned(savestate_address, 26));
                   bus_out_rnw          <= '1';
@@ -470,7 +475,7 @@ begin
                end if;
                
             when LOADINTERNALS_WRITEFIRST =>
-               if (internal_bus_out.done = '1') then
+               if (wired_done = '1') then
                   state                <= LOADINTERNALS_WRITE;
                   internal_bus_out.adr <= std_logic_vector(unsigned(internal_bus_out.adr) + 1);
                   internal_bus_out.Din <= bus_out_Dout(63 downto 32);
@@ -478,7 +483,7 @@ begin
                end if;
             
             when LOADINTERNALS_WRITE => 
-               if (internal_bus_out.done = '1') then
+               if (wired_done = '1') then
                   bus_out_Adr <= std_logic_vector(unsigned(bus_out_Adr) + 2);
                   if (count < INTERNALSCOUNT) then
                      state          <= LOADINTERNALS_READ;
@@ -541,8 +546,8 @@ begin
                   bus_out_ena    <= '1';
                   bus_out_active <= '1';
                else
-                  state             <= IDLE;
-                  reset             <= '1';
+                  state             <= RESET_CORE;
+                  count             <= 100;
                   loading_savestate <= '0';
                   sleep_savestate   <= '0';
                   load_done         <= '1';
@@ -557,15 +562,15 @@ begin
                end if;
                
             when LOADMEMORY_WRITEFIRST =>
-               if (SAVE_BusReadDone = '1') then
+               --if (SAVE_BusReadDone = '1') then -- assuming 1 cycle access for all areas !!!!
                   state             <= LOADMEMORY_WRITE;
                   SAVE_BusAddr      <= std_logic_vector(unsigned(SAVE_BusAddr) + 4);
                   SAVE_BusWriteData <= bus_out_Dout(63 downto 32);
                   SAVE_Bus_ena      <= '1';
-               end if;
+               --end if;
                
             when LOADMEMORY_WRITE =>
-               if (SAVE_BusReadDone = '1') then
+               --if (SAVE_BusReadDone = '1') then
                   SAVE_BusAddr <= std_logic_vector(unsigned(SAVE_BusAddr) + 4);
                   bus_out_Adr  <= std_logic_vector(unsigned(bus_out_Adr) + 2);
                   if (count < maxcount) then
@@ -577,7 +582,7 @@ begin
                      savetype_counter <= savetype_counter + 1;
                      state            <= LOADMEMORY_NEXT;
                   end if;
-               end if;
+               --end if;
          
          
          end case;

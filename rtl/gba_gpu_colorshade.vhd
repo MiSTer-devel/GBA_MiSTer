@@ -5,21 +5,17 @@ use IEEE.numeric_std.all;
 entity gba_gpu_colorshade is
    port 
    (
-      clk100               : in    std_logic;  
+      clk               : in    std_logic;  
       
       shade_mode           : in    std_logic_vector(2 downto 0); -- 0 = off, 1..4 modes
 
       pixel_in_x           : in    integer range 0 to 239;
-      pixel_in_2x          : in    integer range 0 to 479;
       pixel_in_y           : in    integer range 0 to 159;
-      pixel_in_addr        : in    integer range 0 to 38399;
       pixel_in_data        : in    std_logic_vector(14 downto 0);  
       pixel_in_we          : in    std_logic := '0';
                   
       pixel_out_x          : out   integer range 0 to 239;
-      pixel_out_2x         : out   integer range 0 to 479;
       pixel_out_y          : out   integer range 0 to 159;
-      pixel_out_addr       : out   integer range 0 to 38399;
       pixel_out_data       : out   std_logic_vector(17 downto 0);  
       pixel_out_we         : out   std_logic := '0'
    );
@@ -205,9 +201,9 @@ architecture arch of gba_gpu_colorshade is
 begin
 
    -- load shading
-   process (clk100)
+   process (clk)
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
 
          shade_on <= '0';
          if (shade_mode /= "000") then
@@ -262,15 +258,13 @@ begin
    end process;
 
    -- process shading
-   process (clk100)
+   process (clk)
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
 
          -- clock 1 - lookup linear color
          pixel_1_x    <= pixel_in_x;   
-         pixel_1_2x   <= pixel_in_2x;   
          pixel_1_y    <= pixel_in_y;   
-         pixel_1_addr <= pixel_in_addr;
          pixel_1_we   <= pixel_in_we;
          
          color_linear_1 <= shade_lookup_linear(to_integer(unsigned(pixel_in_data(14 downto 10))));
@@ -279,9 +273,7 @@ begin
          
          -- clock 2 - precalc shades
          pixel_2_x    <= pixel_1_x;   
-         pixel_2_2x   <= pixel_1_2x;   
          pixel_2_y    <= pixel_1_y;   
-         pixel_2_addr <= pixel_1_addr;
          pixel_2_we   <= pixel_1_we;
          
          --shade_linear(1) <=  (865 * color_linear_1 + 174 * color_linear_2 - 015 * color_linear_3) / 1024;
@@ -320,10 +312,8 @@ begin
          shade_linear(3) <=  (shade_precalc(3, 1) + shade_precalc(3, 2) + shade_precalc(3, 3)) / 1024;
          
          -- clock 4 - clip
-         pixel_4_x    <= pixel_3_x;   
-         pixel_4_2x   <= pixel_3_2x;   
+         pixel_4_x    <= pixel_3_x;    
          pixel_4_y    <= pixel_3_y;   
-         pixel_4_addr <= pixel_3_addr;
          pixel_4_we   <= pixel_3_we;
          
          for c in 1 to 3 loop
@@ -337,10 +327,8 @@ begin
          end loop;
                    
          -- clock 5 - lookup upper 3 bits of color
-         pixel_5_x     <= pixel_4_x;   
-         pixel_5_2x    <= pixel_4_2x;   
+         pixel_5_x     <= pixel_4_x;    
          pixel_5_y     <= pixel_4_y;   
-         pixel_5_addr  <= pixel_4_addr;
          pixel_5_we    <= pixel_4_we; 
          clip_linear_1 <= clip_linear;
 
@@ -365,9 +353,7 @@ begin
          
             -- clock 6 - lookup lower 3 bits of color
             pixel_out_x    <= pixel_5_x;   
-            pixel_out_2x   <= pixel_5_2x;   
             pixel_out_y    <= pixel_5_y;   
-            pixel_out_addr <= pixel_5_addr;
             pixel_out_we   <= pixel_5_we; 
          
             pixel_out_data(17 downto 12) <= color_upper(1) & "000";
@@ -383,9 +369,7 @@ begin
             
          else
             pixel_out_x    <= pixel_in_x;   
-            pixel_out_2x   <= pixel_in_2x;   
             pixel_out_y    <= pixel_in_y;   
-            pixel_out_addr <= pixel_in_addr;
             pixel_out_we   <= pixel_in_we;
             pixel_out_data <= pixel_in_data(14 downto 10) & pixel_in_data(14) & pixel_in_data(9 downto 5) & pixel_in_data(9) & pixel_in_data(4 downto 0) & pixel_in_data(4);
          end if;

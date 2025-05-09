@@ -87,8 +87,8 @@ assign DDRAM_RD       = ram_read;
 assign DDRAM_DIN      = ram_data;
 assign DDRAM_WE       = ram_write;
 
-assign ch1_dout  = ch1_addr[2] ? {ram_q[1][31:0], ram_q[1][63:32]} : ram_q[1];
-assign ch2_dout  = ch2_addr[2] ? ram_q[2][63:32] : ram_q[2][31:0];
+assign ch1_dout  = ram_address[2] ? {ram_q[1][31:0], ram_q[1][63:32]} : ram_q[1];
+assign ch2_dout  = ram_address[2] ? ram_q[2][63:32] : ram_q[2][31:0];
 assign ch3_dout  = {ram_q[3][39:32], ram_q[3][7:0]};
 assign ch4_dout  = ram_q[4];
 assign ch1_ready = ready[1];
@@ -126,26 +126,11 @@ always @(posedge DDRAM_CLK) begin
 						ram_burst     <= 1;
 						cached[1]     <= 0;
 						ready[1]      <= 1;
-					end
-					else if(cached[1] && cache_addr[1][27:3] == ch1_addr[27:3]) begin
-						ready[1]      <= 1;
-					end
-					else if(cached[1] && (cache_addr[1][27:3]+1'd1) == ch1_addr[27:3]) begin
-						ram_q[1]      <= next_q[1];
-						cache_addr[1] <= ch1_addr;
-						ram_address   <= ch1_addr + 8'd4;
-						ram_read      <= 1;
-						ram_burst     <= 1;
-						cached[1]     <= 1;
-						ready[1]      <= 1;
-						state         <= 2;
-					end
-					else begin
+					end else begin
 						ram_address   <= ch1_addr;
 						cache_addr[1] <= ch1_addr;
 						ram_read      <= 1;
-						ram_burst     <= 2;
-						cached[1]     <= 1;
+						ram_burst     <= 1;
 						state         <= 1;
 					end
 				end

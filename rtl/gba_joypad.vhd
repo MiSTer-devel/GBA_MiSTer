@@ -9,7 +9,9 @@ entity gba_joypad is
    port 
    (
       clk100     : in    std_logic;  
-      gb_bus     : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
+      gb_bus     : in    proc_bus_gb_type;
+      wired_out  : out   std_logic_vector(proc_buswidth-1 downto 0) := (others => '0');
+      wired_done : out   std_logic;
       IRP_Joypad : out   std_logic := '0';
                  
       KeyA       : in std_logic;
@@ -32,6 +34,10 @@ architecture arch of gba_joypad is
    signal REG_KEYINPUT  : std_logic_vector(KEYINPUT.upper downto KEYINPUT.lower) := (others => '0');
    signal REG_KEYCNT    : std_logic_vector(KEYCNT  .upper downto KEYCNT  .lower) := (others => '0');
 
+   type t_reg_wired_or is array(0 to 1) of std_logic_vector(31 downto 0);
+   signal reg_wired_or    : t_reg_wired_or;   
+   signal reg_wired_done  : unsigned(0 to 1);
+
    signal debug_cnt : integer := 0;
    
    signal Keys    : std_logic_vector(KEYINPUT.upper downto KEYINPUT.lower) := (others => '0');
@@ -41,8 +47,19 @@ architecture arch of gba_joypad is
 
 begin 
 
-   iReg_KEYINPUT  : entity work.eProcReg_gba generic map (KEYINPUT) port map  (clk100, gb_bus, REG_KEYINPUT);  
-   iReg_KEYCNT    : entity work.eProcReg_gba generic map (KEYCNT  ) port map  (clk100, gb_bus, REG_KEYCNT, REG_KEYCNT);  
+   iReg_KEYINPUT  : entity work.eProcReg_gba generic map (KEYINPUT) port map  (clk100, gb_bus, reg_wired_or(0), reg_wired_done(0), REG_KEYINPUT);  
+   iReg_KEYCNT    : entity work.eProcReg_gba generic map (KEYCNT  ) port map  (clk100, gb_bus, reg_wired_or(1), reg_wired_done(1), REG_KEYCNT, REG_KEYCNT);  
+
+   process (reg_wired_or)
+      variable wired_or : std_logic_vector(31 downto 0);
+   begin
+      wired_or := reg_wired_or(0);
+      for i in 1 to (reg_wired_or'length - 1) loop
+         wired_or := wired_or or reg_wired_or(i);
+      end loop;
+      wired_out <= wired_or;
+   end process;
+   wired_done <= '0' when (reg_wired_done = 0) else '1';
 
    REG_KEYINPUT <= Keys;
    
@@ -65,6 +82,7 @@ begin
          Keys(7) <= not KeyDown;
          Keys(8) <= not KeyR;
          Keys(9) <= not KeyL;
+         Keys(KEYINPUT.upper downto 10) <= (others => '0');
          
          if (Keys_1 /= Keys or REG_KEYCNT_1 /= REG_KEYCNT) then
             if (REG_KEYCNT(30) = '1') then

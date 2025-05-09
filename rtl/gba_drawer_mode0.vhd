@@ -5,13 +5,10 @@ use IEEE.numeric_std.all;
 entity gba_drawer_mode0 is
    port 
    (
-      clk100               : in  std_logic;                     
+      clk                  : in  std_logic;                     
                            
       drawline             : in  std_logic;
       busy                 : out std_logic := '0';
-      
-      lockspeed            : in  std_logic;
-      pixelpos             : in  integer range 0 to 511;
       
       ypos                 : in  integer range 0 to 159;
       ypos_mosaic          : in  integer range 0 to 159;
@@ -44,32 +41,29 @@ architecture arch of gba_drawer_mode0 is
    (
       IDLE,
       CALCBASE,
-      CALCADDR1,
-      CALCADDR2,
+      CALCADDR,
       WAITREAD_TILE,
       CALCCOLORADDR,
-      WAITREAD_COLOR,
-      FETCHDONE
+      WAITREAD_COLOR
    );
    signal vramfetch    : tVRAMState := IDLE;
    
    type tPALETTEState is
    (
       IDLE,
-      STARTREAD,
       WAITREAD
    );
    signal palettefetch : tPALETTEState := IDLE;
   
    signal VRAM_byteaddr        : unsigned(16 downto 0) := (others => '0'); 
-   signal vram_readwait        : integer range 0 to 2;
+   signal vram_readwait        : integer range 0 to 1;
                                
    signal PALETTE_byteaddr     : std_logic_vector(8 downto 0) := (others => '0');
-   signal palette_readwait     : integer range 0 to 2;
+   signal PALETTE_byteaddr_1   : std_logic_vector(8 downto 0) := (others => '0');
                                
    signal mapbaseaddr          : integer;
    signal tilebaseaddr         : integer;
-                               
+                                 
    signal x_cnt                : integer range 0 to 239;
    signal y_scrolled           : integer range 0 to 1023; 
    signal offset_y             : integer range 0 to 1023; 
@@ -78,8 +72,8 @@ architecture arch of gba_drawer_mode0 is
                                
    signal x_flip_offset        : integer range 3 to 7;
    signal x_div                : integer range 1 to 2;
-                               
-   signal x_scrolled           : integer range 0 to 1023;
+                              
+   signal x_scrolled           : unsigned(8 downto 0) := (others => '0');
    signal tileindex            : integer range 0 to 4095;
                                
    signal tileinfo             : std_logic_vector(15 downto 0) := (others => '0');
@@ -90,6 +84,9 @@ architecture arch of gba_drawer_mode0 is
    signal VRAM_lastcolor_data  : std_logic_vector(31 downto 0) := (others => '0');
    signal VRAM_lastcolor_valid : std_logic := '0';
    
+   signal palette_newPixel     : std_logic := '0';
+   signal palette_x_cnt        : integer range 0 to 239;
+   signal palette_selecthigh   : std_logic := '0';
    signal mosaik_cnt           : integer range 0 to 15 := 0;
    
 begin 
@@ -97,16 +94,21 @@ begin
    mapbaseaddr  <= to_integer(mapbase) * 2048;
    tilebaseaddr <= to_integer(tilebase) * 16#4000#;
    
+   x_scrolled <= to_unsigned((x_cnt + to_integer(scrollX)) mod scroll_x_mod, 9);
+   
    VRAM_Drawer_addr <= to_integer(VRAM_byteaddr(15 downto 2));
    PALETTE_Drawer_addr <= to_integer(unsigned(PALETTE_byteaddr(8 downto 2)));
   
    -- vramfetch
-   process (clk100)
-    variable tileindex_var  : integer range 0 to 4095;
-    variable x_scrolled_var : integer range 0 to 1023;
-    variable pixeladdr      : integer range 0 to 524287;
+   process (clk)
+    variable tileindex_var   : integer range 0 to 4095;
+    variable tileaddr_var    : integer range 0 to 4095;
+    variable pixeladdr       : integer range 0 to 524287;
+    variable done_var        : std_logic;
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
+      
+         palette_newPixel <= '0';
       
          case (vramfetch) is
          
@@ -119,7 +121,6 @@ begin
                   else
                      y_scrolled <= ypos + to_integer(scrollY);
                   end if;
-                  offset_y     <= 32;
                   scroll_x_mod <= 256;
                   scroll_y_mod <= 256;
                   case (to_integer(screensize)) is
@@ -135,9 +136,9 @@ begin
                end if;
                
             when CALCBASE =>
-               vramfetch  <= CALCADDR1;
+               vramfetch  <= CALCADDR;
                y_scrolled <= y_scrolled mod scroll_y_mod;
-               offset_y   <= ((y_scrolled mod 256) / 8) * offset_y;
+               offset_y   <= ((y_scrolled mod 256) / 8) * 32;
                if (hicolor = '0') then
                   --tilemult      <= 32;
                   x_flip_offset <= 3;
@@ -149,28 +150,19 @@ begin
                   x_div         <= 1;
                   --x_size        <= 8;
                end if;
-               
-            when CALCADDR1 =>
-               if (pixelpos >= x_cnt or lockspeed = '0') then
-                  vramfetch  <= CALCADDR2;
-                  x_scrolled <= ((x_cnt + to_integer(scrollX)) mod scroll_x_mod);
-               end if;
    
-            when CALCADDR2 =>
+            when CALCADDR =>
                tileindex_var  := 0;
-               x_scrolled_var := x_scrolled;
                if (x_scrolled >= 256 or (y_scrolled >= 256 and to_integer(screensize) = 2)) then
                   tileindex_var  := tileindex_var + 1024;
-                  x_scrolled_var := x_scrolled mod 256;
-                  x_scrolled     <= x_scrolled mod 256;
                end if;
                if (y_scrolled >= 256 and to_integer(screensize) = 3) then
                   tileindex_var := tileindex_var + 2048;
                end if;
-               tileindex_var := tileindex_var + offset_y + (x_scrolled_var / 8);
-               VRAM_byteaddr <= to_unsigned(mapbaseaddr + (tileindex_var * 2), VRAM_byteaddr'length);
+               tileaddr_var  := tileindex_var + offset_y + to_integer(x_scrolled(7 downto 3));
+               VRAM_byteaddr <= to_unsigned(mapbaseaddr + (tileaddr_var * 2), VRAM_byteaddr'length);
                vramfetch     <= WAITREAD_TILE;
-               vram_readwait <= 2;
+               vram_readwait <= 1;
             
             when WAITREAD_TILE =>
                if (vram_readwait > 0) then
@@ -197,9 +189,9 @@ begin
             when CALCCOLORADDR => 
                vramfetch  <= WAITREAD_COLOR;
                if (tileinfo(10) = '1') then -- hoz flip
-                  pixeladdr := pixeladdr_base + (x_flip_offset - ((x_scrolled mod 8) / x_div));
+                  pixeladdr := pixeladdr_base + (x_flip_offset - (to_integer(x_scrolled(2 downto 0)) / x_div));
                else
-                  pixeladdr := pixeladdr_base + (x_scrolled mod 8) / x_div;
+                  pixeladdr := pixeladdr_base + to_integer(x_scrolled(2 downto 0)) / x_div;
                end if;
                if (tileinfo(11) = '1') then -- vert flip
                   if (hicolor = '0') then
@@ -216,10 +208,12 @@ begin
                end if;
                VRAM_byteaddr <= to_unsigned(pixeladdr, VRAM_byteaddr'length);
                vramfetch     <= WAITREAD_COLOR;
-               vram_readwait <= 2;
+               vram_readwait <= 1;
                
             when WAITREAD_COLOR =>
+               done_var := '0';
                if (VRAM_lastcolor_valid = '1' and VRAM_lastcolor_addr = VRAM_byteaddr(VRAM_byteaddr'left downto 2)) then
+                  done_var := '1';
                   case (VRAM_byteaddr(1 downto 0)) is
                      when "00" => colordata <= VRAM_lastcolor_data(7  downto 0);
                      when "01" => colordata <= VRAM_lastcolor_data(15 downto 8);
@@ -227,10 +221,10 @@ begin
                      when "11" => colordata <= VRAM_lastcolor_data(31 downto 24);
                      when others => null;
                   end case;
-                  vramfetch  <= FETCHDONE;
                elsif (vram_readwait > 0) then
                   vram_readwait <= vram_readwait - 1;
                elsif (VRAM_Drawer_valid = '1') then
+                  done_var := '1';
                   VRAM_lastcolor_addr  <= VRAM_byteaddr(VRAM_byteaddr'left downto 2);
                   VRAM_lastcolor_data  <= VRAM_Drawer_data;
                   VRAM_lastcolor_valid <= '1';
@@ -241,16 +235,26 @@ begin
                      when "11" => colordata <= VRAM_Drawer_data(31 downto 24);
                      when others => null;
                   end case;
-                  vramfetch  <= FETCHDONE;
                end if;
-            
-            when FETCHDONE =>
-               if (palettefetch = IDLE) then
-                  if (x_cnt < 239) then
-                     vramfetch <= CALCADDR1;
-                     x_cnt     <= x_cnt + 1;
-                  else
-                     vramfetch <= IDLE;
+
+               if (done_var = '1') then
+                  palette_x_cnt      <= x_cnt;
+                  palette_selecthigh <= '0';
+                  if ((tileinfo(10) = '1' and (x_scrolled mod 2) = 0) or (tileinfo(10) = '0' and (x_scrolled mod 2) = 1)) then
+                     palette_selecthigh <= '1';
+                  end if;
+                  if (PALETTE_Drawer_valid = '1') then
+                     palette_newPixel   <= '1';
+                     if (x_cnt < 239) then
+                        x_cnt     <= x_cnt + 1;
+                        if (x_scrolled(2 downto 0) = "111") then
+                           vramfetch <= CALCADDR;
+                        else
+                           vramfetch <= CALCCOLORADDR;
+                        end if;
+                     else
+                        vramfetch <= IDLE;
+                     end if;
                   end if;
                end if;
          
@@ -260,9 +264,15 @@ begin
    end process;
    
    -- palette
-   process (clk100)
+   PALETTE_byteaddr <= PALETTE_byteaddr_1                                   when (palettefetch = WAITREAD) else
+                       colordata & '0'                                      when (hicolor = '1') else 
+                       tileinfo(15 downto 12) & colordata(7 downto 4) & '0' when (palette_selecthigh = '1') else
+                       tileinfo(15 downto 12) & colordata(3 downto 0) & '0';
+   
+   
+   process (clk)
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
       
          pixel_we      <= '0';
       
@@ -274,9 +284,9 @@ begin
          case (palettefetch) is
          
             when IDLE =>
-               if (vramfetch = FETCHDONE) then
+               if (palette_newPixel = '1') then
                
-                  pixel_x          <= x_cnt;
+                  pixel_x          <= palette_x_cnt;
                
                   if (mosaik_cnt < Mosaic_H_Size and mosaic = '1') then
                      mosaik_cnt <= mosaik_cnt + 1;
@@ -284,23 +294,22 @@ begin
                   else
                      mosaik_cnt       <= 0;
                      
-                     palettefetch     <= STARTREAD; 
+                     palettefetch       <= WAITREAD;
+                     PALETTE_byteaddr_1 <= PALETTE_byteaddr;
+               
                      if (hicolor = '0') then
-                        if ((tileinfo(10) = '1' and (x_scrolled mod 2) = 0) or (tileinfo(10) = '0' and (x_scrolled mod 2) = 1)) then
-                           PALETTE_byteaddr <= tileinfo(15 downto 12) & colordata(7 downto 4) & '0';
+                        if (palette_selecthigh = '1') then
                            if (colordata(7 downto 4) = x"0") then -- transparent
                               palettefetch  <= IDLE;
                               pixeldata(15) <= '1';
                            end if;
                         else
-                           PALETTE_byteaddr <= tileinfo(15 downto 12) & colordata(3 downto 0) & '0';
                            if (colordata(3 downto 0) = x"0") then -- transparent
                               palettefetch  <= IDLE;
                               pixeldata(15) <= '1';
                            end if;
                         end if;
                      else
-                        PALETTE_byteaddr <= colordata & '0';
                         if (colordata = x"00") then -- transparent
                            palettefetch  <= IDLE;
                            pixeldata(15) <= '1';
@@ -308,18 +317,12 @@ begin
                      end if;
                   end if;
                end if;
-               
-            when STARTREAD => 
-               palettefetch     <= WAITREAD;
-               palette_readwait <= 2;
             
             when WAITREAD =>
-               if (palette_readwait > 0) then
-                  palette_readwait <= palette_readwait - 1;
-               elsif (PALETTE_Drawer_valid = '1') then
+               if (PALETTE_Drawer_valid = '1') then
                   palettefetch  <= IDLE;
                   pixel_we      <= '1';
-                  if (PALETTE_byteaddr(1) = '1') then
+                  if (PALETTE_byteaddr_1(1) = '1') then
                      pixeldata <= '0' & PALETTE_Drawer_data(30 downto 16);
                   else
                      pixeldata <= '0' & PALETTE_Drawer_data(14 downto 0);

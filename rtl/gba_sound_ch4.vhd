@@ -9,13 +9,15 @@ use work.pReg_gba_sound.all;
 entity gba_sound_ch4 is
    port 
    (
-      clk100              : in    std_logic; 
+      clk1x               : in    std_logic; 
       reset               : in    std_logic;      
       gb_on               : in    std_logic; 
       ch_on_ss            : in    std_logic;
       loading_savestate   : in    std_logic;  
       
-      gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
+      gb_bus              : in    proc_bus_gb_type;
+      wired_out           : out   std_logic_vector(proc_buswidth-1 downto 0) := (others => '0');
+      wired_done          : out   std_logic;
       
       new_cycles_valid    : in    std_logic;
       
@@ -43,6 +45,10 @@ architecture arch of gba_sound_ch4 is
    signal Dividing_Ratio_of_Freq_written     : std_logic;                                                                                                                                                                                                                                                                                                         
    signal Initial_written                    : std_logic;                                                                                                                                                      
           
+   type t_reg_wired_or is array(0 to 10) of std_logic_vector(31 downto 0);
+   signal reg_wired_or    : t_reg_wired_or;   
+   signal reg_wired_done  : unsigned(0 to 10);
+          
    signal length_left          : unsigned(6 downto 0) := (others => '0');
                                
    signal envelope_cnt         : unsigned(5 downto 0) := (others => '0');
@@ -64,24 +70,35 @@ architecture arch of gba_sound_ch4 is
    
 begin 
 
-   iREG_Sound_length               : entity work.eProcReg_gba generic map ( SOUND4CNT_L_Sound_length               ) port map  (clk100, gb_bus, "000000"                       , REG_Sound_length               , Sound_length_written               );  
-   iREG_Envelope_Step_Time         : entity work.eProcReg_gba generic map ( SOUND4CNT_L_Envelope_Step_Time         ) port map  (clk100, gb_bus, REG_Envelope_Step_Time         , REG_Envelope_Step_Time         );  
-   iREG_Envelope_Direction         : entity work.eProcReg_gba generic map ( SOUND4CNT_L_Envelope_Direction         ) port map  (clk100, gb_bus, REG_Envelope_Direction         , REG_Envelope_Direction         );  
-   iREG_Initial_Volume_of_envelope : entity work.eProcReg_gba generic map ( SOUND4CNT_L_Initial_Volume_of_envelope ) port map  (clk100, gb_bus, REG_Initial_Volume_of_envelope , REG_Initial_Volume_of_envelope , Initial_Volume_of_envelope_written ); 
-                                                                                                                                                                        
-   iREG_Dividing_Ratio_of_Freq     : entity work.eProcReg_gba generic map ( SOUND4CNT_H_Dividing_Ratio_of_Freq     ) port map  (clk100, gb_bus, REG_Dividing_Ratio_of_Freq     , REG_Dividing_Ratio_of_Freq     , Dividing_Ratio_of_Freq_written     );  
-   iREG_Counter_Step_Width         : entity work.eProcReg_gba generic map ( SOUND4CNT_H_Counter_Step_Width         ) port map  (clk100, gb_bus, REG_Counter_Step_Width         , REG_Counter_Step_Width         );  
-   iREG_Shift_Clock_Frequency      : entity work.eProcReg_gba generic map ( SOUND4CNT_H_Shift_Clock_Frequency      ) port map  (clk100, gb_bus, REG_Shift_Clock_Frequency      , REG_Shift_Clock_Frequency      );  
-   iREG_Length_Flag                : entity work.eProcReg_gba generic map ( SOUND4CNT_H_Length_Flag                ) port map  (clk100, gb_bus, REG_Length_Flag                , REG_Length_Flag                );  
-   iREG_Initial                    : entity work.eProcReg_gba generic map ( SOUND4CNT_H_Initial                    ) port map  (clk100, gb_bus, "0"                            , REG_Initial                    , Initial_written                    );  
-   
-   iSOUND4CNT_LHighZero            : entity work.eProcReg_gba generic map ( SOUND4CNT_LHighZero                    ) port map  (clk100, gb_bus, x"0000");  
-   iSOUND4CNT_HHighZero            : entity work.eProcReg_gba generic map ( SOUND4CNT_HHighZero                    ) port map  (clk100, gb_bus, x"0000");  
+   iREG_Sound_length               : entity work.eProcReg_gba generic map ( SOUND4CNT_L_Sound_length               ) port map  (clk1x, gb_bus, reg_wired_or( 0), reg_wired_done( 0), "000000"                       , REG_Sound_length               , Sound_length_written               );  
+   iREG_Envelope_Step_Time         : entity work.eProcReg_gba generic map ( SOUND4CNT_L_Envelope_Step_Time         ) port map  (clk1x, gb_bus, reg_wired_or( 1), reg_wired_done( 1), REG_Envelope_Step_Time         , REG_Envelope_Step_Time         );  
+   iREG_Envelope_Direction         : entity work.eProcReg_gba generic map ( SOUND4CNT_L_Envelope_Direction         ) port map  (clk1x, gb_bus, reg_wired_or( 2), reg_wired_done( 2), REG_Envelope_Direction         , REG_Envelope_Direction         );  
+   iREG_Initial_Volume_of_envelope : entity work.eProcReg_gba generic map ( SOUND4CNT_L_Initial_Volume_of_envelope ) port map  (clk1x, gb_bus, reg_wired_or( 3), reg_wired_done( 3), REG_Initial_Volume_of_envelope , REG_Initial_Volume_of_envelope , Initial_Volume_of_envelope_written ); 
+                                                                                                                                                                                    
+   iREG_Dividing_Ratio_of_Freq     : entity work.eProcReg_gba generic map ( SOUND4CNT_H_Dividing_Ratio_of_Freq     ) port map  (clk1x, gb_bus, reg_wired_or( 4), reg_wired_done( 4), REG_Dividing_Ratio_of_Freq     , REG_Dividing_Ratio_of_Freq     , Dividing_Ratio_of_Freq_written     );  
+   iREG_Counter_Step_Width         : entity work.eProcReg_gba generic map ( SOUND4CNT_H_Counter_Step_Width         ) port map  (clk1x, gb_bus, reg_wired_or( 5), reg_wired_done( 5), REG_Counter_Step_Width         , REG_Counter_Step_Width         );  
+   iREG_Shift_Clock_Frequency      : entity work.eProcReg_gba generic map ( SOUND4CNT_H_Shift_Clock_Frequency      ) port map  (clk1x, gb_bus, reg_wired_or( 6), reg_wired_done( 6), REG_Shift_Clock_Frequency      , REG_Shift_Clock_Frequency      );  
+   iREG_Length_Flag                : entity work.eProcReg_gba generic map ( SOUND4CNT_H_Length_Flag                ) port map  (clk1x, gb_bus, reg_wired_or( 7), reg_wired_done( 7), REG_Length_Flag                , REG_Length_Flag                );  
+   iREG_Initial                    : entity work.eProcReg_gba generic map ( SOUND4CNT_H_Initial                    ) port map  (clk1x, gb_bus, reg_wired_or( 8), reg_wired_done( 8), "0"                            , REG_Initial                    , Initial_written                    );  
+                                                                                                                                                                                  
+   iSOUND4CNT_LHighZero            : entity work.eProcReg_gba generic map ( SOUND4CNT_LHighZero                    ) port map  (clk1x, gb_bus, reg_wired_or( 9), reg_wired_done( 9), x"0000");  
+   iSOUND4CNT_HHighZero            : entity work.eProcReg_gba generic map ( SOUND4CNT_HHighZero                    ) port map  (clk1x, gb_bus, reg_wired_or(10), reg_wired_done(10), x"0000");  
         
-   process (clk100)
+   process (reg_wired_or)
+      variable wired_or : std_logic_vector(31 downto 0);
+   begin
+      wired_or := reg_wired_or(0);
+      for i in 1 to (reg_wired_or'length - 1) loop
+         wired_or := wired_or or reg_wired_or(i);
+      end loop;
+      wired_out <= wired_or;
+   end process;
+   wired_done <= '0' when (reg_wired_done = 0) else '1';
+        
+   process (clk1x)
       variable divider_raw         : unsigned(23 downto 0) := (others => '0');
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk1x) then
       
          if (gb_on = '0') then
          

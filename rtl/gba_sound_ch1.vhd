@@ -25,13 +25,15 @@ entity gba_sound_ch1 is
    );
    port 
    (
-      clk100              : in    std_logic; 
+      clk1x               : in    std_logic; 
       reset               : in    std_logic;
       gb_on               : in    std_logic;  
       ch_on_ss            : in    std_logic;  
       loading_savestate   : in    std_logic;  
       
-      gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
+      gb_bus              : in    proc_bus_gb_type;
+      wired_out           : out   std_logic_vector(proc_buswidth-1 downto 0) := (others => '0');
+      wired_done          : out   std_logic;
       
       new_cycles_valid    : in    std_logic;
       
@@ -57,9 +59,13 @@ architecture arch of gba_sound_ch1 is
                                                                                                                                                      
    signal Channel_Sound_length_written                : std_logic;                                                                                                                                                      
    signal Channel_Wave_Pattern_Duty_written           : std_logic;                                                                                                                                                                                                                                                                                                            
-   signal Channel_Initial_Volume_of_envelope_written  : std_logic;
+   signal Channel_Initial_Volume_of_envelope_written  : std_logic;                                                                                                                                                      
    signal Channel_Initial_written                     : std_logic;
    signal Channel_Frequency_written_be                : std_logic_vector(3 downto 0);
+
+   type t_reg_wired_or is array(0 to 11) of std_logic_vector(31 downto 0);
+   signal reg_wired_or    : t_reg_wired_or;   
+   signal reg_wired_done  : unsigned(0 to 11);
                                                                                                                                                      
    signal wavetable_ptr        : unsigned(2 downto 0)  := (others => '0');
    signal wavetable            : std_logic_vector(0 to 7)  := (others => '0');
@@ -89,24 +95,50 @@ begin
 
    gsweep : if has_sweep = true generate
    begin
-      iReg_Channel_Number_of_sweep_shift      : entity work.eProcReg_gba generic map ( Reg_Number_of_sweep_shift      ) port map  (clk100, gb_bus, Channel_Number_of_sweep_shift     , Channel_Number_of_sweep_shift     );  
-      iReg_Channel_Sweep_Frequency_Direction  : entity work.eProcReg_gba generic map ( Reg_Sweep_Frequency_Direction  ) port map  (clk100, gb_bus, Channel_Sweep_Frequency_Direction , Channel_Sweep_Frequency_Direction );  
-      iReg_Channel_Sweep_Time                 : entity work.eProcReg_gba generic map ( Reg_Sweep_Time                 ) port map  (clk100, gb_bus, Channel_Sweep_Time                , Channel_Sweep_Time                );  
+      iReg_Channel_Number_of_sweep_shift      : entity work.eProcReg_gba generic map ( Reg_Number_of_sweep_shift      ) port map  (clk1x, gb_bus, reg_wired_or(0), reg_wired_done(0), Channel_Number_of_sweep_shift     , Channel_Number_of_sweep_shift     );  
+      iReg_Channel_Sweep_Frequency_Direction  : entity work.eProcReg_gba generic map ( Reg_Sweep_Frequency_Direction  ) port map  (clk1x, gb_bus, reg_wired_or(1), reg_wired_done(1), Channel_Sweep_Frequency_Direction , Channel_Sweep_Frequency_Direction );  
+      iReg_Channel_Sweep_Time                 : entity work.eProcReg_gba generic map ( Reg_Sweep_Time                 ) port map  (clk1x, gb_bus, reg_wired_or(2), reg_wired_done(2), Channel_Sweep_Time                , Channel_Sweep_Time                );  
    end generate;
    
-   iReg_Channel_Sound_length               : entity work.eProcReg_gba generic map ( Reg_Sound_length               ) port map  (clk100, gb_bus, "000000"                          , Channel_Sound_length              , Channel_Sound_length_written              );  
-   iReg_Channel_Wave_Pattern_Duty          : entity work.eProcReg_gba generic map ( Reg_Wave_Pattern_Duty          ) port map  (clk100, gb_bus, Channel_Wave_Pattern_Duty         , Channel_Wave_Pattern_Duty         , Channel_Wave_Pattern_Duty_written         );  
-   iReg_Channel_Envelope_Step_Time         : entity work.eProcReg_gba generic map ( Reg_Envelope_Step_Time         ) port map  (clk100, gb_bus, Channel_Envelope_Step_Time        , Channel_Envelope_Step_Time        );  
-   iReg_Channel_Envelope_Direction         : entity work.eProcReg_gba generic map ( Reg_Envelope_Direction         ) port map  (clk100, gb_bus, Channel_Envelope_Direction        , Channel_Envelope_Direction        );  
-   iReg_Channel_Initial_Volume_of_envelope : entity work.eProcReg_gba generic map ( Reg_Initial_Volume_of_envelope ) port map  (clk100, gb_bus, Channel_Initial_Volume_of_envelope, Channel_Initial_Volume_of_envelope, Channel_Initial_Volume_of_envelope_written);  
-   iReg_Channel_Frequency                  : entity work.eProcReg_gba generic map ( Reg_Frequency                  ) port map  (clk100, gb_bus, "00000000000"                     , Channel_Frequency                 , open ,  Channel_Frequency_written_be      );
-   iReg_Channel_Length_Flag                : entity work.eProcReg_gba generic map ( Reg_Length_Flag                ) port map  (clk100, gb_bus, Channel_Length_Flag               , Channel_Length_Flag               );  
-   iReg_Channel_Initial                    : entity work.eProcReg_gba generic map ( Reg_Initial                    ) port map  (clk100, gb_bus, "0"                               , Channel_Initial                   , Channel_Initial_written);
-   iReg_Channel_HighZero                   : entity work.eProcReg_gba generic map ( Reg_HighZero                   ) port map  (clk100, gb_bus, Channel_HighZero);   
-  
-   process (clk100)
+   gNosweep : if has_sweep = false generate
    begin
-      if rising_edge(clk100) then
+      Channel_Number_of_sweep_shift     <= (others => '0');
+      Channel_Sweep_Frequency_Direction <= (others => '0');
+      Channel_Sweep_Time                <= (others => '0');
+      reg_wired_or(0)   <= (others => '0');
+      reg_wired_or(1)   <= (others => '0');
+      reg_wired_or(2)   <= (others => '0');      
+      reg_wired_done(0) <= '0';
+      reg_wired_done(1) <= '0';
+      reg_wired_done(2) <= '0';
+   end generate;
+   
+   iReg_Channel_Sound_length               : entity work.eProcReg_gba generic map ( Reg_Sound_length               ) port map  (clk1x, gb_bus, reg_wired_or( 3), reg_wired_done( 3), "000000"                          , Channel_Sound_length              , Channel_Sound_length_written              );  
+   iReg_Channel_Wave_Pattern_Duty          : entity work.eProcReg_gba generic map ( Reg_Wave_Pattern_Duty          ) port map  (clk1x, gb_bus, reg_wired_or( 4), reg_wired_done( 4), Channel_Wave_Pattern_Duty         , Channel_Wave_Pattern_Duty         , Channel_Wave_Pattern_Duty_written         );  
+   iReg_Channel_Envelope_Step_Time         : entity work.eProcReg_gba generic map ( Reg_Envelope_Step_Time         ) port map  (clk1x, gb_bus, reg_wired_or( 5), reg_wired_done( 5), Channel_Envelope_Step_Time        , Channel_Envelope_Step_Time        );  
+   iReg_Channel_Envelope_Direction         : entity work.eProcReg_gba generic map ( Reg_Envelope_Direction         ) port map  (clk1x, gb_bus, reg_wired_or( 6), reg_wired_done( 6), Channel_Envelope_Direction        , Channel_Envelope_Direction        );  
+   iReg_Channel_Initial_Volume_of_envelope : entity work.eProcReg_gba generic map ( Reg_Initial_Volume_of_envelope ) port map  (clk1x, gb_bus, reg_wired_or( 7), reg_wired_done( 7), Channel_Initial_Volume_of_envelope, Channel_Initial_Volume_of_envelope, Channel_Initial_Volume_of_envelope_written);  
+   iReg_Channel_Frequency                  : entity work.eProcReg_gba generic map ( Reg_Frequency                  ) port map  (clk1x, gb_bus, reg_wired_or( 8), reg_wired_done( 8), "00000000000"                     , Channel_Frequency                 , open, open, open, Channel_Frequency_written_be);  
+   iReg_Channel_Length_Flag                : entity work.eProcReg_gba generic map ( Reg_Length_Flag                ) port map  (clk1x, gb_bus, reg_wired_or( 9), reg_wired_done( 9), Channel_Length_Flag               , Channel_Length_Flag               );  
+   iReg_Channel_Initial                    : entity work.eProcReg_gba generic map ( Reg_Initial                    ) port map  (clk1x, gb_bus, reg_wired_or(10), reg_wired_done(10), "0"                               , Channel_Initial                   , Channel_Initial_written);  
+   iReg_Channel_HighZero                   : entity work.eProcReg_gba generic map ( Reg_HighZero                   ) port map  (clk1x, gb_bus, reg_wired_or(11), reg_wired_done(11), Channel_HighZero);   
+  
+   process (reg_wired_or)
+      variable wired_or : std_logic_vector(31 downto 0);
+   begin
+      wired_or := reg_wired_or(0);
+      for i in 1 to (reg_wired_or'length - 1) loop
+         wired_or := wired_or or reg_wired_or(i);
+      end loop;
+      wired_out <= wired_or;
+   end process;
+   wired_done <= '0' when (reg_wired_done = 0) else '1';
+   
+   Channel_HighZero <= (others => '0');
+  
+   process (clk1x)
+   begin
+      if rising_edge(clk1x) then
       
          if (gb_on = '0') then
          
@@ -151,7 +183,7 @@ begin
                envelope_add <= (others => '0');
                volume       <= to_integer(unsigned(Channel_Initial_Volume_of_envelope));
             end if;
-
+            
             if (Channel_Frequency_written_be(0) = '1') then
                freq_divider(7 downto 0) <= unsigned(Channel_Frequency(7 downto 0));
             end if;
@@ -185,7 +217,6 @@ begin
                -- freq / wavetable
                if (new_cycles_valid = '0' and soundcycles_freq >= 4) then
                   soundcycles_freq <= soundcycles_freq - 4;
-
                   if (freq_cnt = 2047) then
                      freq_cnt <= freq_divider;
                      wavetable_ptr <= wavetable_ptr + 1;
@@ -193,7 +224,7 @@ begin
                      freq_cnt <= freq_cnt + 1;
                   end if;
                end if;
-
+               
                -- sweep
                sweep_next <= freq_divider srl to_integer(unsigned(Channel_Number_of_sweep_shift));
                

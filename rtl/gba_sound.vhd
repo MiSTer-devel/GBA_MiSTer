@@ -16,18 +16,20 @@ entity gba_sound is
    );
    port 
    (
-      clk100              : in    std_logic; 
-      gb_on               : in    std_logic;      
+      clk1x               : in    std_logic; 
+      ce                  : in    std_logic;      
       reset               : in    std_logic;
       
       loading_savestate   : in    std_logic;  
-      savestate_bus       : inout proc_bus_gb_type;
+      savestate_bus       : in     proc_bus_gb_type;
+      ss_wired_out        : out    std_logic_vector(proc_buswidth-1 downto 0) := (others => '0');
+      ss_wired_done       : out    std_logic;
       
-      gb_bus              : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');
+      gb_bus              : in    proc_bus_gb_type;
+      wired_out           : out   std_logic_vector(proc_buswidth-1 downto 0) := (others => '0');
+      wired_done          : out   std_logic;
       
       lockspeed           : in    std_logic;
-      bus_cycles          : in    unsigned(7 downto 0);
-      bus_cycles_valid    : in    std_logic;
       
       timer0_tick         : in    std_logic;
       timer1_tick         : in    std_logic;
@@ -36,7 +38,7 @@ entity gba_sound is
       sound_out_left      : out   std_logic_vector(15 downto 0) := (others => '0');
       sound_out_right     : out   std_logic_vector(15 downto 0) := (others => '0');
       
-      debug_fifocount     : out   integer
+      debug_fifocount     : out   unsigned(15 downto 0)
    );
 end entity;
 
@@ -75,11 +77,14 @@ architecture arch of gba_sound is
                
    signal SOUNDCNT_H_DMA_written  : std_logic;
    
+   type t_reg_wired_or is array(0 to 34) of std_logic_vector(31 downto 0);
+   signal reg_wired_or    : t_reg_wired_or;   
+   signal reg_wired_done  : unsigned(0 to 34);
+   
    signal gbsound_on          : std_logic := '0';
 
-   signal new_cycles_slow     : unsigned(7 downto 0) := (others => '0');
    signal new_cycles_valid    : std_logic := '0';
-   signal bus_cycles_sum      : unsigned(7 downto 0) := (others => '0');
+   signal bus_cycles_sum      : unsigned(1 downto 0) := (others => '0');
 
    signal sound_out_ch1  : signed(15 downto 0);
    signal sound_out_ch2  : signed(15 downto 0);
@@ -97,8 +102,6 @@ architecture arch of gba_sound is
    signal sound_on_ch4  : std_logic;
    signal sound_on_dmaA : std_logic;
    signal sound_on_dmaB : std_logic;
-   
-   signal dma_new_sample : std_logic;
    
    signal soundmix1_l  : signed(15 downto 0) := (others => '0'); 
    signal soundmix1_r  : signed(15 downto 0) := (others => '0'); 
@@ -120,48 +123,62 @@ architecture arch of gba_sound is
    
    signal soundmix8_l : signed(15 downto 0) := (others => '0'); 
    signal soundmix8_r : signed(15 downto 0) := (others => '0'); 
-   signal soundmix9   : signed(9 downto 0) := (others => '0'); 
    
    -- savestates
    signal SAVESTATE_SOUNDON      : std_logic_vector(3 downto 0);
    signal SAVESTATE_SOUNDON_back : std_logic_vector(3 downto 0);
+   
+   type t_ss_wired_or is array(0 to 2) of std_logic_vector(31 downto 0);
+   signal save_wired_or        : t_ss_wired_or;   
+   signal save_wired_done      : unsigned(0 to 2);
            
 begin 
 
-   iSound_1_4_Master_Volume_RIGHT : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_1_4_Master_Volume_RIGHT ) port map  (clk100, gb_bus, Sound_1_4_Master_Volume_RIGHT , Sound_1_4_Master_Volume_RIGHT );  
-   iSound_1_4_Master_Volume_LEFT  : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_1_4_Master_Volume_LEFT  ) port map  (clk100, gb_bus, Sound_1_4_Master_Volume_LEFT  , Sound_1_4_Master_Volume_LEFT  );  
-   iSound_1_Enable_Flags_RIGHT    : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_1_Enable_Flags_RIGHT    ) port map  (clk100, gb_bus, Sound_1_Enable_Flags_RIGHT    , Sound_1_Enable_Flags_RIGHT    );  
-   iSound_2_Enable_Flags_RIGHT    : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_2_Enable_Flags_RIGHT    ) port map  (clk100, gb_bus, Sound_2_Enable_Flags_RIGHT    , Sound_2_Enable_Flags_RIGHT    );  
-   iSound_3_Enable_Flags_RIGHT    : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_3_Enable_Flags_RIGHT    ) port map  (clk100, gb_bus, Sound_3_Enable_Flags_RIGHT    , Sound_3_Enable_Flags_RIGHT    );  
-   iSound_4_Enable_Flags_RIGHT    : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_4_Enable_Flags_RIGHT    ) port map  (clk100, gb_bus, Sound_4_Enable_Flags_RIGHT    , Sound_4_Enable_Flags_RIGHT    );  
-   iSound_1_Enable_Flags_LEFT     : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_1_Enable_Flags_LEFT     ) port map  (clk100, gb_bus, Sound_1_Enable_Flags_LEFT     , Sound_1_Enable_Flags_LEFT     );  
-   iSound_2_Enable_Flags_LEFT     : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_2_Enable_Flags_LEFT     ) port map  (clk100, gb_bus, Sound_2_Enable_Flags_LEFT     , Sound_2_Enable_Flags_LEFT     );  
-   iSound_3_Enable_Flags_LEFT     : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_3_Enable_Flags_LEFT     ) port map  (clk100, gb_bus, Sound_3_Enable_Flags_LEFT     , Sound_3_Enable_Flags_LEFT     );  
-   iSound_4_Enable_Flags_LEFT     : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_4_Enable_Flags_LEFT     ) port map  (clk100, gb_bus, Sound_4_Enable_Flags_LEFT     , Sound_4_Enable_Flags_LEFT     );  
-                                                                                                                                                                                                         
-   iSound_1_4_Volume              : entity work.eProcReg_gba generic map ( SOUNDCNT_H_Sound_1_4_Volume              ) port map  (clk100, gb_bus, Sound_1_4_Volume              , Sound_1_4_Volume              );  
-   iDMA_Sound_A_Volume            : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_A_Volume            ) port map  (clk100, gb_bus, DMA_Sound_A_Volume            , DMA_Sound_A_Volume            );  
-   iDMA_Sound_B_Volume            : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_B_Volume            ) port map  (clk100, gb_bus, DMA_Sound_B_Volume            , DMA_Sound_B_Volume            );  
-   iDMA_Sound_A_Enable_RIGHT      : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_A_Enable_RIGHT      ) port map  (clk100, gb_bus, DMA_Sound_A_Enable_RIGHT      , DMA_Sound_A_Enable_RIGHT      , SOUNDCNT_H_DMA_written);  
-   iDMA_Sound_A_Enable_LEFT       : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_A_Enable_LEFT       ) port map  (clk100, gb_bus, DMA_Sound_A_Enable_LEFT       , DMA_Sound_A_Enable_LEFT       );  
-   iDMA_Sound_A_Timer_Select      : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_A_Timer_Select      ) port map  (clk100, gb_bus, DMA_Sound_A_Timer_Select      , DMA_Sound_A_Timer_Select      );  
-   iDMA_Sound_A_Reset_FIFO        : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_A_Reset_FIFO        ) port map  (clk100, gb_bus, "0"                           , DMA_Sound_A_Reset_FIFO        );  
-   iDMA_Sound_B_Enable_RIGHT      : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_B_Enable_RIGHT      ) port map  (clk100, gb_bus, DMA_Sound_B_Enable_RIGHT      , DMA_Sound_B_Enable_RIGHT      );  
-   iDMA_Sound_B_Enable_LEFT       : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_B_Enable_LEFT       ) port map  (clk100, gb_bus, DMA_Sound_B_Enable_LEFT       , DMA_Sound_B_Enable_LEFT       );  
-   iDMA_Sound_B_Timer_Select      : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_B_Timer_Select      ) port map  (clk100, gb_bus, DMA_Sound_B_Timer_Select      , DMA_Sound_B_Timer_Select      );  
-   iDMA_Sound_B_Reset_FIFO        : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_B_Reset_FIFO        ) port map  (clk100, gb_bus, "0"                           , DMA_Sound_B_Reset_FIFO        );  
-                                                                                                                                                                                                         
-   iSound_1_ON_flag               : entity work.eProcReg_gba generic map ( SOUNDCNT_X_Sound_1_ON_flag               ) port map  (clk100, gb_bus, Sound_1_ON_flag);  
-   iSound_2_ON_flag               : entity work.eProcReg_gba generic map ( SOUNDCNT_X_Sound_2_ON_flag               ) port map  (clk100, gb_bus, Sound_2_ON_flag);  
-   iSound_3_ON_flag               : entity work.eProcReg_gba generic map ( SOUNDCNT_X_Sound_3_ON_flag               ) port map  (clk100, gb_bus, Sound_3_ON_flag);  
-   iSound_4_ON_flag               : entity work.eProcReg_gba generic map ( SOUNDCNT_X_Sound_4_ON_flag               ) port map  (clk100, gb_bus, Sound_4_ON_flag);  
-   iPSG_FIFO_Master_Enable        : entity work.eProcReg_gba generic map ( SOUNDCNT_X_PSG_FIFO_Master_Enable        ) port map  (clk100, gb_bus, PSG_FIFO_Master_Enable        , PSG_FIFO_Master_Enable        );  
-                                                        
-   iREG_SOUNDBIAS                 : entity work.eProcReg_gba generic map ( SOUNDBIAS                                ) port map  (clk100, gb_bus, REG_SOUNDBIAS                 , REG_SOUNDBIAS                 );  
-                                                        
-   iSOUNDCNT_XHighZero            : entity work.eProcReg_gba generic map ( SOUNDCNT_XHighZero                       ) port map  (clk100, gb_bus, x"0000");  
-   iSOUNDBIAS_HighZero            : entity work.eProcReg_gba generic map ( SOUNDBIAS_HighZero                       ) port map  (clk100, gb_bus, x"0000");  
+   iSound_1_4_Master_Volume_RIGHT : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_1_4_Master_Volume_RIGHT ) port map  (clk1x, gb_bus, reg_wired_or( 0), reg_wired_done( 0), Sound_1_4_Master_Volume_RIGHT , Sound_1_4_Master_Volume_RIGHT );  
+   iSound_1_4_Master_Volume_LEFT  : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_1_4_Master_Volume_LEFT  ) port map  (clk1x, gb_bus, reg_wired_or( 1), reg_wired_done( 1), Sound_1_4_Master_Volume_LEFT  , Sound_1_4_Master_Volume_LEFT  );  
+   iSound_1_Enable_Flags_RIGHT    : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_1_Enable_Flags_RIGHT    ) port map  (clk1x, gb_bus, reg_wired_or( 2), reg_wired_done( 2), Sound_1_Enable_Flags_RIGHT    , Sound_1_Enable_Flags_RIGHT    );  
+   iSound_2_Enable_Flags_RIGHT    : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_2_Enable_Flags_RIGHT    ) port map  (clk1x, gb_bus, reg_wired_or( 3), reg_wired_done( 3), Sound_2_Enable_Flags_RIGHT    , Sound_2_Enable_Flags_RIGHT    );  
+   iSound_3_Enable_Flags_RIGHT    : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_3_Enable_Flags_RIGHT    ) port map  (clk1x, gb_bus, reg_wired_or( 4), reg_wired_done( 4), Sound_3_Enable_Flags_RIGHT    , Sound_3_Enable_Flags_RIGHT    );  
+   iSound_4_Enable_Flags_RIGHT    : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_4_Enable_Flags_RIGHT    ) port map  (clk1x, gb_bus, reg_wired_or( 5), reg_wired_done( 5), Sound_4_Enable_Flags_RIGHT    , Sound_4_Enable_Flags_RIGHT    );  
+   iSound_1_Enable_Flags_LEFT     : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_1_Enable_Flags_LEFT     ) port map  (clk1x, gb_bus, reg_wired_or( 6), reg_wired_done( 6), Sound_1_Enable_Flags_LEFT     , Sound_1_Enable_Flags_LEFT     );  
+   iSound_2_Enable_Flags_LEFT     : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_2_Enable_Flags_LEFT     ) port map  (clk1x, gb_bus, reg_wired_or( 7), reg_wired_done( 7), Sound_2_Enable_Flags_LEFT     , Sound_2_Enable_Flags_LEFT     );  
+   iSound_3_Enable_Flags_LEFT     : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_3_Enable_Flags_LEFT     ) port map  (clk1x, gb_bus, reg_wired_or( 8), reg_wired_done( 8), Sound_3_Enable_Flags_LEFT     , Sound_3_Enable_Flags_LEFT     );  
+   iSound_4_Enable_Flags_LEFT     : entity work.eProcReg_gba generic map ( SOUNDCNT_L_Sound_4_Enable_Flags_LEFT     ) port map  (clk1x, gb_bus, reg_wired_or( 9), reg_wired_done( 9), Sound_4_Enable_Flags_LEFT     , Sound_4_Enable_Flags_LEFT     );  
+                                                                                                                                                                                                          
+   iSound_1_4_Volume              : entity work.eProcReg_gba generic map ( SOUNDCNT_H_Sound_1_4_Volume              ) port map  (clk1x, gb_bus, reg_wired_or(10), reg_wired_done(10), Sound_1_4_Volume              , Sound_1_4_Volume              );  
+   iDMA_Sound_A_Volume            : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_A_Volume            ) port map  (clk1x, gb_bus, reg_wired_or(11), reg_wired_done(11), DMA_Sound_A_Volume            , DMA_Sound_A_Volume            );  
+   iDMA_Sound_B_Volume            : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_B_Volume            ) port map  (clk1x, gb_bus, reg_wired_or(12), reg_wired_done(12), DMA_Sound_B_Volume            , DMA_Sound_B_Volume            );  
+   iDMA_Sound_A_Enable_RIGHT      : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_A_Enable_RIGHT      ) port map  (clk1x, gb_bus, reg_wired_or(13), reg_wired_done(13), DMA_Sound_A_Enable_RIGHT      , DMA_Sound_A_Enable_RIGHT      , SOUNDCNT_H_DMA_written);  
+   iDMA_Sound_A_Enable_LEFT       : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_A_Enable_LEFT       ) port map  (clk1x, gb_bus, reg_wired_or(14), reg_wired_done(14), DMA_Sound_A_Enable_LEFT       , DMA_Sound_A_Enable_LEFT       );  
+   iDMA_Sound_A_Timer_Select      : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_A_Timer_Select      ) port map  (clk1x, gb_bus, reg_wired_or(15), reg_wired_done(15), DMA_Sound_A_Timer_Select      , DMA_Sound_A_Timer_Select      );  
+   iDMA_Sound_A_Reset_FIFO        : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_A_Reset_FIFO        ) port map  (clk1x, gb_bus, reg_wired_or(16), reg_wired_done(16), "0"                           , DMA_Sound_A_Reset_FIFO        );  
+   iDMA_Sound_B_Enable_RIGHT      : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_B_Enable_RIGHT      ) port map  (clk1x, gb_bus, reg_wired_or(17), reg_wired_done(17), DMA_Sound_B_Enable_RIGHT      , DMA_Sound_B_Enable_RIGHT      );  
+   iDMA_Sound_B_Enable_LEFT       : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_B_Enable_LEFT       ) port map  (clk1x, gb_bus, reg_wired_or(18), reg_wired_done(18), DMA_Sound_B_Enable_LEFT       , DMA_Sound_B_Enable_LEFT       );  
+   iDMA_Sound_B_Timer_Select      : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_B_Timer_Select      ) port map  (clk1x, gb_bus, reg_wired_or(19), reg_wired_done(19), DMA_Sound_B_Timer_Select      , DMA_Sound_B_Timer_Select      );  
+   iDMA_Sound_B_Reset_FIFO        : entity work.eProcReg_gba generic map ( SOUNDCNT_H_DMA_Sound_B_Reset_FIFO        ) port map  (clk1x, gb_bus, reg_wired_or(20), reg_wired_done(20), "0"                           , DMA_Sound_B_Reset_FIFO        );  
+                                                                                                                                                                                                          
+   iSound_1_ON_flag               : entity work.eProcReg_gba generic map ( SOUNDCNT_X_Sound_1_ON_flag               ) port map  (clk1x, gb_bus, reg_wired_or(21), reg_wired_done(21), Sound_1_ON_flag);  
+   iSound_2_ON_flag               : entity work.eProcReg_gba generic map ( SOUNDCNT_X_Sound_2_ON_flag               ) port map  (clk1x, gb_bus, reg_wired_or(22), reg_wired_done(22), Sound_2_ON_flag);  
+   iSound_3_ON_flag               : entity work.eProcReg_gba generic map ( SOUNDCNT_X_Sound_3_ON_flag               ) port map  (clk1x, gb_bus, reg_wired_or(23), reg_wired_done(23), Sound_3_ON_flag);  
+   iSound_4_ON_flag               : entity work.eProcReg_gba generic map ( SOUNDCNT_X_Sound_4_ON_flag               ) port map  (clk1x, gb_bus, reg_wired_or(24), reg_wired_done(24), Sound_4_ON_flag);  
+   iPSG_FIFO_Master_Enable        : entity work.eProcReg_gba generic map ( SOUNDCNT_X_PSG_FIFO_Master_Enable        ) port map  (clk1x, gb_bus, reg_wired_or(25), reg_wired_done(25), PSG_FIFO_Master_Enable        , PSG_FIFO_Master_Enable        );  
+                                                                                                                                                                                 
+   iREG_SOUNDBIAS                 : entity work.eProcReg_gba generic map ( SOUNDBIAS                                ) port map  (clk1x, gb_bus, reg_wired_or(26), reg_wired_done(26), REG_SOUNDBIAS                 , REG_SOUNDBIAS                 );  
+                                                                                                                                                                                 
+   iSOUNDCNT_XHighZero            : entity work.eProcReg_gba generic map ( SOUNDCNT_XHighZero                       ) port map  (clk1x, gb_bus, reg_wired_or(27), reg_wired_done(27), x"0000");  
+   iSOUNDBIAS_HighZero            : entity work.eProcReg_gba generic map ( SOUNDBIAS_HighZero                       ) port map  (clk1x, gb_bus, reg_wired_or(28), reg_wired_done(28), x"0000");  
 
+   
+   process (reg_wired_or)
+      variable wired_or : std_logic_vector(31 downto 0);
+   begin
+      wired_or := reg_wired_or(0);
+      for i in 1 to (reg_wired_or'length - 1) loop
+         wired_or := wired_or or reg_wired_or(i);
+      end loop;
+      wired_out <= wired_or;
+   end process;
+   wired_done <= '0' when (reg_wired_done = 0) else '1';
 
    Sound_1_ON_flag(Sound_1_ON_flag'right) <= '1' when sound_on_ch1 = '1' and (Sound_1_Enable_Flags_LEFT = "1" or Sound_1_Enable_Flags_RIGHT = "1") else '0';
    Sound_2_ON_flag(Sound_2_ON_flag'right) <= '1' when sound_on_ch2 = '1' and (Sound_2_Enable_Flags_LEFT = "1" or Sound_2_Enable_Flags_RIGHT = "1") else '0';
@@ -169,7 +186,18 @@ begin
    Sound_4_ON_flag(Sound_4_ON_flag'right) <= '1' when sound_on_ch4 = '1' and (Sound_4_Enable_Flags_LEFT = "1" or Sound_4_Enable_Flags_RIGHT = "1") else '0';
     
    -- save state
-   iSAVESTATE_SOUNDON : entity work.eProcReg_gba generic map (REG_SAVESTATE_SOUNDON) port map (clk100, savestate_bus, SAVESTATE_SOUNDON_back, SAVESTATE_SOUNDON);
+   iSAVESTATE_SOUNDON : entity work.eProcReg_gba generic map (REG_SAVESTATE_SOUNDON) port map (clk1x, savestate_bus, save_wired_or(0), save_wired_done(0), SAVESTATE_SOUNDON_back, SAVESTATE_SOUNDON);
+
+   process (save_wired_or)
+      variable wired_or : std_logic_vector(31 downto 0);
+   begin
+      wired_or := save_wired_or(0);
+      for i in 1 to (save_wired_or'length - 1) loop
+         wired_or := wired_or or save_wired_or(i);
+      end loop;
+      ss_wired_out <= wired_or;
+   end process;
+   ss_wired_done <= '0' when (save_wired_done = 0) else '1';
 
    SAVESTATE_SOUNDON_back(0) <= sound_on_ch1;
    SAVESTATE_SOUNDON_back(1) <= sound_on_ch2;
@@ -196,12 +224,14 @@ begin
    )
    port map
    (
-      clk100            => clk100, 
+      clk1x             => clk1x, 
       reset             => reset, 
       gb_on             => gbsound_on,   
       ch_on_ss          => SAVESTATE_SOUNDON(0),   
       loading_savestate => loading_savestate,      
       gb_bus            => gb_bus,           
+      wired_out         => reg_wired_or(29),
+      wired_done        => reg_wired_done(29),
       new_cycles_valid  => new_cycles_valid,
       sound_out         => sound_out_ch1,
       sound_on          => sound_on_ch1 
@@ -226,12 +256,14 @@ begin
    )
    port map
    (
-      clk100            => clk100, 
+      clk1x             => clk1x, 
       reset             => reset, 
       gb_on             => gbsound_on,    
       ch_on_ss          => SAVESTATE_SOUNDON(1),
       loading_savestate => loading_savestate,
-      gb_bus            => gb_bus,          
+      gb_bus            => gb_bus,           
+      wired_out         => reg_wired_or(30),
+      wired_done        => reg_wired_done(30),        
       new_cycles_valid  => new_cycles_valid,
       sound_out         => sound_out_ch2,
       sound_on          => sound_on_ch2 
@@ -240,12 +272,14 @@ begin
    igba_sound_ch3 : entity work.gba_sound_ch3
    port map
    (
-      clk100            => clk100,  
+      clk1x             => clk1x,  
       reset             => reset,       
       gb_on             => gbsound_on, 
       ch_on_ss          => SAVESTATE_SOUNDON(2),   
       loading_savestate => loading_savestate,      
-      gb_bus            => gb_bus,              
+      gb_bus            => gb_bus,           
+      wired_out         => reg_wired_or(31),
+      wired_done        => reg_wired_done(31),         
       new_cycles_valid  => new_cycles_valid,
       sound_out         => sound_out_ch3,
       sound_on          => sound_on_ch3 
@@ -254,12 +288,14 @@ begin
    igba_sound_ch4 : entity work.gba_sound_ch4
    port map
    (
-      clk100            => clk100,  
+      clk1x             => clk1x,  
       reset             => reset, 
       gb_on             => gbsound_on, 
       ch_on_ss          => SAVESTATE_SOUNDON(3),     
       loading_savestate => loading_savestate,      
-      gb_bus            => gb_bus,             
+      gb_bus            => gb_bus,           
+      wired_out         => reg_wired_or(32),
+      wired_done        => reg_wired_done(32),            
       new_cycles_valid  => new_cycles_valid,
       sound_out         => sound_out_ch4,
       sound_on          => sound_on_ch4 
@@ -273,13 +309,18 @@ begin
    )
    port map
    (
-      clk100              => clk100,
+      clk1x               => clk1x,
+      ce                  => ce,
       reset               => reset, 
       
       savestate_bus       => savestate_bus,
+      ss_wired_out        => save_wired_or(1),
+      ss_wired_done       => save_wired_done(1),
       loading_savestate   => loading_savestate,
       
-      gb_bus              => gb_bus,
+      gb_bus              => gb_bus,           
+      wired_out           => reg_wired_or(33),
+      wired_done          => reg_wired_done(33),
                            
       settings_new        => SOUNDCNT_H_DMA_written,
       Enable_RIGHT        => DMA_Sound_A_Enable_RIGHT(DMA_Sound_A_Enable_RIGHT'left),
@@ -296,9 +337,9 @@ begin
       sound_out_right     => sound_out_dmaA_r,
       sound_on            => sound_on_dmaA,
       
-      new_sample_out      => dma_new_sample,
+      new_sample_out      => open,
       
-      debug_fifocount     => debug_fifocount
+      debug_fifocount     => debug_fifocount(7 downto 0)
    );
    
    igba_sound_dmaB : entity work.gba_sound_dma
@@ -309,13 +350,18 @@ begin
    )
    port map
    (
-      clk100              => clk100,
+      clk1x               => clk1x,
+      ce                  => ce,
       reset               => reset, 
       
       savestate_bus       => savestate_bus,
+      ss_wired_out        => save_wired_or(2),
+      ss_wired_done       => save_wired_done(2),
       loading_savestate   => loading_savestate,
       
-      gb_bus              => gb_bus,
+      gb_bus              => gb_bus,           
+      wired_out           => reg_wired_or(34),
+      wired_done          => reg_wired_done(34),
                            
       settings_new        => SOUNDCNT_H_DMA_written,
       Enable_RIGHT        => DMA_Sound_B_Enable_RIGHT(DMA_Sound_B_Enable_RIGHT'left),
@@ -334,33 +380,25 @@ begin
       
       new_sample_out      => open, 
       
-      debug_fifocount     => open
+      debug_fifocount     => debug_fifocount(15 downto 8)
    );
    
-   process (clk100)
+   process (clk1x)
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk1x) then
         
          -- PSG_FIFO_Master_Enable should usually also reset all sound registers
-         gbsound_on <= gb_on and PSG_FIFO_Master_Enable(PSG_FIFO_Master_Enable'left);
+         gbsound_on <= ce and PSG_FIFO_Master_Enable(PSG_FIFO_Master_Enable'left);
         
          new_cycles_valid <= '0';
                 
-         -- run synchronized when with lockspeed, otherwise use fixed timing so sounds are not pitched up
          -- channels 1-4 are from GB, they still work with 4 MHZ, so clock is divided by 4 here.
-         if (lockspeed = '1') then 
-            if (bus_cycles_valid = '1') then
-               bus_cycles_sum <= bus_cycles_sum + bus_cycles;
-            elsif (bus_cycles_sum >= 4) then
-               new_cycles_valid <= '1';
-               bus_cycles_sum   <= bus_cycles_sum - 4;
-            end if;
-         else
-            if (new_cycles_slow < 24) then
-               new_cycles_slow <= new_cycles_slow + 1;
+         if (ce = '1') then
+            if (bus_cycles_sum < 3) then
+               bus_cycles_sum <= bus_cycles_sum + 1;
             else
-               new_cycles_slow  <= (others => '0');
-               new_cycles_valid <= '1';  
+               new_cycles_valid <= '1';
+               bus_cycles_sum   <= (others => '0');
             end if;
          end if;
          
@@ -446,100 +484,16 @@ begin
          -- skip sound bias and clip on signed instead
          soundmix8_l <= soundmix7_l; -- + to_integer(unsigned(REG_SOUNDBIAS));
          soundmix8_r <= soundmix7_r; -- + to_integer(unsigned(REG_SOUNDBIAS));
-
-         -- clipping, only for turbosound, using left channel only
-         if (soundmix8_l < -512) then
-            soundmix9 <= to_signed(-512, 10);
-         elsif (soundmix8_l > 511) then
-            soundmix9 <= to_signed(511, 10);
-         else
-            soundmix9 <= soundmix8_l(9 downto 0);
-         end if;
       
       end if;
    end process;
    
-   gturbosound : if turbosound = '1' generate
-      
-      signal fifo_Din   : std_logic_vector(8 downto 0);
-      signal fifo_Wr    : std_logic := '0';
-      signal fifo_Full  : std_logic;
-      signal fifo_Dout  : std_logic_vector(8 downto 0);
-      signal fifo_Rd    : std_logic := '0';
-      signal fifo_Empty : std_logic;
-   
-      signal filling    : std_logic := '0';
-      signal readcount  : integer range 0 to 9090 := 0; -- 11khz
-   
-   begin
-   
-      fifo_Wr <= dma_new_sample when fifo_Full = '0' and filling = '1' else '0';
-      fifo_Din <= std_logic_vector(soundmix9(9 downto 1));
-   
-      iSyncFifo : entity MEM.SyncFifo
-      generic map
-      (
-         SIZE             => 2048,
-         DATAWIDTH        => 9,
-         NEARFULLDISTANCE => 0
-      )
-      port map
-      ( 
-         clk      => clk100,
-         reset    => '0',
-                  
-         Din      => fifo_Din,  
-         Wr       => fifo_Wr,   
-         Full     => fifo_Full, 
-                     
-         Dout     => fifo_Dout, 
-         Rd       => fifo_Rd,   
-         Empty    => fifo_Empty
-      );
-      
-      process (clk100)
-      begin
-         if rising_edge(clk100) then
-         
-            if (filling = '0' and fifo_Empty = '1') then
-               filling <= '1';
-            end if;
-            
-            if (filling = '1' and fifo_Full = '1') then
-               filling <= '0';
-            end if;
-            
-            fifo_Rd <= '0';
-            if (readcount < 9090) then
-               readcount <= readcount + 1;
-            else
-               readcount <= 0;
-               fifo_Rd   <= not fifo_Empty;
-            end if;
-            
-         end if;
-      end process;
-   
-      sound_out_left  <= std_logic_vector(resize(soundmix8_l       * 16, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '1' else 
-                         std_logic_vector(resize(signed(fifo_Dout) * 32, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '0' else 
-                         (others => '0');
-      sound_out_right <= std_logic_vector(resize(soundmix8_r       * 16, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '1' else 
-                         std_logic_vector(resize(signed(fifo_Dout) * 32, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '0' else 
-                         (others => '0');
-
-   end generate;
-   
-   gnoturbosound : if turbosound = '0' generate
-   begin
-   
-      sound_out_left  <= std_logic_vector(resize(soundmix8_l * 16, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '1' else 
-                         std_logic_vector(resize(soundmix8_l * 4, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '0' else 
-                         (others => '0');
-      sound_out_right <= std_logic_vector(resize(soundmix8_r * 16, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '1' else 
-                         std_logic_vector(resize(soundmix8_r * 4, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '0' else 
-                         (others => '0');
-   
-   end generate;
+   sound_out_left  <= std_logic_vector(resize(soundmix8_l * 16, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '1' else 
+                      std_logic_vector(resize(soundmix8_l * 4, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '0' else 
+                      (others => '0');
+   sound_out_right <= std_logic_vector(resize(soundmix8_r * 16, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '1' else 
+                      std_logic_vector(resize(soundmix8_r * 4, 16)) when PSG_FIFO_Master_Enable = "1" and lockspeed = '0' else 
+                      (others => '0');
    
     
 end architecture;

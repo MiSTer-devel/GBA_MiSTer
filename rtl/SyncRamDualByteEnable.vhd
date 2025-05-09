@@ -18,6 +18,7 @@ entity SyncRamDualByteEnable is
    (
       clk        : in std_logic;
       
+      ce_a       : in std_logic;
       addr_a     : in natural range 0 to 2**ADDR_WIDTH - 1;
       datain_a0  : in std_logic_vector((BYTE_WIDTH-1) downto 0);
       datain_a1  : in std_logic_vector((BYTE_WIDTH-1) downto 0);
@@ -26,7 +27,8 @@ entity SyncRamDualByteEnable is
       dataout_a  : out std_logic_vector((BYTES*BYTE_WIDTH-1) downto 0);
       we_a       : in std_logic := '1';
       be_a       : in  std_logic_vector (BYTES - 1 downto 0);
-		            
+		 
+      ce_b       : in std_logic;
       addr_b     : in natural range 0 to 2**ADDR_WIDTH - 1;
       datain_b0  : in std_logic_vector((BYTE_WIDTH-1) downto 0);
       datain_b1  : in std_logic_vector((BYTE_WIDTH-1) downto 0);
@@ -59,45 +61,49 @@ begin
    
       process(clk)
       begin
-         if(rising_edge(clk)) then 
-            if(we_a = '1') then
-               -- edit this code if using other than four bytes per word
-               if(be_a(0) = '1') then
-                  ram(addr_a)(0) <= datain_a0;
+         if(rising_edge(clk)) then
+            if (ce_a = '1') then
+               if(we_a = '1') then
+                  -- edit this code if using other than four bytes per word
+                  if(be_a(0) = '1') then
+                     ram(addr_a)(0) <= datain_a0;
+                  end if;
+                  if be_a(1) = '1' then
+                     ram(addr_a)(1) <= datain_a1;
+                  end if;
+                  if be_a(2) = '1' then
+                     ram(addr_a)(2) <= datain_a2;
+                  end if;
+                  if be_a(3) = '1' then
+                     ram(addr_a)(3) <= datain_a3;
+                  end if;
                end if;
-               if be_a(1) = '1' then
-                  ram(addr_a)(1) <= datain_a1;
-               end if;
-               if be_a(2) = '1' then
-                  ram(addr_a)(2) <= datain_a2;
-               end if;
-               if be_a(3) = '1' then
-                  ram(addr_a)(3) <= datain_a3;
-               end if;
+               q1_local <= ram(addr_a);
             end if;
-            q1_local <= ram(addr_a);
          end if;
       end process;
    
       process(clk)
       begin
          if(rising_edge(clk)) then 
-            if(we_b = '1') then
-                  -- edit this code if using other than four bytes per word
-               if(be_b(0) = '1') then
-                  ram(addr_b)(0) <= datain_b0;
+            if (ce_b = '1') then
+               if(we_b = '1') then
+                     -- edit this code if using other than four bytes per word
+                  if(be_b(0) = '1') then
+                     ram(addr_b)(0) <= datain_b0;
+                  end if;
+                  if be_b(1) = '1' then
+                     ram(addr_b)(1) <= datain_b1;
+                  end if;
+                  if be_b(2) = '1' then
+                     ram(addr_b)(2) <= datain_b2;
+                  end if;
+                  if be_b(3) = '1' then
+                     ram(addr_b)(3) <= datain_b3;
+                  end if;
                end if;
-               if be_b(1) = '1' then
-                  ram(addr_b)(1) <= datain_b1;
-               end if;
-               if be_b(2) = '1' then
-                  ram(addr_b)(2) <= datain_b2;
-               end if;
-               if be_b(3) = '1' then
-                  ram(addr_b)(3) <= datain_b3;
-               end if;
+               q2_local <= ram(addr_b);
             end if;
-            q2_local <= ram(addr_b);
          end if;
       end process;  
    end generate;
@@ -151,8 +157,8 @@ begin
          address_b => addr_b_slv,
          clock0 => clk,
          clock1 => clk,
-         clocken0 => '1',
-         clocken1 => '1',
+         clocken0 => ce_a,
+         clocken1 => ce_b,
          data_a => data_a,
          data_b => data_b,
          wren_a => we_a,
@@ -177,39 +183,43 @@ begin
       process(clk)
       begin
          if(rising_edge(clk)) then 
-            if(we_a = '1') then
-               -- edit this code if using other than four bytes per word
-               if(be_a(0) = '1') then
-                  ram(addr_a)(0) <= datain_a0;
-               end if;
-               if be_a(1) = '1' then
-                  ram(addr_a)(1) <= datain_a1;
-               end if;
-               if be_a(2) = '1' then
-                  ram(addr_a)(2) <= datain_a2;
-               end if;
-               if be_a(3) = '1' then
-                  ram(addr_a)(3) <= datain_a3;
-               end if;
-            end if;
-            q1_local <= ram(addr_a);
-   
-            if(we_b = '1') then
+            if (ce_a = '1') then
+               if(we_a = '1') then
                   -- edit this code if using other than four bytes per word
-               if(be_b(0) = '1') then
-                  ram(addr_b)(0) <= datain_b0;
+                  if(be_a(0) = '1') then
+                     ram(addr_a)(0) <= datain_a0;
+                  end if;
+                  if be_a(1) = '1' then
+                     ram(addr_a)(1) <= datain_a1;
+                  end if;
+                  if be_a(2) = '1' then
+                     ram(addr_a)(2) <= datain_a2;
+                  end if;
+                  if be_a(3) = '1' then
+                     ram(addr_a)(3) <= datain_a3;
+                  end if;
                end if;
-               if be_b(1) = '1' then
-                  ram(addr_b)(1) <= datain_b1;
-               end if;
-               if be_b(2) = '1' then
-                  ram(addr_b)(2) <= datain_b2;
-               end if;
-               if be_b(3) = '1' then
-                  ram(addr_b)(3) <= datain_b3;
-               end if;
+               q1_local <= ram(addr_a);
             end if;
-            q2_local <= ram(addr_b);
+   
+            if (ce_b = '1') then
+               if(we_b = '1') then
+                     -- edit this code if using other than four bytes per word
+                  if(be_b(0) = '1') then
+                     ram(addr_b)(0) <= datain_b0;
+                  end if;
+                  if be_b(1) = '1' then
+                     ram(addr_b)(1) <= datain_b1;
+                  end if;
+                  if be_b(2) = '1' then
+                     ram(addr_b)(2) <= datain_b2;
+                  end if;
+                  if be_b(3) = '1' then
+                     ram(addr_b)(3) <= datain_b3;
+                  end if;
+               end if;
+               q2_local <= ram(addr_b);
+            end if;
          end if;
       end process;  
    end generate;

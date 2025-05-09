@@ -7,6 +7,7 @@ entity gba_bios is
    (
       clk       : in std_logic;
       address   : in std_logic_vector(11 downto 0);
+      readEna   : in std_logic;
       data      : out std_logic_vector(31 downto 0);
 
       wraddress : in std_logic_vector(11 downto 0);
@@ -4122,10 +4123,12 @@ begin
    process (clk) 
    begin
       if rising_edge(clk) then
-         data <= rom(to_integer(unsigned(address)));
+         if (readEna = '1') then
+            data <= rom(to_integer(unsigned(address)));
+         end if;
       end if;
    end process;
-
+   
    process (clk) 
    begin
       if rising_edge(clk) then

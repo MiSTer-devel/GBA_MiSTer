@@ -6,17 +6,12 @@ entity gba_drawer_obj is
    generic
    (
       RESMULT      : integer := 1;
-      PIXELCOUNT   : integer := 240;
-      YMULTOFFSET  : integer := 0
+      PIXELCOUNT   : integer := 240
    );
    port 
    (
-      clk100               : in  std_logic;                     
-       
-      hblank               : in  std_logic;
-      lockspeed            : in  std_logic;      
-      busy                 : buffer std_logic := '0';
-      
+      clk                  : in  std_logic;                     
+          
       drawline             : in  std_logic;
       ypos                 : in  integer range 0 to 159;
       ypos_mosaic          : in  integer range 0 to 159;
@@ -26,7 +21,6 @@ entity gba_drawer_obj is
       Mosaic_H_Size        : in  unsigned(3 downto 0);
       
       hblankfree           : in  std_logic;
-      maxpixels            : in  std_logic;
       
       pixel_we_color       : out std_logic := '0';
       pixeldata_color      : out std_logic_vector(15 downto 0) := (others => '0');
@@ -86,20 +80,24 @@ architecture arch of gba_drawer_obj is
    type t_OAMFetch is
    (
       IDLE,
+      READFIRST,
       WAITFIRST,
+      READSECOND,
       WAITSECOND,
+      READAFFINE0,
+      WAITAFFINE0,
+      READAFFINE1,
       WAITAFFINE1,
+      READAFFINE2,
       WAITAFFINE2,
+      READAFFINE3,
       WAITAFFINE3,
-      WAITAFFINE4,
-      EVALOAM,
       DONE
    );
    signal OAMFetch : t_OAMFetch := IDLE;
    
    signal output_ok : std_logic := '0';
-   
-   signal wait_busydone : integer range 0 to 7 := 0;
+   signal overdraw  : std_logic := '0';
    
    signal OAM_currentobj : integer range 0 to 127;
    
@@ -112,12 +110,28 @@ architecture arch of gba_drawer_obj is
    signal OAM_data_aff2 : std_logic_vector(15 downto 0) := (others => '0');
    signal OAM_data_aff3 : std_logic_vector(15 downto 0) := (others => '0');
    
+   signal OAM_sizeX     : integer range 8 to 64;
+   signal OAM_sizeY     : integer range 8 to 64;
+   signal OAM_sizeX2    : integer range 8 to 128;
+   signal OAM_sizeY2    : integer range 8 to 128;
+   signal OAM_posy      : integer range -256 to 255;
+   signal OAM_posyMos   : integer range -512 to 511;
+   
+   signal OAMfetch_sizeX         : integer range 8 to 64;
+   signal OAMfetch_sizeY         : integer range 8 to 64;
+   signal OAMfetch_fieldX        : integer range 8 to 128;
+   signal OAMfetch_fieldY        : integer range 8 to 128;
+   signal OAMfetch_ty            : integer range -256 to 255;
+   signal OAMfetch_sizemult      : integer range 32 to 512;
+   signal OAMfetch_x_flip_offset : integer range 3 to 7;
+   signal OAMfetch_y_flip_offset : integer range 28 to 56;
+   signal OAMfetch_x_div         : integer range 1 to 2;
+   signal OAMfetch_x_size        : integer range 4 to 8;
+   signal OAMfetch_addrbase      : integer range 0 to 32767;
+   
    type t_PIXELGen is
    (
       WAITOAM,
-      CALCMOSAIC,
-      BASEADDR_PRE,
-      BASEADDR,
       NEXTADDR,
       PIXELISSUE
    );
@@ -127,51 +141,31 @@ architecture arch of gba_drawer_obj is
    signal Pixel_data1       : std_logic_vector(15 downto 0) := (others => '0');
    signal Pixel_data2       : std_logic_vector(15 downto 0) := (others => '0');
    signal dx                : integer range -32768 to 32767;
-   signal dmx               : integer range -32768 to 32767;
    signal dy                : integer range -32768 to 32767;
-   signal dmy               : integer range -32768 to 32767;
        
-   signal ty                : integer range -256 to 255;
    signal posx              : integer range -512 to 511;
    signal sizeX             : integer range 8 to 64;
    signal sizeY             : integer range 8 to 64;
-   signal pixeladdr_pre     : integer range 0 to 32767;
+   signal fieldX            : integer range 8 to 128;
+   signal pixeladdr_base    : integer range 0 to 32767;
    signal pixeladdr         : integer range -32768 to 32767;
        
    signal sizemult          : integer range 32 to 512;
-   signal pixeladdr_pre_a0  : integer range -8388608 to 8388607; -- 24 bit
-   signal pixeladdr_pre_a1  : integer range -8388608 to 8388607;
-   signal pixeladdr_pre_a2  : integer range -8388608 to 8388607;
-   signal pixeladdr_pre_a3  : integer range -8388608 to 8388607;
-   signal pixeladdr_pre_a4  : integer range -8388608 to 8388607;
-   signal pixeladdr_pre_a5  : integer range -8388608 to 8388607;
-   signal pixeladdr_pre_a6  : integer range -8388608 to 8388607;
-   signal pixeladdr_pre_a7  : integer range -8388608 to 8388607;
-   
-   signal pixeladdr_pre_0   : integer range -32768 to 32767;
-   signal pixeladdr_pre_1   : integer range -32768 to 32767;
-   signal pixeladdr_pre_2   : integer range -32768 to 32767;
-   signal pixeladdr_pre_3   : integer range -32768 to 32767;
-   signal pixeladdr_pre_4   : integer range -32768 to 32767;
-   signal pixeladdr_pre_5   : integer range -32768 to 32767;
-   signal pixeladdr_pre_6   : integer range -32768 to 32767;
-   signal pixeladdr_pre_7   : integer range -32768 to 32767;
        
    signal x_flip_offset     : integer range 3 to 7;
-   signal y_flip_offset     : integer range 28 to 56;
    signal x_div             : integer range 1 to 2;
    signal x_size            : integer range 4 to 8;
        
-   signal mosaik_h_cnt      : integer range 0 to 16;
    signal x                 : integer range 0 to 255;
    signal realX             : integer range -8388608 to 8388607;
    signal realY             : integer range -8388608 to 8388607;
    signal target            : integer range 0 to (PIXELCOUNT - 1);
-   signal second_pix        : std_logic;
+   signal second_pix        : std_logic := '0';
+   signal vram_reuse        : std_logic := '0';
+   signal firstpix          : std_logic;
    signal skippixel         : std_logic;
    signal issue_pixel       : std_logic;
    signal pixeladdr_x       : unsigned(14 downto 0) := (others => '0');
-   signal pixeladdr_x_noaff : unsigned(14 downto 0);
    
    signal rescounter        : integer range 0 to RESMULT - 1;
    signal rescounter_current: integer range 0 to RESMULT - 1;
@@ -200,23 +194,21 @@ architecture arch of gba_drawer_obj is
    signal Pixel_readback    : tpixel;
    signal Pixel_merge       : tpixel;
                             
-   signal target_start      : integer range 0 to (PIXELCOUNT - 1);
    signal target_eval       : integer range 0 to (PIXELCOUNT - 1);
    signal target_wait       : integer range 0 to (PIXELCOUNT - 1);
    signal target_merge      : integer range 0 to (PIXELCOUNT - 1);    
                             
-   signal enable_start      : std_logic;
    signal enable_eval       : std_logic;
    signal enable_wait       : std_logic;
    signal enable_merge      : std_logic;
                             
-   signal second_pix_start  : std_logic;
-   signal second_pix_eval   : std_logic;
+   signal second_pix_eval   : std_logic;   
    
-   signal zeroread_start    : std_logic;
+   signal vram_reuse_eval   : std_logic;
+   signal VRAM_data_next    : std_logic_vector(7 downto 0) := (others => '0');
+   
    signal zeroread_eval     : std_logic;
                             
-   signal readaddr_mux      : unsigned(1 downto 0);
    signal readaddr_mux_eval : unsigned(1 downto 0);
    
    signal prio_eval         : std_logic_vector(1 downto 0);
@@ -231,8 +223,9 @@ architecture arch of gba_drawer_obj is
    signal mosaik_cnt        : integer range 0 to 15 := 0;
    signal mosaik_merge      : std_logic;
    
-   signal pixeltime         : integer range 0 to 32767; -- high number to support free drawing
-   signal pixeltime_current : integer range 0 to 32767;
+   signal PALETTE_addrlow   : std_logic;
+   
+   signal pixeltime         : integer range 0 to 1210;
    signal maxpixeltime      : integer range 0 to 1210;
    
 begin 
@@ -240,10 +233,54 @@ begin
    VRAM_Drawer_addr <= to_integer(pixeladdr_x(14 downto 2));
    PALETTE_Drawer_addr <= to_integer(unsigned(PALETTE_byteaddr(8 downto 2)));
 
+   OAMRAM_Drawer_addr <= (OAM_currentobj * 2) + 1                                                when (OAMFetch = READSECOND) else
+                         (to_integer(unsigned(OAM_data1(OAM_AFF_HI downto OAM_AFF_LO))) * 8) + 1 when (OAMFetch = READAFFINE0) else 
+                         (to_integer(unsigned(OAM_data1(OAM_AFF_HI downto OAM_AFF_LO))) * 8) + 3 when (OAMFetch = READAFFINE1) else 
+                         (to_integer(unsigned(OAM_data1(OAM_AFF_HI downto OAM_AFF_LO))) * 8) + 5 when (OAMFetch = READAFFINE2) else 
+                         (to_integer(unsigned(OAM_data1(OAM_AFF_HI downto OAM_AFF_LO))) * 8) + 7 when (OAMFetch = READAFFINE3) else 
+                         OAM_currentobj * 2; -- READFIRST or IDLE
+
+   OAM_sizeX <=  8 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "00" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "00") else -- square size 0
+                16 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "00" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "01") else -- square size 1
+                32 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "00" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "10") else -- square size 2
+                64 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "00" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "11") else -- square size 3
+                16 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "01" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "00") else -- Hor size 0
+                32 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "01" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "01") else -- Hor size 1
+                32 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "01" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "10") else -- Hor size 2
+                64 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "01" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "11") else -- Hor size 3
+                 8 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "10" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "00") else -- Vert size 0
+                 8 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "10" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "01") else -- Vert size 1
+                16 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "10" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "10") else -- Vert size 2
+                32 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "10" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "11") else -- Vert size 3
+                 8;
+
+   OAM_sizeY <=  8 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "00" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "00") else -- square size 0
+                16 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "00" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "01") else -- square size 1
+                32 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "00" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "10") else -- square size 2
+                64 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "00" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "11") else -- square size 3
+                 8 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "01" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "00") else -- Hor size 0
+                 8 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "01" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "01") else -- Hor size 1
+                16 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "01" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "10") else -- Hor size 2
+                32 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "01" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "11") else -- Hor size 3
+                16 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "10" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "00") else -- Vert size 0
+                32 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "10" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "01") else -- Vert size 1
+                32 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "10" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "10") else -- Vert size 2
+                64 when (OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "10" and OAMRAM_Drawer_data(16 + OAM_OBJSIZE_HI downto 16 + OAM_OBJSIZE_LO) = "11") else -- Vert size 3
+                 8;
+                 
+   OAM_sizeX2 <= 2 * OAM_sizeX when (OAMRAM_Drawer_data(OAM_AFFINE) = '1' and OAMRAM_Drawer_data(OAM_DBLSIZE) = '1') else OAM_sizeX;
+   OAM_sizeY2 <= 2 * OAM_sizeY when (OAMRAM_Drawer_data(OAM_AFFINE) = '1' and OAMRAM_Drawer_data(OAM_DBLSIZE) = '1') else OAM_sizeY;
+
+   OAM_posy <= to_integer(unsigned(OAMRAM_Drawer_data(OAM_Y_HI downto OAM_Y_LO))) - 16#100# when (to_integer(unsigned(OAMRAM_Drawer_data(OAM_Y_HI downto OAM_Y_LO))) > (16#100# - OAM_sizeY2)) else
+               to_integer(unsigned(OAMRAM_Drawer_data(OAM_Y_HI downto OAM_Y_LO)));
+
+   OAM_posyMos <= ypos_mosaic - OAM_posy when (OAMRAM_Drawer_data(OAM_MOSAIC) = '1') else ypos - OAM_posy;
+
+
    -- OAM Fetch
-   process (clk100)
+   process (clk)
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
       
          if (hblankfree = '1') then
             maxpixeltime <= 954;
@@ -251,326 +288,224 @@ begin
             maxpixeltime <= 1210;
          end if;
 
-         if (hblank = '1' and lockspeed = '1') then -- immidiatly stop drawing with hblank, ignore in fastforward mode
+         case (OAMFetch) is
          
-            output_ok <= '0';
-            OAMFetch  <= IDLE;
-            busy      <= '0';
+            when IDLE =>
+               OAM_currentobj     <= 0;
+               if (drawline = '1') then
+                  OAMFetch           <= WAITFIRST;
+                  output_ok          <= '1';
+                  overdraw           <= '0';
+               end if;
             
-         else
-
-            case (OAMFetch) is
+            when READFIRST =>
+               OAMFetch           <= WAITFIRST;
             
-               when IDLE =>
-                  if (PIXELGen = WAITOAM) then
-                     if (wait_busydone > 0) then
-                        wait_busydone <= wait_busydone - 1;
-                     else
-                        busy          <= '0';
-                     end if;
+            when WAITFIRST =>
+               OAM_data0 <= OAMRAM_Drawer_data(15 downto 0);
+               OAM_data1 <= OAMRAM_Drawer_data(31 downto 16);
+               OAMFetch  <= READSECOND;
+               
+               OAMfetch_sizeX    <= OAM_sizeX;
+               OAMfetch_sizeY    <= OAM_sizeY;
+               OAMfetch_fieldX   <= OAM_sizeX2;
+               OAMfetch_fieldY   <= OAM_sizeY2;
+               
+               if (OAMRAM_Drawer_data(OAM_HICOLOR) = '0') then
+                  OAMfetch_sizemult <= OAM_sizeX * 4;
+               else
+                  OAMfetch_sizemult <= OAM_sizeX * 8;
+               end if;
+               
+               if (OAMRAM_Drawer_data(OAM_HICOLOR) = '0') then
+                  OAMfetch_x_flip_offset <= 3;
+                  OAMfetch_y_flip_offset <= 28;
+                  OAMfetch_x_div         <= 2;
+                  OAMfetch_x_size        <= 4;
+               else
+                  OAMfetch_x_flip_offset <= 7;
+                  OAMfetch_y_flip_offset <= 56;
+                  OAMfetch_x_div         <= 1;
+                  OAMfetch_x_size        <= 8;
+               end if;
+               
+               if (OAM_posyMos < 0 or OAM_posyMos >= OAM_sizeY2 or OAMRAM_Drawer_data(OAM_OFF_HI downto OAM_OFF_LO) = "10" or OAMRAM_Drawer_data(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "11") then
+                  if (OAM_currentobj = 127) then
+                     OAMFetch      <= IDLE;
                   else
-                     wait_busydone <= 7;
+                     OAMFetch       <= READFIRST;
+                     OAM_currentobj <= OAM_currentobj + 1; 
                   end if;
-                  if (drawline = '1') then
-                     busy               <= '1';
-                     OAM_currentobj     <= 0;
-                     OAMFetch           <= WAITFIRST;
-                     OAMRAM_Drawer_addr <= 0;
-                     output_ok          <= '1';
-                  end if;
+               else
+                  OAMFetch    <= READSECOND;
+                  OAMfetch_ty <= OAM_posyMos;
+               end if;
                
-               when WAITFIRST =>
-                  OAMRAM_Drawer_addr <= OAMRAM_Drawer_addr + 1;
-                  OAMFetch           <= WAITSECOND;
-               
-               when WAITSECOND =>
-                  OAM_data0 <= OAMRAM_Drawer_data(15 downto 0);
-                  OAM_data1 <= OAMRAM_Drawer_data(31 downto 16);
-                  if (OAMRAM_Drawer_data(OAM_AFFINE) = '1') then
-                     OAMFetch           <= WAITAFFINE1;
-                     OAMRAM_Drawer_addr <= (to_integer(unsigned(OAMRAM_Drawer_data(16 + OAM_AFF_HI downto 16 + OAM_AFF_LO))) * 8) + 1;
-                  else
-                     OAMFetch <= EVALOAM;
-                  end if;
-               
-               when WAITAFFINE1 =>
-                  OAMFetch           <= WAITAFFINE2;
-                  OAMRAM_Drawer_addr <= OAMRAM_Drawer_addr + 2;
-                  OAM_data2          <= OAMRAM_Drawer_data(15 downto 0);
-                  
-               when WAITAFFINE2 =>
-                  OAMFetch           <= WAITAFFINE3;
-                  OAMRAM_Drawer_addr <= OAMRAM_Drawer_addr + 2;
-                  OAM_data_aff0      <= OAMRAM_Drawer_data(31 downto 16);
-               
-               when WAITAFFINE3 =>
-                  OAMFetch           <= WAITAFFINE4;
-                  OAMRAM_Drawer_addr <= OAMRAM_Drawer_addr + 2;
-                  OAM_data_aff1      <= OAMRAM_Drawer_data(31 downto 16);
-               
-               when WAITAFFINE4 =>
-                  OAMFetch      <= EVALOAM;
-                  OAM_data_aff2 <= OAMRAM_Drawer_data(31 downto 16);
-                  
-               when EVALOAM =>
-                  if (OAM_data0(OAM_AFFINE) = '1') then
-                     OAM_data_aff3 <= OAMRAM_Drawer_data(31 downto 16);
-                  else
-                     OAM_data2     <= OAMRAM_Drawer_data(15 downto 0);
-                  end if;
-               
-                  -- skip if
-                  if (
-                        OAM_data0(OAM_OFF_HI downto OAM_OFF_LO) = "10"   or      -- sprite is off
-                        OAM_data0(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO) = "11" -- obj shape prohibited
-                     ) then
-                     if (OAM_currentobj = 127) then
-                        OAMFetch      <= IDLE;
-                        wait_busydone <= 7;
-                     else
-                        OAMFetch           <= WAITFIRST;
-                        OAMRAM_Drawer_addr <= (OAM_currentobj * 2) + 2;
-                        OAM_currentobj     <= OAM_currentobj + 1;
-                     end if;
-                  else
-                     OAMFetch <= DONE;
-                  end if;
-               
-               when DONE =>
-                  if (maxpixels = '1' and pixeltime >= maxpixeltime) then
-                     OAMFetch <= IDLE;
-                  elsif (PIXELGen = WAITOAM) then
-                     if (OAM_currentobj = 127) then
-                        OAMFetch      <= IDLE;
-                        wait_busydone <= 7;
-                     else
-                        OAMFetch           <= WAITFIRST;
-                        OAMRAM_Drawer_addr <= (OAM_currentobj * 2) + 2;
-                        OAM_currentobj     <= OAM_currentobj + 1;
-                     end if;
-                  end if;
+            when READSECOND =>
+               OAMFetch <= WAITSECOND;
             
-            end case;
-            
+            when WAITSECOND =>
+               OAM_data2 <= OAMRAM_Drawer_data(15 downto 0);
+               if (OAM_data0(OAM_AFFINE) = '1') then
+                  OAMFetch           <= READAFFINE0;
+               else
+                  OAMFetch           <= DONE;
+               end if;
+               
+            if (OAM_data0(OAM_HICOLOR) = '1' and one_dim_mapping = '0') then
+               OAMfetch_addrbase <= 32 * to_integer(unsigned(OAMRAM_Drawer_data(OAM_TILE_HI downto OAM_TILE_LO+1) & '0'));
+            else 
+               OAMfetch_addrbase <= 32 * to_integer(unsigned(OAMRAM_Drawer_data(OAM_TILE_HI downto OAM_TILE_LO)));
+            end if;
+               
+               
+            when READAFFINE0 => OAMFetch <= WAITAFFINE0;
+            when WAITAFFINE0 => OAMFetch <= READAFFINE1; OAM_data_aff0 <= OAMRAM_Drawer_data(31 downto 16);
+            when READAFFINE1 => OAMFetch <= WAITAFFINE1;
+            when WAITAFFINE1 => OAMFetch <= READAFFINE2; OAM_data_aff1 <= OAMRAM_Drawer_data(31 downto 16);
+            when READAFFINE2 => OAMFetch <= WAITAFFINE2;
+            when WAITAFFINE2 => OAMFetch <= READAFFINE3; OAM_data_aff2 <= OAMRAM_Drawer_data(31 downto 16);
+            when READAFFINE3 => OAMFetch <= WAITAFFINE3;
+            when WAITAFFINE3 => OAMFetch <= DONE;        OAM_data_aff3 <= OAMRAM_Drawer_data(31 downto 16);
+               
+            when DONE =>
+               if (PIXELGen = WAITOAM) then
+                  if (OAM_currentobj = 127) then
+                     OAMFetch      <= IDLE;
+                  else
+                     OAMFetch           <= READFIRST;
+                     OAM_currentobj     <= OAM_currentobj + 1;
+                  end if;
+               end if;
+         
+         end case;
+         
+         if (pixeltime >= maxpixeltime and OAMFetch /= IDLE) then
+            OAMFetch <= IDLE;
+            overdraw <= '1';
          end if;
       
       end if;
    end process;
    
    -- Pixelgen
-   process (clk100)
-      variable posy           : integer range -256 to 255;
-      variable fieldX         : integer range 8 to 128;
-      variable fieldY         : integer range 8 to 128;
-      variable xxx            : integer range 0 to 63;
-      variable yyy            : integer range 0 to 63;
-      variable pixeladdr_calc : integer;
+   process (clk)
+      variable pixeladdr_pre_a0  : integer range -8388608 to 8388607; -- 24 bit
+      variable pixeladdr_pre_a1  : integer range -8388608 to 8388607;
+      variable pixeladdr_pre_a2  : integer range -8388608 to 8388607;
+      variable pixeladdr_pre_a3  : integer range -8388608 to 8388607;
+      variable pixeladdr_pre_a4  : integer range -8388608 to 8388607;
+      variable pixeladdr_pre_a5  : integer range -8388608 to 8388607;
+      variable pixeladdr_pre_a6  : integer range -8388608 to 8388607;
+      variable pixeladdr_pre_a7  : integer range -8388608 to 8388607;
+      variable pixeladdr_pre_0   : integer range -32768 to 32767;
+      variable pixeladdr_pre_1   : integer range -32768 to 32767;
+      variable pixeladdr_pre_2   : integer range -32768 to 32767;
+      variable pixeladdr_pre_3   : integer range -32768 to 32767;
+      variable pixeladdr_pre_4   : integer range -32768 to 32767;
+      variable pixeladdr_pre_5   : integer range -32768 to 32767;
+      variable pixeladdr_pre_6   : integer range -32768 to 32767;
+      variable pixeladdr_pre_7   : integer range -32768 to 32767;
+      variable xxx               : integer range 0 to 63;
+      variable yyy               : integer range 0 to 63;
+      variable pixeladdr_calc    : integer;
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
 
          issue_pixel <= '0';
          
          if (drawline = '1') then
             pixeltime <= 0;
+         elsif (pixeltime < maxpixeltime) then
+            pixeltime <= pixeltime + 1;
          end if;
 
          case (PIXELGen) is
          
             when WAITOAM =>
                rescounter <= 0;
+               x          <= 0;
+               firstpix   <= '1';
                if (OAMFetch = DONE) then
-                  PIXELGen        <= CALCMOSAIC;
+                  PIXELGen        <= NEXTADDR;
+               
                   Pixel_data0     <= OAM_data0;    
                   Pixel_data1     <= OAM_data1;    
                   Pixel_data2     <= OAM_data2;    
                   dx              <= to_integer(signed(OAM_data_aff0));
-                  dmx             <= to_integer(signed(OAM_data_aff1));
+                  --dmx             <= to_integer(signed(OAM_data_aff1));
                   dy              <= to_integer(signed(OAM_data_aff2));
-                  dmy             <= to_integer(signed(OAM_data_aff3));
-
-                  posx <= to_integer(unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO)));
-                  
-                  if (OAM_data0(OAM_HICOLOR) = '1' and one_dim_mapping = '0') then
-                     pixeladdr_pre <= 32 * to_integer(unsigned(OAM_data2(OAM_TILE_HI downto OAM_TILE_LO+1) & '0'));
-                  else 
-                     pixeladdr_pre <= 32 * to_integer(unsigned(OAM_data2(OAM_TILE_HI downto OAM_TILE_LO)));
-                  end if;
-                  
-                  case (to_integer(unsigned(OAM_data0(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO)))) is
-                     when 0 => -- square
-                        case (to_integer(unsigned(OAM_data1(OAM_OBJSIZE_HI downto OAM_OBJSIZE_LO)))) is
-                           when 0 => sizeX <= 8;  sizeY <= 8; 
-                           when 1 => sizeX <= 16; sizeY <= 16;
-                           when 2 => sizeX <= 32; sizeY <= 32;
-                           when 3 => sizeX <= 64; sizeY <= 64;
-                           when others => null;
-                        end case;
-                        
-                     when 1 => -- hor
-                        case (to_integer(unsigned(OAM_data1(OAM_OBJSIZE_HI downto OAM_OBJSIZE_LO)))) is
-                           when 0 => sizeX <= 16; sizeY <= 8; 
-                           when 1 => sizeX <= 32; sizeY <= 8; 
-                           when 2 => sizeX <= 32; sizeY <= 16;
-                           when 3 => sizeX <= 64; sizeY <= 32;
-                           when others => null;
-                        end case;
-
-                     when 2 => -- vert
-                        case (to_integer(unsigned(OAM_data1(OAM_OBJSIZE_HI downto OAM_OBJSIZE_LO)))) is
-                           when 0 => sizeX <= 8;  sizeY <= 16; 
-                           when 1 => sizeX <= 8;  sizeY <= 32; 
-                           when 2 => sizeX <= 16; sizeY <= 32;
-                           when 3 => sizeX <= 32; sizeY <= 64;
-                           when others => null;
-                        end case;
-
-                     when others => null;
-                  end case;
-                  
-                  if (OAM_data0(OAM_HICOLOR) = '0') then
-                     --tilemult      <= 32;
-                     x_flip_offset <= 3;
-                     y_flip_offset <= 28;
-                     x_div         <= 2;
-                     x_size        <= 4;
-                  else
-                     --tilemult      <= 64;
-                     x_flip_offset <= 7;
-                     y_flip_offset <= 56;
-                     x_div         <= 1;
-                     x_size        <= 8;
-                  end if;
-                  
-               end if;
-            
-            when CALCMOSAIC =>
-               PIXELGen <= BASEADDR_PRE;
-               if (Pixel_data0(OAM_AFFINE) = '1' and Pixel_data0(OAM_DBLSIZE) = '1') then
-                  fieldX := 2 * sizeX;
-                  fieldY := 2 * sizeY;
-               else
-                  fieldX := sizeX;
-                  fieldY := sizeY;
-               end if;
-
-               posy := to_integer(unsigned(Pixel_data0(OAM_Y_HI downto OAM_Y_LO)));
-               if (posy > (16#100# - fieldY)) then
-                  posy := posy - 16#100#;
-               end if;
-               if (Pixel_data0(OAM_MOSAIC) = '1') then
-                  ty <= ypos_mosaic - posy;
-               else
-                  ty <= ypos - posy;
-               end if;
-               
-               if (Pixel_data0(OAM_HICOLOR) = '0') then
-                  sizemult <= sizeX * 4;
-               else
-                  sizemult <= sizeX * 8;
-               end if;
-               
-            when BASEADDR_PRE =>
-               if (ty < 0 or ty >= fieldY) then -- not in current line -> skip
-                  PIXELGen <= WAITOAM;
-               else
-                  PIXELGen <= BASEADDR;
-                  x        <= 0;
-               end if;
-               
-               if (posx > 16#100#) then posx <= posx - 16#200#; end if;
-               
-               --mosaik_h_cnt <= 0;
-               
-               -- affine
-               pixeladdr_pre_a0 <= sizeX * 128;
-               pixeladdr_pre_a1 <= (fieldX / 2) * dx;
-               pixeladdr_pre_a2 <= (fieldY / 2) * dmx;
-               pixeladdr_pre_a3 <= ty * dmx;
-               pixeladdr_pre_a4 <= sizeY * 128;
-               pixeladdr_pre_a5 <= (fieldX / 2) * dy;
-               pixeladdr_pre_a6 <= (fieldY / 2) * dmy;
-               pixeladdr_pre_a7 <= ty * dmy;
-                            
-               -- non affine
-               pixeladdr_pre_0 <= (y_flip_offset - (ty mod 8) * x_size);
-               pixeladdr_pre_1 <= ((((sizeY / 8) - 1) - (ty / 8)) * sizemult);
-               
-               pixeladdr_pre_2 <= (y_flip_offset - (ty mod 8) * x_size);
-               pixeladdr_pre_3 <= ((((sizeY / 8) - 1) - (ty / 8)) * 1024);
+                  --dmy             <= to_integer(signed(OAM_data_aff3));
    
-               pixeladdr_pre_4 <= ((ty mod 8) * x_size);
-               pixeladdr_pre_5 <= ((ty / 8) * sizemult);
-   
-               pixeladdr_pre_6 <= ((ty mod 8) * x_size);
-               pixeladdr_pre_7 <= ((ty / 8) * 1024);
-               
-            when BASEADDR =>
-               PIXELGen <= NEXTADDR;
-               
-               if (Pixel_data0(OAM_AFFINE) = '1') then
-                  pixeltime         <= pixeltime + 10 + fieldX * 2;
-                  pixeltime_current <= pixeltime + 10;
-               else
-                  pixeltime         <= pixeltime + fieldX;
-                  pixeltime_current <= pixeltime;
-               end if;
-               
-               -- affine
-               realX <= (pixeladdr_pre_a0 - pixeladdr_pre_a1 - pixeladdr_pre_a2 + pixeladdr_pre_a3) * resmult;
-               realY <= (pixeladdr_pre_a4 - pixeladdr_pre_a5 - pixeladdr_pre_a6 + pixeladdr_pre_a7) * resmult;
-               if (YMULTOFFSET = 1) then
-                  realX <= ((pixeladdr_pre_a0 - pixeladdr_pre_a1 - pixeladdr_pre_a2 + pixeladdr_pre_a3) * resmult) + dmx;
-                  realY <= ((pixeladdr_pre_a4 - pixeladdr_pre_a5 - pixeladdr_pre_a6 + pixeladdr_pre_a7) * resmult) + dmy;
-               end if;
-               
-               -- non affine
-               if (Pixel_data1(OAM_VFLIP) = '1') then
-                  if (one_dim_mapping = '1') then
-                     pixeladdr <= pixeladdr_pre + pixeladdr_pre_0 + pixeladdr_pre_1;
+                  if (unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO)) > 16#100#) then 
+                     posx <= to_integer(unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO))) - 16#200#; 
                   else
-                     pixeladdr <= pixeladdr_pre + pixeladdr_pre_2 + pixeladdr_pre_3;
+                     posx <= to_integer(unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO)));
                   end if;
-               else
-                  if (one_dim_mapping = '1') then
-                     pixeladdr <= pixeladdr_pre + pixeladdr_pre_4 + pixeladdr_pre_5;
+                  
+                  sizeX  <= OAMfetch_sizeX;
+                  sizeY  <= OAMfetch_sizeY;
+                  fieldX <= OAMfetch_fieldX;
+                  
+                  sizemult      <= OAMfetch_sizemult;
+                  x_flip_offset <= OAMfetch_x_flip_offset;
+                  x_div         <= OAMfetch_x_div;         
+                  x_size        <= OAMfetch_x_size;        
+   
+                  pixeladdr_base <= OAMfetch_addrbase;
+   
+                  -- affine
+                  pixeladdr_pre_a0 := OAMfetch_sizeX * 128;
+                  pixeladdr_pre_a1 := (OAMfetch_fieldX / 2) * to_integer(signed(OAM_data_aff0));
+                  pixeladdr_pre_a2 := (OAMfetch_fieldY / 2) * to_integer(signed(OAM_data_aff1));
+                  pixeladdr_pre_a3 := OAMfetch_ty * to_integer(signed(OAM_data_aff1));
+                  pixeladdr_pre_a4 := OAMfetch_sizeY * 128;
+                  pixeladdr_pre_a5 := (OAMfetch_fieldX / 2) * to_integer(signed(OAM_data_aff2));
+                  pixeladdr_pre_a6 := (OAMfetch_fieldY / 2) * to_integer(signed(OAM_data_aff3));
+                  pixeladdr_pre_a7 := OAMfetch_ty * to_integer(signed(OAM_data_aff3));
+                              
+                  -- non affine
+                  pixeladdr_pre_0 := (OAMfetch_y_flip_offset - (OAMfetch_ty mod 8) * OAMfetch_x_size);
+                  pixeladdr_pre_1 := ((((OAMfetch_sizeY / 8) - 1) - (OAMfetch_ty / 8)) * OAMfetch_sizemult);
+                  pixeladdr_pre_2 := (OAMfetch_y_flip_offset - (OAMfetch_ty mod 8) * OAMfetch_x_size);
+                  pixeladdr_pre_3 := ((((OAMfetch_sizeY / 8) - 1) - (OAMfetch_ty / 8)) * 1024);
+                  pixeladdr_pre_4 := ((OAMfetch_ty mod 8) * OAMfetch_x_size);
+                  pixeladdr_pre_5 := ((OAMfetch_ty / 8) * OAMfetch_sizemult);
+                  pixeladdr_pre_6 := ((OAMfetch_ty mod 8) * OAMfetch_x_size);
+                  pixeladdr_pre_7 := ((OAMfetch_ty / 8) * 1024);
+                  
+                  -- affine
+                  realX <= (pixeladdr_pre_a0 - pixeladdr_pre_a1 - pixeladdr_pre_a2 + pixeladdr_pre_a3) * resmult;
+                  realY <= (pixeladdr_pre_a4 - pixeladdr_pre_a5 - pixeladdr_pre_a6 + pixeladdr_pre_a7) * resmult;
+                  
+                  -- non affine
+                  if (OAM_data1(OAM_VFLIP) = '1') then
+                     if (one_dim_mapping = '1') then
+                        pixeladdr <= OAMfetch_addrbase + pixeladdr_pre_0 + pixeladdr_pre_1;
+                     else
+                        pixeladdr <= OAMfetch_addrbase + pixeladdr_pre_2 + pixeladdr_pre_3;
+                     end if;
                   else
-                     pixeladdr <= pixeladdr_pre + pixeladdr_pre_6 + pixeladdr_pre_7;
+                     if (one_dim_mapping = '1') then
+                        pixeladdr <= OAMfetch_addrbase + pixeladdr_pre_4 + pixeladdr_pre_5;
+                     else
+                        pixeladdr <= OAMfetch_addrbase + pixeladdr_pre_6 + pixeladdr_pre_7;
+                     end if;
                   end if;
                end if;
 
             when NEXTADDR =>
-               if (maxpixels = '1' and pixeltime_current >= maxpixeltime) then
-                  PIXELGen <= WAITOAM;
-               elsif (x >= fieldX) then
-                  PIXELGen <= WAITOAM;
-               else
-                  rescounter_current <= rescounter;
-                  if (rescounter = RESMULT - 1) then
-                     x <= x + 1;
-                     rescounter <= 0;
-                  else
-                     rescounter <= rescounter + 1;
-                  end if;
-                  if (x + posX > 239) then -- end of line already reached
-                     PIXELGen  <= WAITOAM;
-                  else
-                     PIXELGen <= PIXELISSUE;
-                  end if;
-               end if;
-               
-               if (Pixel_data0(OAM_AFFINE) = '1') then
-                  pixeltime_current <= pixeltime_current + 2;
-               else
-                  pixeltime_current <= pixeltime_current + 1;
-               end if;
-               
+               firstpix  <= '0';
                skippixel <= '0';
-               
                if ((x + posX) < 240 and (x + posX) >= 0) then
                   target    <= x + posX;
                else
                   skippixel <= '1';
                end if;
+               
+               pixeladdr_calc := pixeladdr;
+               
+               vram_reuse <= '0';
                
                if (Pixel_data0(OAM_AFFINE) = '1') then
                   if (realX < 0 or (realX / RESMULTACCDIV) >= sizeX or realY < 0 or (realY / RESMULTACCDIV) >= sizeY) then
@@ -605,7 +540,6 @@ begin
                
                   if (x mod 2 = 1) then second_pix <= '1'; else second_pix <= '0'; end if;
                   
-                  pixeladdr_calc := pixeladdr;
                   if (Pixel_data1(OAM_HFLIP) = '1') then
                      pixeladdr_calc := pixeladdr_calc + (x_flip_offset - ((x mod 8) / x_div));
                      if (Pixel_data0(OAM_HICOLOR) = '0') then
@@ -622,30 +556,52 @@ begin
                      end if;
                   end if;
                   
-                  pixeladdr_x_noaff <= to_unsigned(pixeladdr_calc, 15);
+                  pixeladdr_x <= to_unsigned(pixeladdr_calc, 15);
                
                end if;
                
                realX <= realX + dx;
                realY <= realY + dy;
+               
+               if (pixeltime >= maxpixeltime) then
+                  PIXELGen <= WAITOAM;
+               elsif (x >= fieldX) then
+                  PIXELGen <= WAITOAM;
+               else
+                  rescounter_current <= rescounter;
+                  if (rescounter = RESMULT - 1) then
+                     x <= x + 1;
+                     rescounter <= 0;
+                  else
+                     rescounter <= rescounter + 1;
+                  end if;
+                  PIXELGen <= PIXELISSUE;
+                  if (Pixel_data0(OAM_AFFINE) = '0') then
+                     if ((pixeladdr_calc = pixeladdr_x and firstpix = '0') or VRAM_Drawer_valid = '1') then
+                        if (pixeladdr_calc = pixeladdr_x and firstpix = '0') then
+                           vram_reuse  <= '1';
+                        end if;
+                        PIXELGen    <= NEXTADDR;
+                        if ((x + posX) < 240 and (x + posX) >= 0) then
+                           issue_pixel <= '1';
+                        end if;
+                     end if;
+                  end if;
+               end if;
             
             when PIXELISSUE =>
-               if (VRAM_Drawer_valid = '0') then -- sync on vram mux
+               if (VRAM_Drawer_valid = '1') then -- sync on vram mux
                   PIXELGen    <= NEXTADDR;
                   
                   issue_pixel <= not skippixel;
                   if (skippixel = '0') then
                   
                      if (Pixel_data0(OAM_AFFINE) = '1') then
-      
                         if (one_dim_mapping = '1') then
-                           pixeladdr_x <= pixeladdr_pre + pixeladdr_x_aff0 + pixeladdr_x_aff1 + pixeladdr_x_aff4 + pixeladdr_x_aff5;
+                           pixeladdr_x <= pixeladdr_base + pixeladdr_x_aff0 + pixeladdr_x_aff1 + pixeladdr_x_aff4 + pixeladdr_x_aff5;
                         else
-                           pixeladdr_x <= pixeladdr_pre + pixeladdr_x_aff2 + pixeladdr_x_aff3 + pixeladdr_x_aff4 + pixeladdr_x_aff5;
+                           pixeladdr_x <= pixeladdr_base + pixeladdr_x_aff2 + pixeladdr_x_aff3 + pixeladdr_x_aff4 + pixeladdr_x_aff5;
                         end if;
-                        
-                     else
-                        pixeladdr_x <= pixeladdr_x_noaff;
                      end if;
                      
                   end if;
@@ -659,33 +615,27 @@ begin
    
    
    -- Pixel Pipeline
-   process (clk100)
+   process (clk)
       variable colorbyte : std_logic_vector(7 downto 0);
       variable colordata : std_logic_vector(3 downto 0);
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
       
-         if (busy = '0') then
+         if (drawline = '1') then
             pixelarray <= (others => ('1', "11", '0', '0'));
          end if;
          
-         -- zero cycle - address for vram is written in this cycle
-         enable_start     <= issue_pixel;
-         target_start     <= (target * RESMULT) + rescounter_current;
-         readaddr_mux     <= pixeladdr_x(1 downto 0);
-         second_pix_start <= second_pix;
-         
-         zeroread_start <= '0';
-         if (unsigned(BG_Mode) >= 3 and pixeladdr_x < 16#4000#) then   -- bitmapmode is on and address in the vram area of bitmap
-            zeroread_start <= '1';
-         end if;
-         
          -- first cycle - wait for vram to deliver data
-         readaddr_mux_eval <= readaddr_mux;
-         target_eval       <= target_start;
-         enable_eval       <= enable_start;
-         second_pix_eval   <= second_pix_start;
-         zeroread_eval     <= zeroread_start;
+         enable_eval       <= issue_pixel;
+         readaddr_mux_eval <= pixeladdr_x(1 downto 0);
+         target_eval       <= (target * RESMULT) + rescounter_current;
+         second_pix_eval   <= second_pix;
+         vram_reuse_eval   <= vram_reuse;
+         
+         zeroread_eval <= '0';
+         if (unsigned(BG_Mode) >= 3 and pixeladdr_x < 16#4000#) then   -- bitmapmode is on and address in the vram area of bitmap
+            zeroread_eval <= '1';
+         end if;
          
          -- must save those here, as pixeldata will be overwritten in next cycle
          prio_eval       <= Pixel_data2(OAM_PRIO_HI downto OAM_PRIO_LO);
@@ -716,6 +666,11 @@ begin
             end case;
          end if;
          
+         if (vram_reuse_eval = '1') then
+            colorbyte := VRAM_data_next;
+         end if;
+         
+         VRAM_data_next <= colorbyte;
          
          if (enable_eval = '1') then
             if (hicolor_eval = '0') then
@@ -747,9 +702,10 @@ begin
          end if;
          
          -- third cycle - wait palette + mosaic
-         enable_merge   <= enable_wait;
-         target_merge   <= target_wait;
-         Pixel_readback <= pixelarray(target_wait);
+         enable_merge    <= enable_wait;
+         target_merge    <= target_wait;
+         Pixel_readback  <= pixelarray(target_wait);
+         PALETTE_addrlow <= PALETTE_byteaddr(1);
          
          -- reset mosaic for each line and each sprite turning mosaic it off, maybe needs to reset for each new sprite...
          if (drawline = '1' or mosaic_wait = '0') then 
@@ -774,7 +730,7 @@ begin
          pixel_x           <= target_merge;
          
          if (enable_merge = '1' and mosaik_merge = '0') then
-            if (PALETTE_byteaddr(1) = '1') then
+            if (PALETTE_addrlow = '1') then
                pixeldata_color <= '0' & PALETTE_Drawer_data(30 downto 16);
             else
                pixeldata_color <= '0' & PALETTE_Drawer_data(14 downto 0);

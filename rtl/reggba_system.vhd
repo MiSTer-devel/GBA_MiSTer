@@ -15,7 +15,7 @@ package pReg_gba_system is
    constant WAITCNT : regmap_type := (16#204#,  14,      0,        1,        0,   readwrite); -- Game Pak Waitstate Control  
    constant ISCGB   : regmap_type := (16#204#,  15,     15,        1,        0,   readwrite); -- is CGB = 1, GBA = 0
 
-   constant IME     : regmap_type := (16#208#,  31,      0,        1,        0,   readwrite); -- Interrupt Master Enable Register  
+   constant IME     : regmap_type := (16#208#,  15,      0,        1,        0,   readwrite); -- Interrupt Master Enable Register  
    
    constant POSTFLG : regmap_type := (16#300#,   7,      0,        1,        0,   readwrite); -- Undocumented - Post Boot Flag  
    constant HALTCNT : regmap_type := (16#300#,  15,      8,        1,        0,   writeonly); -- Undocumented - Power Down Control

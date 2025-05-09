@@ -35,6 +35,8 @@ module sdram
 	output            SDRAM_CKE,   // clock enable
 	output            SDRAM_CLK,   // clock for chip
 
+   input             refresh_req,
+
 	input      [26:1] ch1_addr,    // 25 bit address for 8bit mode. addr[0] = 0 for 16bit mode for correct operations.
 	output reg [63:0] ch1_dout,    // data output to cpu
 	input      [15:0] ch1_din,     // data input from cpu
@@ -46,8 +48,10 @@ module sdram
 	output reg [31:0] ch2_dout,    // data output to cpu
 	input      [31:0] ch2_din,     // data input from cpu
 	input             ch2_req,     // request
+	input             ch2_cancel,  // cancel pending read request so it doesn't deliver ready anymore
 	input             ch2_rnw,     // 1 - read, 0 - write
 	output reg        ch2_ready,
+	output reg        ch2_ready16,
 
 	input      [24:1] ch3_addr,
 	output reg [15:0] ch3_dout,
@@ -75,7 +79,7 @@ localparam NO_WRITE_BURST      = 1'b1;     // 0= write burst enabled, 1=only sin
 localparam MODE                = {3'b000, NO_WRITE_BURST, OP_MODE, CAS_LATENCY, ACCESS_TYPE, BURST_CODE};
 
 localparam sdram_startup_cycles= 14'd12100;// 100us, plus a little more, @ 100MHz
-localparam cycles_per_refresh  = 14'd780;  // (64000*100)/8192-1 Calc'd as (64ms @ 100MHz)/8192 rose
+localparam cycles_per_refresh  = 14'd750;  // (64000*100)/8192-1 Calc'd as (64ms @ 100MHz)/8192 rose
 localparam startup_refresh_max = 14'b11111111111111;
 
 // SDRAM commands
@@ -120,9 +124,10 @@ always @(posedge clk) begin
 	ch2_rq <= ch2_rq | ch2_req;
 	ch3_rq <= ch3_rq | ch3_req;
 
-	ch1_ready <= 0;
-	ch2_ready <= 0;
-	ch3_ready <= 0;
+	ch1_ready   <= 0;
+	ch2_ready   <= 0;
+	ch2_ready16 <= 0;
+	ch3_ready   <= 0;
 
 	refresh_count <= refresh_count+1'b1;
 
@@ -140,7 +145,8 @@ always @(posedge clk) begin
 
 	if(data_ready_delay2[3]) ch2_dout[15:00] <= dq_reg;
 	if(data_ready_delay2[2]) ch2_dout[31:16] <= dq_reg;
-	if(data_ready_delay2[2]) ch2_ready <= 1;
+	if(data_ready_delay2[2]) ch2_ready   <= 1;
+	if(data_ready_delay2[3]) ch2_ready16 <= 1;
 
 	if(data_ready_delay3[3]) ch3_dout[07:00] <= dq_reg[7:0];
 	if(data_ready_delay3[1]) ch3_dout[15:08] <= dq_reg[7:0];
@@ -187,20 +193,7 @@ always @(posedge clk) begin
 		STATE_IDLE_4: state <= STATE_IDLE_3;
 		STATE_IDLE_3: state <= STATE_IDLE_2;
 		STATE_IDLE_2: state <= STATE_IDLE_1;
-		STATE_IDLE_1: begin
-			state      <= STATE_IDLE;
-			// mask possible refresh to reduce colliding.
-			if (refresh_count > cycles_per_refresh) begin
-				//------------------------------------------------------------------------
-				//-- Start the refresh cycle. 
-				//-- This tasks tRFC (66ns), so 7 idle cycles are needed @ 120MHz
-				//------------------------------------------------------------------------
-				state    <= STATE_RFSH;
-				command  <= CMD_AUTO_REFRESH;
-				refresh_count <= refresh_count - cycles_per_refresh + 1'd1;
-				chip     <= 0;
-			end
-		end
+		STATE_IDLE_1: state <= STATE_IDLE;
 
 		STATE_RFSH: begin
 			state    <= STATE_IDLE_5;
@@ -209,9 +202,11 @@ always @(posedge clk) begin
 		end
 
 		STATE_IDLE: begin
-			if (refresh_count > (cycles_per_refresh << 1)) begin
-				// Priority is to issue a refresh if one is outstanding
-				state <= STATE_IDLE_1;
+			if (refresh_req || (refresh_count > cycles_per_refresh)) begin
+				state         <= STATE_RFSH;
+				command       <= CMD_AUTO_REFRESH;
+				refresh_count <= 0;
+				chip          <= 0;
 			end
 			else if(ch1_rq) begin
 				{cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {2'b00, 1'b1, ch1_addr[25:1]};
@@ -223,7 +218,7 @@ always @(posedge clk) begin
 				command    <= CMD_ACTIVE;
 				state      <= STATE_WAIT;
 			end
-			else if(ch2_rq) begin
+			else if(ch2_rq | ch2_req) begin
 				{cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {2'b00, ch2_rnw, ch2_addr[25:1]};
 				chip       <= ch2_addr[26];
 				saved_data <= ch2_din;
@@ -276,6 +271,7 @@ always @(posedge clk) begin
 				command     <= CMD_WRITE;
 				SDRAM_DQ    <= saved_data[31:16];
 				ch2_ready   <= 1;
+				ch2_ready16 <= 1;
 			end
 			else begin
 				state       <= STATE_IDLE_2;
@@ -292,6 +288,9 @@ always @(posedge clk) begin
 		state <= STATE_STARTUP;
 		refresh_count <= startup_refresh_max - sdram_startup_cycles;
 	end
+   
+   if (ch2_cancel) data_ready_delay2 <= 'd0;
+ 
 end
 
 altddio_out

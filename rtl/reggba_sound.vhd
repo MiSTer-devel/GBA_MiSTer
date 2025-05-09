@@ -43,6 +43,7 @@ package pReg_gba_sound is
    constant SOUND2CNT_HHighZero                      : regmap_type := (16#06C#,  31,     16,        1,        0,   readonly);  -- must return zero                                
     
    constant SOUND3CNT_L                              : regmap_type := (16#070#,  15,      0,        1,        0,   writeonly); -- Channel 3 Stop/Wave RAM select (NR30)  
+   constant SOUND3CNT_L_dummy                        : regmap_type := (16#070#,   0,      0,        1,        0,   readwrite); -- Channel 3 Stop/Wave RAM select (NR30)  
    constant SOUND3CNT_L_Wave_RAM_Dimension           : regmap_type := (16#070#,   5,      5,        1,        0,   readwrite); -- 5     R/W   (0=One bank/32 digits, 1=Two banks/64 digits)
    constant SOUND3CNT_L_Wave_RAM_Bank_Number         : regmap_type := (16#070#,   6,      6,        1,        0,   readwrite); -- 6     R/W   (0-1, see below)
    constant SOUND3CNT_L_Sound_Channel_3_Off          : regmap_type := (16#070#,   7,      7,        1,        0,   readwrite); -- 7     R/W   (0=Stop, 1=Playback)  

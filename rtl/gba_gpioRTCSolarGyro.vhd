@@ -8,11 +8,13 @@ use work.pReg_savestates.all;
 entity gba_gpioRTCSolarGyro is
    port 
    (
-      clk100               : in     std_logic; 
+      clk1x                : in     std_logic; 
       reset                : in     std_logic;
       GBA_on               : in     std_logic;
       
-      savestate_bus        : inout  proc_bus_gb_type;
+      savestate_bus        : in    proc_bus_gb_type;
+      ss_wired_out         : out   std_logic_vector(proc_buswidth-1 downto 0) := (others => '0');
+      ss_wired_done        : out   std_logic;
       
       GPIO_readEna         : in     std_logic;                     -- request pulse coming together with address
       GPIO_done            : out    std_logic := '0';              -- pulse for 1 clock cycle when read value in Din is valid
@@ -21,7 +23,6 @@ entity gba_gpioRTCSolarGyro is
       GPIO_writeEna        : in     std_logic;                     -- request pulse coming together with address, no response required
       GPIO_addr            : in     std_logic_vector(1 downto 0);  -- 0..2 for 0x80000C4..0x80000C8
    
-      vblank_trigger       : in     std_logic;  
       RTC_timestampNew     : in     std_logic;                     -- new current timestamp from system
       RTC_timestampIn      : in     std_logic_vector(31 downto 0); -- timestamp in seconds, current time
       RTC_timestampSaved   : in     std_logic_vector(31 downto 0); -- timestamp in seconds, saved time
@@ -83,7 +84,7 @@ architecture arch of gba_gpioRTCSolarGyro is
    signal RTC_timestamp    : std_logic_vector(31 downto 0);
    signal diffSeconds      : unsigned(31 downto 0) := (others => '0');
    
-   signal secondcount      : integer range 0 to 100000000 := 0; -- 1 second at 100 Mhz
+   signal secondcount      : integer range 0 to 16777216 := 0; -- 1 second at 16.777216 Mhz
                            
    signal tm_year          : unsigned(7 downto 0) := x"09";
    signal tm_mon           : unsigned(4 downto 0) := '1' & x"2";
@@ -108,10 +109,25 @@ architecture arch of gba_gpioRTCSolarGyro is
    signal SAVESTATE_GPIOBITS      : std_logic_vector(21 downto 16);
    signal SAVESTATE_GPIOBITS_BACK : std_logic_vector(21 downto 16);
    
+   type t_ss_wired_or is array(0 to 1) of std_logic_vector(31 downto 0);
+   signal save_wired_or        : t_ss_wired_or;   
+   signal save_wired_done      : unsigned(0 to 1);
+   
 begin 
 
-   iSAVESTATE_GPIO     : entity work.eProcReg_gba generic map (REG_SAVESTATE_GPIO)     port map (clk100, savestate_bus, SAVESTATE_GPIO_BACK,     SAVESTATE_GPIO);
-   iSAVESTATE_GPIOBITS : entity work.eProcReg_gba generic map (REG_SAVESTATE_GPIOBITS) port map (clk100, savestate_bus, SAVESTATE_GPIOBITS_BACK, SAVESTATE_GPIOBITS);
+   iSAVESTATE_GPIO     : entity work.eProcReg_gba generic map (REG_SAVESTATE_GPIO)     port map (clk1x, savestate_bus, save_wired_or(0), save_wired_done(0), SAVESTATE_GPIO_BACK,     SAVESTATE_GPIO);
+   iSAVESTATE_GPIOBITS : entity work.eProcReg_gba generic map (REG_SAVESTATE_GPIOBITS) port map (clk1x, savestate_bus, save_wired_or(1), save_wired_done(1), SAVESTATE_GPIOBITS_BACK, SAVESTATE_GPIOBITS);
+
+   process (save_wired_or)
+      variable wired_or : std_logic_vector(31 downto 0);
+   begin
+      wired_or := save_wired_or(0);
+      for i in 1 to (save_wired_or'length - 1) loop
+         wired_or := wired_or or save_wired_or(i);
+      end loop;
+      ss_wired_out <= wired_or;
+   end process;
+   ss_wired_done <= '0' when (save_wired_done = 0) else '1';
 
    SAVESTATE_GPIO_BACK( 7 downto  0) <= std_logic_vector(clockslow);
    SAVESTATE_GPIO_BACK(15 downto  8) <= command;
@@ -123,10 +139,10 @@ begin
    
    SAVESTATE_GPIOBITS_BACK <= std_logic_vector(bits);
 
-   process (clk100)
+   process (clk1x)
       variable new_command : std_logic_vector(7 downto 0);
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk1x) then
       
          -- overwritten later
          GPIO_done    <= '0';
@@ -406,9 +422,9 @@ begin
    RTC_savedtimeOut(13 downto 7)  <= buf_tm_min; 
    RTC_savedtimeOut(6 downto 0)   <= buf_tm_sec; 
    
-   process (clk100)
+   process (clk1x)
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk1x) then
       
          if (rtc_change = '0') then
             buf_tm_year <= std_logic_vector(tm_year);
@@ -489,7 +505,7 @@ begin
             if (tm_sec(6 downto 4) > 5)  then tm_sec(6 downto 4)  <= (others => '0'); tm_min(3 downto 0)  <= tm_min(3 downto 0) + 1;  rtc_change <= '1'; end if;    
             if (tm_sec(3 downto 0) > 9)  then tm_sec(3 downto 0)  <= (others => '0'); tm_sec(6 downto 4)  <= tm_sec(6 downto 4) + 1;  rtc_change <= '1'; end if;
             
-            if (secondcount >= 99999999) then 
+            if (secondcount >= 16777215) then 
                secondcount        <= 0; 
                RTC_timestamp      <= std_logic_vector(unsigned(RTC_timestamp) + 1);
                tm_sec(3 downto 0) <= tm_sec(3 downto 0) + 1;  

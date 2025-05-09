@@ -5,7 +5,7 @@ use IEEE.numeric_std.all;
 entity gba_drawer_mode345 is
    port 
    (
-      clk100               : in  std_logic;                     
+      clk                  : in  std_logic;                     
       BG_Mode              : in  std_logic_vector(2 downto 0);
                            
       line_trigger         : in  std_logic;                     
@@ -65,14 +65,14 @@ architecture arch of gba_drawer_mode345 is
    signal yyy              : signed(19 downto 0);
    
    signal VRAM_byteaddr    : unsigned(16 downto 0); 
-   signal vram_readwait    : integer range 0 to 2;
+   signal vram_readwait    : integer range 0 to 1;
    signal vram_data        : std_logic_vector(15 downto 0);
    signal VRAM_last_addr   : unsigned(14 downto 0) := (others => '0');
    signal VRAM_last_data   : std_logic_vector(31 downto 0) := (others => '0');
    signal VRAM_last_valid  : std_logic := '0';
    
    signal PALETTE_byteaddr : unsigned(8 downto 0); 
-   signal palette_readwait : integer range 0 to 2;
+   signal palette_readwait : integer range 0 to 1;
    
    signal mosaik_cnt       : integer range 0 to 15 := 0;
    signal skip_data        : std_logic := '0';
@@ -88,10 +88,10 @@ begin
    yyy <= realY(27 downto 8);
    
    -- vramfetch
-   process (clk100)
+   process (clk)
     variable byteaddr : integer;
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
       
          skip_data <= '0';
       
@@ -116,9 +116,9 @@ begin
                end if;
                
             when STARTREAD => 
-               if    (BG_Mode = "011") then byteaddr := to_integer(unsigned(yyy * 480 + (xxx * 2)));
-               elsif (BG_Mode = "100") then byteaddr := to_integer(unsigned(yyy * 240 + xxx));
-               else                         byteaddr := to_integer(unsigned(yyy * 320 + (xxx * 2))); 
+               if    (BG_Mode = "011") then byteaddr := to_integer(unsigned(yyy * to_signed(480,10) + (xxx & '0')));
+               elsif (BG_Mode = "100") then byteaddr := to_integer(unsigned(yyy * to_signed(240,10) + xxx));
+               else                         byteaddr := to_integer(unsigned(yyy * to_signed(320,10) + (xxx & '0'))); 
                end if;
                
                if (second_frame = '1' and BG_Mode /= "011") then
@@ -130,7 +130,7 @@ begin
                if ((BG_Mode  = "101" and (xxx >= 0 and yyy >= 0 and xxx < 160 and yyy < 128)) or
                    (BG_Mode /= "101" and (xxx >= 0 and yyy >= 0 and xxx < 240 and yyy < 160))) then
                   vramfetch     <= WAITREAD;
-                  vram_readwait <= 2;
+                  vram_readwait <= 1;
                else
                   if (x_cnt < 239) then
                      x_cnt     <= x_cnt + 1;
@@ -195,9 +195,9 @@ begin
  
    
    -- draw
-   process (clk100)
+   process (clk)
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
          
          pixel_we <= '0';
          
@@ -227,7 +227,7 @@ begin
                   else
                      if (BG_Mode = "100") then
                         DrawState        <= WAITREAD; 
-                        palette_readwait <= 2;
+                        palette_readwait <= 1;
                         if (VRAM_byteaddr(0) = '1') then
                            PALETTE_byteaddr <= unsigned(vram_data(15 downto 8)) & '0';
                         else
