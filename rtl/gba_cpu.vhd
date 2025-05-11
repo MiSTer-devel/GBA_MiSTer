@@ -2573,15 +2573,16 @@ begin
                   
                   if (execute_switchmode_now = '1') then
                   
+                     if (execute_switchmode_new = CPUMODE_FIQ and cpu_mode /= CPUMODE_FIQ) then
+                        regs_0_8  <= regs(8);
+                        regs_0_9  <= regs(9);
+                        regs_0_10 <= regs(10);
+                        regs_0_11 <= regs(11);
+                        regs_0_12 <= regs(12);
+                     end if;
+                  
                      case (cpu_mode) is
                         when CPUMODE_USER | CPUMODE_SYSTEM =>
-                           if (execute_switchmode_new = CPUMODE_FIQ) then
-                              regs_0_8  <= regs(8);
-                              regs_0_9  <= regs(9);
-                              regs_0_10 <= regs(10);
-                              regs_0_11 <= regs(11);
-                              regs_0_12 <= regs(12);
-                           end if;
                            regs_0_13 <= regs(13);
                            regs_0_14 <= regs(14);
       
@@ -2615,13 +2616,6 @@ begin
 
                      case (execute_switchmode_new) is
                         when CPUMODE_USER | CPUMODE_SYSTEM =>
-                           if (cpu_mode = CPUMODE_FIQ) then
-                              regs(8)  <= regs_0_8; 
-                              regs(9)  <= regs_0_9; 
-                              regs(10) <= regs_0_10;
-                              regs(11) <= regs_0_11;
-                              regs(12) <= regs_0_12;
-                           end if;
                            if (cpu_mode /= CPUMODE_USER and cpu_mode /= CPUMODE_SYSTEM) then
                               regs(13) <= regs_0_13;
                               regs(14) <= regs_0_14;
@@ -2673,6 +2667,14 @@ begin
                            
                         when others => report "should never happen" severity failure; 
                      end case;
+                     
+                     if (cpu_mode = CPUMODE_FIQ and execute_switchmode_new /= CPUMODE_FIQ) then
+                        regs(8)  <= regs_0_8; 
+                        regs(9)  <= regs_0_9; 
+                        regs(10) <= regs_0_10;
+                        regs(11) <= regs_0_11;
+                        regs(12) <= regs_0_12;
+                     end if;
                   
                   end if;
                   
