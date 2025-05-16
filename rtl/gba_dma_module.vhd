@@ -364,6 +364,10 @@ begin
                         if (CPU_bus_idle = '1' and CNT_H_DMA_Enable_written = '0') then
                            state <= READING;
                         end if;
+                        if (CNT_H_DMA_Enable_written = '1' and CNT_H_DMA_Enable = "0") then
+                           req_next <= '0';
+                           dma_soon <= '0';
+                        end if;
                   
                      when READING =>
                         if (dma_bus_done = '1') then

@@ -404,8 +404,7 @@ begin
                   end if;
 
                when WAITUNPAUSE =>
-                  if (allowUnpause = '1') then
-                  --if (allowUnpause = '1' and is_simu = '0') then
+                  if (allowUnpause = '1' or is_simu = '1') then
                      state <= RUNNING;
                   end if;
             
