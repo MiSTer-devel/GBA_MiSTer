@@ -178,6 +178,7 @@ architecture arch of gba_drawer_obj is
    signal pixeladdr_x_aff5  : unsigned(14 downto 0);
    
    -- Pixel Pipeline
+   signal consumeSettings  : std_logic := '0';
    signal PALETTE_byteaddr : std_logic_vector(8 downto 0);
    
    type tpixel is record
@@ -369,7 +370,7 @@ begin
             when WAITAFFINE3 => OAMFetch <= DONE;        OAM_data_aff3 <= OAMRAM_Drawer_data(31 downto 16);
                
             when DONE =>
-               if (PIXELGen = WAITOAM) then
+               if (PIXELGen = WAITOAM or consumeSettings = '1') then
                   if (OAM_currentobj = 127) then
                      OAMFetch      <= IDLE;
                   else
@@ -390,6 +391,7 @@ begin
    
    -- Pixelgen
    process (clk)
+      variable applyNextSettings : std_logic := '0';
       variable pixeladdr_pre_a0  : integer range -8388608 to 8388607; -- 24 bit
       variable pixeladdr_pre_a1  : integer range -8388608 to 8388607;
       variable pixeladdr_pre_a2  : integer range -8388608 to 8388607;
@@ -412,7 +414,9 @@ begin
    begin
       if rising_edge(clk) then
 
-         issue_pixel <= '0';
+         consumeSettings   <= '0';
+         issue_pixel       <= '0';
+         applyNextSettings := '0';
          
          if (drawline = '1') then
             pixeltime <= 0;
@@ -423,75 +427,9 @@ begin
          case (PIXELGen) is
          
             when WAITOAM =>
-               rescounter <= 0;
-               x          <= 0;
-               firstpix   <= '1';
                if (OAMFetch = DONE) then
-                  PIXELGen        <= NEXTADDR;
-               
-                  Pixel_data0     <= OAM_data0;    
-                  Pixel_data1     <= OAM_data1;    
-                  Pixel_data2     <= OAM_data2;    
-                  dx              <= to_integer(signed(OAM_data_aff0));
-                  --dmx             <= to_integer(signed(OAM_data_aff1));
-                  dy              <= to_integer(signed(OAM_data_aff2));
-                  --dmy             <= to_integer(signed(OAM_data_aff3));
-   
-                  if (unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO)) > 16#100#) then 
-                     posx <= to_integer(unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO))) - 16#200#; 
-                  else
-                     posx <= to_integer(unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO)));
-                  end if;
-                  
-                  sizeX  <= OAMfetch_sizeX;
-                  sizeY  <= OAMfetch_sizeY;
-                  fieldX <= OAMfetch_fieldX;
-                  
-                  sizemult      <= OAMfetch_sizemult;
-                  x_flip_offset <= OAMfetch_x_flip_offset;
-                  x_div         <= OAMfetch_x_div;         
-                  x_size        <= OAMfetch_x_size;        
-   
-                  pixeladdr_base <= OAMfetch_addrbase;
-   
-                  -- affine
-                  pixeladdr_pre_a0 := OAMfetch_sizeX * 128;
-                  pixeladdr_pre_a1 := (OAMfetch_fieldX / 2) * to_integer(signed(OAM_data_aff0));
-                  pixeladdr_pre_a2 := (OAMfetch_fieldY / 2) * to_integer(signed(OAM_data_aff1));
-                  pixeladdr_pre_a3 := OAMfetch_ty * to_integer(signed(OAM_data_aff1));
-                  pixeladdr_pre_a4 := OAMfetch_sizeY * 128;
-                  pixeladdr_pre_a5 := (OAMfetch_fieldX / 2) * to_integer(signed(OAM_data_aff2));
-                  pixeladdr_pre_a6 := (OAMfetch_fieldY / 2) * to_integer(signed(OAM_data_aff3));
-                  pixeladdr_pre_a7 := OAMfetch_ty * to_integer(signed(OAM_data_aff3));
-                              
-                  -- non affine
-                  pixeladdr_pre_0 := (OAMfetch_y_flip_offset - (OAMfetch_ty mod 8) * OAMfetch_x_size);
-                  pixeladdr_pre_1 := ((((OAMfetch_sizeY / 8) - 1) - (OAMfetch_ty / 8)) * OAMfetch_sizemult);
-                  pixeladdr_pre_2 := (OAMfetch_y_flip_offset - (OAMfetch_ty mod 8) * OAMfetch_x_size);
-                  pixeladdr_pre_3 := ((((OAMfetch_sizeY / 8) - 1) - (OAMfetch_ty / 8)) * 1024);
-                  pixeladdr_pre_4 := ((OAMfetch_ty mod 8) * OAMfetch_x_size);
-                  pixeladdr_pre_5 := ((OAMfetch_ty / 8) * OAMfetch_sizemult);
-                  pixeladdr_pre_6 := ((OAMfetch_ty mod 8) * OAMfetch_x_size);
-                  pixeladdr_pre_7 := ((OAMfetch_ty / 8) * 1024);
-                  
-                  -- affine
-                  realX <= (pixeladdr_pre_a0 - pixeladdr_pre_a1 - pixeladdr_pre_a2 + pixeladdr_pre_a3) * resmult;
-                  realY <= (pixeladdr_pre_a4 - pixeladdr_pre_a5 - pixeladdr_pre_a6 + pixeladdr_pre_a7) * resmult;
-                  
-                  -- non affine
-                  if (OAM_data1(OAM_VFLIP) = '1') then
-                     if (one_dim_mapping = '1') then
-                        pixeladdr <= OAMfetch_addrbase + pixeladdr_pre_0 + pixeladdr_pre_1;
-                     else
-                        pixeladdr <= OAMfetch_addrbase + pixeladdr_pre_2 + pixeladdr_pre_3;
-                     end if;
-                  else
-                     if (one_dim_mapping = '1') then
-                        pixeladdr <= OAMfetch_addrbase + pixeladdr_pre_4 + pixeladdr_pre_5;
-                     else
-                        pixeladdr <= OAMfetch_addrbase + pixeladdr_pre_6 + pixeladdr_pre_7;
-                     end if;
-                  end if;
+                  PIXELGen          <= NEXTADDR;
+                  applyNextSettings := '1';
                end if;
 
             when NEXTADDR =>
@@ -581,9 +519,12 @@ begin
                         if (pixeladdr_calc = pixeladdr_x and firstpix = '0') then
                            vram_reuse  <= '1';
                         end if;
-                        PIXELGen    <= NEXTADDR;
                         if ((x + posX) < 240 and (x + posX) >= 0) then
                            issue_pixel <= '1';
+                        end if;
+                        PIXELGen    <= NEXTADDR;
+                        if (x + 1 >= fieldX and OAMFetch = DONE) then
+                           applyNextSettings := '1';   
                         end if;
                      end if;
                   end if;
@@ -609,6 +550,78 @@ begin
                end if;
             
          end case;
+         
+         if (applyNextSettings = '1') then
+            consumeSettings <= '1';
+            
+            rescounter <= 0;
+            x          <= 0;
+            firstpix   <= '1';
+   
+            Pixel_data0     <= OAM_data0;    
+            Pixel_data1     <= OAM_data1;    
+            Pixel_data2     <= OAM_data2;    
+            dx              <= to_integer(signed(OAM_data_aff0));
+            --dmx             <= to_integer(signed(OAM_data_aff1));
+            dy              <= to_integer(signed(OAM_data_aff2));
+            --dmy             <= to_integer(signed(OAM_data_aff3));
+      
+            if (unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO)) > 16#100#) then 
+               posx <= to_integer(unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO))) - 16#200#; 
+            else
+               posx <= to_integer(unsigned(OAM_data1(OAM_X_HI downto OAM_X_LO)));
+            end if;
+            
+            sizeX  <= OAMfetch_sizeX;
+            sizeY  <= OAMfetch_sizeY;
+            fieldX <= OAMfetch_fieldX;
+            
+            sizemult      <= OAMfetch_sizemult;
+            x_flip_offset <= OAMfetch_x_flip_offset;
+            x_div         <= OAMfetch_x_div;         
+            x_size        <= OAMfetch_x_size;        
+      
+            pixeladdr_base <= OAMfetch_addrbase;
+      
+            -- affine
+            pixeladdr_pre_a0 := OAMfetch_sizeX * 128;
+            pixeladdr_pre_a1 := (OAMfetch_fieldX / 2) * to_integer(signed(OAM_data_aff0));
+            pixeladdr_pre_a2 := (OAMfetch_fieldY / 2) * to_integer(signed(OAM_data_aff1));
+            pixeladdr_pre_a3 := OAMfetch_ty * to_integer(signed(OAM_data_aff1));
+            pixeladdr_pre_a4 := OAMfetch_sizeY * 128;
+            pixeladdr_pre_a5 := (OAMfetch_fieldX / 2) * to_integer(signed(OAM_data_aff2));
+            pixeladdr_pre_a6 := (OAMfetch_fieldY / 2) * to_integer(signed(OAM_data_aff3));
+            pixeladdr_pre_a7 := OAMfetch_ty * to_integer(signed(OAM_data_aff3));
+                        
+            -- non affine
+            pixeladdr_pre_0 := (OAMfetch_y_flip_offset - (OAMfetch_ty mod 8) * OAMfetch_x_size);
+            pixeladdr_pre_1 := ((((OAMfetch_sizeY / 8) - 1) - (OAMfetch_ty / 8)) * OAMfetch_sizemult);
+            pixeladdr_pre_2 := (OAMfetch_y_flip_offset - (OAMfetch_ty mod 8) * OAMfetch_x_size);
+            pixeladdr_pre_3 := ((((OAMfetch_sizeY / 8) - 1) - (OAMfetch_ty / 8)) * 1024);
+            pixeladdr_pre_4 := ((OAMfetch_ty mod 8) * OAMfetch_x_size);
+            pixeladdr_pre_5 := ((OAMfetch_ty / 8) * OAMfetch_sizemult);
+            pixeladdr_pre_6 := ((OAMfetch_ty mod 8) * OAMfetch_x_size);
+            pixeladdr_pre_7 := ((OAMfetch_ty / 8) * 1024);
+            
+            -- affine
+            realX <= (pixeladdr_pre_a0 - pixeladdr_pre_a1 - pixeladdr_pre_a2 + pixeladdr_pre_a3) * resmult;
+            realY <= (pixeladdr_pre_a4 - pixeladdr_pre_a5 - pixeladdr_pre_a6 + pixeladdr_pre_a7) * resmult;
+            
+            -- non affine
+            if (OAM_data1(OAM_VFLIP) = '1') then
+               if (one_dim_mapping = '1') then
+                  pixeladdr <= OAMfetch_addrbase + pixeladdr_pre_0 + pixeladdr_pre_1;
+               else
+                  pixeladdr <= OAMfetch_addrbase + pixeladdr_pre_2 + pixeladdr_pre_3;
+               end if;
+            else
+               if (one_dim_mapping = '1') then
+                  pixeladdr <= OAMfetch_addrbase + pixeladdr_pre_4 + pixeladdr_pre_5;
+               else
+                  pixeladdr <= OAMfetch_addrbase + pixeladdr_pre_6 + pixeladdr_pre_7;
+               end if;
+            end if;
+         end if;
       
       end if;
    end process;
