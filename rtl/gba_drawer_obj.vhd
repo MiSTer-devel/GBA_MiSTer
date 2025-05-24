@@ -212,6 +212,14 @@ architecture arch of gba_drawer_obj is
                             
    signal readaddr_mux_eval : unsigned(1 downto 0);
    
+   signal prio_issue        : std_logic_vector(1 downto 0);
+   signal mode_issue        : std_logic_vector(1 downto 0);
+   signal hicolor_issue     : std_logic;
+   signal affine_issue      : std_logic;
+   signal hflip_issue       : std_logic;
+   signal palette_issue     : std_logic_vector(3 downto 0);
+   signal mosaic_issue      : std_logic;
+   
    signal prio_eval         : std_logic_vector(1 downto 0);
    signal mode_eval         : std_logic_vector(1 downto 0);
    signal hicolor_eval      : std_logic;
@@ -638,6 +646,15 @@ begin
             pixelarray <= (others => ('1', "11", '0', '0'));
          end if;
          
+         -- must save those here, as pixeldata will be overwritten in next cycle
+         prio_issue        <= Pixel_data2(OAM_PRIO_HI downto OAM_PRIO_LO);
+         mode_issue        <= Pixel_data0(OAM_MODE_HI downto OAM_MODE_LO);
+         hicolor_issue     <= Pixel_data0(OAM_HICOLOR);
+         affine_issue      <= Pixel_data0(OAM_AFFINE);
+         hflip_issue       <= Pixel_data1(OAM_HFLIP);
+         palette_issue     <= Pixel_data2(OAM_PALETTE_HI downto OAM_PALETTE_LO);
+         mosaic_issue      <= Pixel_data0(OAM_MOSAIC);
+         
          -- first cycle - wait for vram to deliver data
          enable_eval       <= issue_pixel;
          readaddr_mux_eval <= pixeladdr_x(1 downto 0);
@@ -650,14 +667,13 @@ begin
             zeroread_eval <= '1';
          end if;
          
-         -- must save those here, as pixeldata will be overwritten in next cycle
-         prio_eval       <= Pixel_data2(OAM_PRIO_HI downto OAM_PRIO_LO);
-         mode_eval       <= Pixel_data0(OAM_MODE_HI downto OAM_MODE_LO);
-         hicolor_eval    <= Pixel_data0(OAM_HICOLOR);
-         affine_eval     <= Pixel_data0(OAM_AFFINE);
-         hflip_eval      <= Pixel_data1(OAM_HFLIP);
-         palette_eval    <= Pixel_data2(OAM_PALETTE_HI downto OAM_PALETTE_LO);
-         mosaic_eval     <= Pixel_data0(OAM_MOSAIC);
+         prio_eval       <= prio_issue;   
+         mode_eval       <= mode_issue;   
+         hicolor_eval    <= hicolor_issue;
+         affine_eval     <= affine_issue; 
+         hflip_eval      <= hflip_issue;  
+         palette_eval    <= palette_issue;
+         mosaic_eval     <= mosaic_issue; 
 
          -- second cycle - eval vram
          target_wait <= target_eval;
