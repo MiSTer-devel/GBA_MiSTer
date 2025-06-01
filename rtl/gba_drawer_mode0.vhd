@@ -66,6 +66,7 @@ architecture arch of gba_drawer_mode0 is
                                  
    signal x_cnt                : integer range 0 to 239;
    signal y_scrolled           : integer range 0 to 1023; 
+   signal y_scrolled_mod       : integer range 0 to 511; 
    signal offset_y             : integer range 0 to 1023; 
    signal scroll_x_mod         : integer range 256 to 512; 
    signal scroll_y_mod         : integer range 256 to 512; 
@@ -99,6 +100,14 @@ begin
    VRAM_Drawer_addr <= to_integer(VRAM_byteaddr(15 downto 2));
    PALETTE_Drawer_addr <= to_integer(unsigned(PALETTE_byteaddr(8 downto 2)));
   
+  
+   y_scrolled <= ypos_mosaic + to_integer(scrollY) when (mosaic = '1') else
+                 ypos + to_integer(scrollY);
+                 
+   y_scrolled_mod <= y_scrolled mod scroll_y_mod;
+
+   offset_y   <= ((y_scrolled mod 256) / 8) * 32;   
+  
    -- vramfetch
    process (clk)
     variable tileindex_var   : integer range 0 to 4095;
@@ -116,11 +125,6 @@ begin
                if (drawline = '1') then
                   busy            <= '1';
                   vramfetch       <= CALCBASE;
-                  if (mosaic = '1') then
-                     y_scrolled <= ypos_mosaic + to_integer(scrollY);
-                  else
-                     y_scrolled <= ypos + to_integer(scrollY);
-                  end if;
                   scroll_x_mod <= 256;
                   scroll_y_mod <= 256;
                   case (to_integer(screensize)) is
@@ -137,8 +141,6 @@ begin
                
             when CALCBASE =>
                vramfetch  <= CALCADDR;
-               y_scrolled <= y_scrolled mod scroll_y_mod;
-               offset_y   <= ((y_scrolled mod 256) / 8) * 32;
                if (hicolor = '0') then
                   --tilemult      <= 32;
                   x_flip_offset <= 3;
@@ -153,10 +155,10 @@ begin
    
             when CALCADDR =>
                tileindex_var  := 0;
-               if (x_scrolled >= 256 or (y_scrolled >= 256 and to_integer(screensize) = 2)) then
+               if (x_scrolled >= 256 or (y_scrolled_mod >= 256 and to_integer(screensize) = 2)) then
                   tileindex_var  := tileindex_var + 1024;
                end if;
-               if (y_scrolled >= 256 and to_integer(screensize) = 3) then
+               if (y_scrolled_mod >= 256 and to_integer(screensize) = 3) then
                   tileindex_var := tileindex_var + 2048;
                end if;
                tileaddr_var  := tileindex_var + offset_y + to_integer(x_scrolled(7 downto 3));
@@ -195,15 +197,15 @@ begin
                end if;
                if (tileinfo(11) = '1') then -- vert flip
                   if (hicolor = '0') then
-                     pixeladdr := pixeladdr + ((7 - (y_scrolled mod 8)) * 4);
+                     pixeladdr := pixeladdr + ((7 - (y_scrolled_mod mod 8)) * 4);
                   else
-                     pixeladdr := pixeladdr + ((7 - (y_scrolled mod 8)) * 8);
+                     pixeladdr := pixeladdr + ((7 - (y_scrolled_mod mod 8)) * 8);
                   end if;
                else
                   if (hicolor = '0') then
-                     pixeladdr := pixeladdr + (y_scrolled mod 8 * 4);
+                     pixeladdr := pixeladdr + (y_scrolled_mod mod 8 * 4);
                   else
-                     pixeladdr := pixeladdr + (y_scrolled mod 8 * 8);
+                     pixeladdr := pixeladdr + (y_scrolled_mod mod 8 * 8);
                   end if;
                end if;
                VRAM_byteaddr <= to_unsigned(pixeladdr, VRAM_byteaddr'length);
