@@ -11,7 +11,7 @@ use work.pProc_bus_gba.all;
 entity gba_cheats is
    port 
    (
-      clk100         : in     std_logic;  
+      clk            : in     std_logic;  
       gb_on          : in     std_logic;
       
       cheat_clear    : in     std_logic;
@@ -22,14 +22,11 @@ entity gba_cheats is
       
       vsync          : in     std_logic;
       
-      bus_ena_in     : in     std_logic;
-      sleep_cheats   : out    std_logic := '0';
-      
-      BusAddr        : buffer std_logic_vector(27 downto 0);
-      BusRnW         : out    std_logic;
+      BusAddr        : buffer std_logic_vector(27 downto 0) := (others => '0');
+      BusRnW         : out    std_logic := '0';
       BusACC         : out    std_logic_vector(1 downto 0);
-      BusWriteData   : out    std_logic_vector(31 downto 0);
-      Bus_ena        : out    std_logic := '0';
+      BusWriteData   : out    std_logic_vector(31 downto 0) := (others => '0');
+      Bus_ena_out    : out    std_logic := '0';
       BusReadData    : in     std_logic_vector(31 downto 0);
       BusDone        : in     std_logic
    );
@@ -38,7 +35,6 @@ end entity;
 architecture arch of gba_cheats is
 
    constant CHEATCOUNT  : integer := 32;
-   constant SETTLECOUNT : integer := 100;
    
    constant OPTYPE_ALWAYS     : std_logic_vector(3 downto 0) := x"0";
    constant OPTYPE_EQUALS     : std_logic_vector(3 downto 0) := x"1";
@@ -61,7 +57,6 @@ architecture arch of gba_cheats is
       FIFO_WAIT,
       FIFO_LOADMEM,
       FIFO_CHECKMEM,
-      WAIT_GBAIDLE,
       LOAD_CHEAT,
       NEXT_CHEAT,
       SKIPTEST,
@@ -80,53 +75,50 @@ architecture arch of gba_cheats is
    signal fifo_Rd     : std_logic := '0';
    signal fifo_Empty  : std_logic;
    
-   --type t_cheatmem is array(0 to CHEATCOUNT - 1) of std_logic_vector(127 downto 0);
-   --signal cheatmem : t_cheatmem := (others => (others => '1'));
+   type t_cheatmem is array(0 to CHEATCOUNT - 1) of std_logic_vector(127 downto 0);
+   signal cheatmem : t_cheatmem := (others => (others => '1'));
    
    signal cheatindex : integer range 0 to CHEATCOUNT - 1 := 0;
    signal cheatdata  : std_logic_vector(127 downto 0);
    
-   signal stop_defragment : integer range 0 to CHEATCOUNT - 1 := 0;
-   
-   signal first_free : integer range 0 to CHEATCOUNT := 0;
+   signal Bus_ena    : std_logic := '0';
    
    signal skip_next  : std_logic := '0';
    signal oldvalue   : std_logic_vector(31 downto 0);
    
-   signal settle     : integer range 0 to SETTLECOUNT := 0;
-   
    
 begin 
 
-   --iSyncFifo : entity MEM.SyncFifo
-   --generic map
-   --(
-   --   SIZE             => CHEATCOUNT,
-   --   DATAWIDTH        => 128,
-   --   NEARFULLDISTANCE => 0
-   --)
-   --port map
-   --( 
-   --   clk      => clk100,
-   --   reset    => '0',
-   --            
-   --   Din      => cheat_in_1,  
-   --   Wr       => cheat_valid,   
-   --   Full     => open, 
-   --               
-   --   Dout     => fifo_Dout, 
-   --   Rd       => fifo_Rd,   
-   --   Empty    => fifo_Empty
-   --);
+   Bus_ena_out <= Bus_ena and (not BusDone);
+
+   iSyncFifo : entity MEM.SyncFifo
+   generic map
+   (
+      SIZE             => CHEATCOUNT,
+      DATAWIDTH        => 128,
+      NEARFULLDISTANCE => 0
+   )
+   port map
+   ( 
+      clk      => clk,
+      reset    => '0',
+               
+      Din      => cheat_in_1,  
+      Wr       => cheat_valid,   
+      Full     => open, 
+                  
+      Dout     => fifo_Dout, 
+      Rd       => fifo_Rd,   
+      Empty    => fifo_Empty
+   );
 
    BusACC <= ACCESS_32BIT;
 
-   process (clk100)
+   process (clk)
    begin
-      if rising_edge(clk100) then
+      if rising_edge(clk) then
    
          fifo_Rd <= '0';
-         Bus_ena <= '0';
    
          cheat_on_1 <= cheat_on;
          cheat_in_1 <= cheat_in;
@@ -140,27 +132,26 @@ begin
             
             state      <= IDLE;
             cheatindex <= 0;
+            Bus_ena    <= '0';
          
          else
          
             case state is
             
                when IDLE =>
-                  sleep_cheats <= '0';
-                  --if (cheat_clear = '1') then
-                  --   state      <= RESET_CLEAR;
-                  --   cheatindex <= 0;
-                  --elsif (cheats_enabled = '1' and vsync = '1') then
-                  --   state        <= WAIT_GBAIDLE;
-                  --   settle       <= 0;
-                  --   cheatindex   <= 0;
-                  --   skip_next    <= '0';
-                  --   sleep_cheats <= '1';
-                  --elsif (fifo_Empty = '0') then
-                  --   state       <= FIFO_WAIT;
-                  --   fifo_Rd     <= '1';
-                  --   cheatindex  <= 0;
-                  --end if;
+                  Bus_ena <= '0';
+                  if (cheat_clear = '1') then
+                     state      <= RESET_CLEAR;
+                     cheatindex <= 0;
+                  elsif (cheats_enabled = '1' and vsync = '1') then
+                     state        <= LOAD_CHEAT;
+                     cheatindex   <= 0;
+                     skip_next    <= '0';
+                  elsif (fifo_Empty = '0') then
+                     state       <= FIFO_WAIT;
+                     fifo_Rd     <= '1';
+                     cheatindex  <= 0;
+                  end if;
                   
                -- //////////////
                -- // RESET
@@ -168,7 +159,7 @@ begin
                   
                when RESET_CLEAR =>
                   cheats_active <= '0';
-                  --cheatmem(cheatindex) <= (others => '1');
+                  cheatmem(cheatindex) <= (others => '1');
                   if (cheatindex < CHEATCOUNT - 1) then
                      cheatindex <= cheatindex + 1;
                   else
@@ -183,12 +174,12 @@ begin
                   state <= FIFO_LOADMEM;
                   
                when FIFO_LOADMEM =>
-                  --cheatdata <= cheatmem(cheatindex);
+                  cheatdata <= cheatmem(cheatindex);
                   state     <= FIFO_CHECKMEM;
                   
                when FIFO_CHECKMEM => 
                   if (cheatdata(99 downto 96) = OPTYPE_EMPTY) then
-                     --cheatmem(cheatindex) <= fifo_Dout;
+                     cheatmem(cheatindex) <= fifo_Dout;
                      state                <= IDLE;
                      cheats_active        <= '1';
                   elsif (cheatindex < CHEATCOUNT - 1) then
@@ -201,19 +192,10 @@ begin
                -- //////////////////////////////
                -- // apply cheats
                -- ///////////////////////////////
-               
-               when WAIT_GBAIDLE =>
-                  if (bus_ena_in = '1') then
-                     settle <= 0;
-                  elsif (settle < SETTLECOUNT) then
-                     settle <= settle + 1;
-                  else
-                     state <= LOAD_CHEAT;
-                  end if;
                      
                when LOAD_CHEAT =>
                   state      <= SKIPTEST;
-                  --cheatdata  <= cheatmem(cheatindex);
+                  cheatdata  <= cheatmem(cheatindex);
                      
                when NEXT_CHEAT =>
                   if (cheatindex < CHEATCOUNT - 1) then
@@ -238,8 +220,10 @@ begin
                   
                when WAIT_READ =>
                   if (BusDone = '1') then
-                     oldvalue <= BusReadData;
+                     Bus_ena  <= '0';
                      state    <= APPLY_CHEAT;
+                     
+                     oldvalue <= BusReadData;
                  end if;
                      
                when APPLY_CHEAT =>
@@ -274,7 +258,8 @@ begin
                
                when WAIT_WRITE =>
                   if (BusDone = '1') then
-                     state <= NEXT_CHEAT;
+                     Bus_ena  <= '0';
+                     state    <= NEXT_CHEAT;
                   end if;  
             
             end case;

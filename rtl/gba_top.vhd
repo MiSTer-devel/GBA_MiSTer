@@ -176,14 +176,14 @@ architecture arch of gba_top is
    signal sleep_rewind         : std_logic;
    
    -- cheats
-   --signal Cheats_BusAddr       : std_logic_vector(27 downto 0);
-   --signal Cheats_BusRnW        : std_logic;
-   --signal Cheats_BusACC        : std_logic_vector(1 downto 0);
-   --signal Cheats_BusWriteData  : std_logic_vector(31 downto 0);
-   --signal Cheats_Bus_ena       : std_logic := '0';
-   --
-   --signal sleep_cheats         : std_logic;
-   
+   signal Cheats_BusAddr       : std_logic_vector(27 downto 0);
+   signal Cheats_BusRnW        : std_logic;
+   signal Cheats_BusACC        : std_logic_vector(1 downto 0);
+   signal Cheats_BusWriteData  : std_logic_vector(31 downto 0);
+   signal Cheats_BusReadData   : std_logic_vector(31 downto 0);
+   signal Cheats_Bus_ena       : std_logic := '0';
+   signal Cheats_Bus_done      : std_logic;
+
    -- wiring  
    signal cpu_bus_Adr          : std_logic_vector(31 downto 0);
    signal cpu_bus_rnw          : std_logic;
@@ -496,13 +496,6 @@ begin
             debug_bus_ena    <= '1';
             debug_bus_acc    <= SAVE_BusACC;
             debug_bus_dout   <= SAVE_BusWriteData;
-         --elsif (Cheats_Bus_ena = '1') then
-         --   debug_bus_active <= '1';
-         --   debug_bus_Adr    <= Cheats_BusAddr;
-         --   debug_bus_rnw    <= Cheats_BusRnW;
-         --   debug_bus_ena    <= '1';
-         --   debug_bus_acc    <= Cheats_BusACC;
-         --   debug_bus_dout   <= Cheats_BusWriteData;
          end if;
          
          if (debug_bus_active = '1' and mem_bus_done = '1') then
@@ -646,31 +639,28 @@ begin
       request_busy        => savestate_busy     
    );
    
-   --igba_cheats : entity work.gba_cheats
-   --port map
-   --(
-   --   clk100         => clk1x,
-   --   gb_on          => GBA_on,
-   --                   
-   --   cheat_clear    => cheat_clear,
-   --   cheats_enabled => cheats_enabled,
-   --   cheat_on       => cheat_on,
-   --   cheat_in       => cheat_in,
-   --   cheats_active  => cheats_active,
-   --                  
-   --   vsync          => vblank_trigger,
-   --                  
-   --   bus_ena_in     => mem_bus_ena,
-   --   sleep_cheats   => sleep_cheats,
-   --                 
-   --   BusAddr        => Cheats_BusAddr,     
-   --   BusRnW         => Cheats_BusRnW,      
-   --   BusACC         => Cheats_BusACC,      
-   --   BusWriteData   => Cheats_BusWriteData,
-   --   Bus_ena        => Cheats_Bus_ena,     
-   --   BusReadData    => mem_bus_din, 
-   --   BusDone        => mem_bus_done
-   --);
+   igba_cheats : entity work.gba_cheats
+   port map
+   (
+      clk            => clk1x,
+      gb_on          => GBA_on,
+                      
+      cheat_clear    => cheat_clear,
+      cheats_enabled => cheats_enabled,
+      cheat_on       => cheat_on,
+      cheat_in       => cheat_in,
+      cheats_active  => cheats_active,
+                     
+      vsync          => vblank_trigger,
+                    
+      BusAddr        => Cheats_BusAddr,     
+      BusRnW         => Cheats_BusRnW,      
+      BusACC         => Cheats_BusACC,      
+      BusWriteData   => Cheats_BusWriteData,
+      Bus_ena_out    => Cheats_Bus_ena,     
+      BusReadData    => Cheats_BusReadData, 
+      BusDone        => Cheats_Bus_done
+   );
    
    savestate_bus_ext  <= savestate_bus;
    save_wired_or(1)   <= ss_wired_out_ext;
@@ -735,6 +725,14 @@ begin
       mem_bus_din          => mem_bus_din, 
       mem_bus_done_out     => mem_bus_done,
       mem_bus_unread       => mem_bus_unread,
+      
+      Cheats_BusAddr       => Cheats_BusAddr,     
+      Cheats_BusRnW        => Cheats_BusRnW,      
+      Cheats_BusACC        => Cheats_BusACC,      
+      Cheats_BusWriteData  => Cheats_BusWriteData,
+      Cheats_Bus_ena       => Cheats_Bus_ena,     
+      Cheats_BusReadData   => Cheats_BusReadData, 
+      Cheats_Bus_done      => Cheats_Bus_done,
       
       bus_lowbits          => bus_lowbits,
       

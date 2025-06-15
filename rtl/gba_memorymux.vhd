@@ -57,6 +57,14 @@ entity gba_memorymux is
       mem_bus_done_out     : out    std_logic;
       mem_bus_unread       : out    std_logic;
       
+      Cheats_BusAddr       : in     std_logic_vector(27 downto 0);
+      Cheats_BusRnW        : in     std_logic;
+      Cheats_BusACC        : in     std_logic_vector(1 downto 0);
+      Cheats_BusWriteData  : in     std_logic_vector(31 downto 0);
+      Cheats_Bus_ena       : in     std_logic;
+      Cheats_BusReadData   : out    std_logic_vector(31 downto 0) := (others => '0');
+      Cheats_Bus_done      : out    std_logic;
+      
       bios_wraddr          : in     std_logic_vector(11 downto 0) := (others => '0');
       bios_wrdata          : in     std_logic_vector(31 downto 0) := (others => '0');
       bios_wr              : in     std_logic := '0';
@@ -134,6 +142,14 @@ architecture arch of gba_memorymux is
       READSTATE_UNREADABLE
    );
    signal readState : treadState := READSTATE_BIOS;
+   
+   type treadStateCheats is
+   (
+      READSTATECHEATS_IDLE,
+      READSTATECHEATS_EWRAM,
+      READSTATECHEATS_IRAM
+   );
+   signal readStateCheats : treadStateCheats := READSTATECHEATS_IDLE;
    
    signal mem_bus_din_unrot       : std_logic_vector(31 downto 0);
           
@@ -327,7 +343,7 @@ begin
       be_b       => "0000"
    );   
    
-   smallram_addr <= to_integer(unsigned(mem_bus_Adr(14 downto 2)));
+   smallram_addr <= to_integer(unsigned(mem_bus_Adr(14 downto 2))) when (mem_bus_ena = '1') else to_integer(unsigned(Cheats_BusAddr(14 downto 2)));
 
    ilargeram: entity MEM.SyncRamDualByteEnable
    generic map
@@ -363,13 +379,13 @@ begin
       be_b       => "0000"
    );   
 
-   largeram_addr <= to_integer(unsigned(mem_bus_Adr(17 downto 2)));
+   largeram_addr <= to_integer(unsigned(mem_bus_Adr(17 downto 2))) when (mem_bus_ena = '1') else to_integer(unsigned(Cheats_BusAddr(17 downto 2)));
    
    -- input rotate
    process (all)
    begin
       
-      rotate_writedata <= mem_bus_dout; -- default, full dword
+      rotate_writedata <= mem_bus_dout; -- default, full dword      
       if (mem_bus_acc = ACCESS_8BIT) then
          case(mem_bus_Adr(1 downto 0)) is
             when "00" => rotate_writedata( 7 downto  0) <= mem_bus_dout(7 downto 0);
@@ -401,6 +417,11 @@ begin
          when ACCESS_32BIT => rotate_BE <= "1111";
          when others => null;
       end case;
+      
+      if (mem_bus_ena = '0') then
+         rotate_writedata <= Cheats_BusWriteData;     
+         rotate_BE        <= "1111";
+      end if;
       
    end process;
    
@@ -524,6 +545,22 @@ begin
       elsif (mem_bus_acc = ACCESS_32BIT) then
          cart_addr(1) <= '0';
          cart_32      <= '1';
+      end if;
+      
+      if (mem_bus_ena = '0' and Cheats_Bus_ena = '1') then
+         case (Cheats_BusAddr(27 downto 24)) is
+             
+            when x"2" => 
+               largeram_ce <= '1'; 
+               largeram_we <= not Cheats_BusRnW; 
+             
+            when x"3" => 
+               smallram_ce <= '1';
+               smallram_we <= not Cheats_BusRnW;
+               
+            when others => null;
+               
+         end case;
       end if;
 
       if (mem_bus_ena = '1' and mem_bus_Adr(31 downto 28) = x"0") then
@@ -711,6 +748,36 @@ begin
          gb_bus_out_ena  <= '0';
          
          vram_cycle      <= '0';
+         
+         -- Cheats
+         Cheats_Bus_done <= '0';
+         case readStateCheats is
+            when READSTATECHEATS_IDLE =>
+               if (mem_bus_ena = '0' and Cheats_Bus_ena = '1') then
+                  case (Cheats_BusAddr(27 downto 24)) is
+                  
+                     when x"2" =>
+                        readStateCheats    <= READSTATECHEATS_EWRAM;
+                              
+                     when x"3" =>
+                        readStateCheats    <= READSTATECHEATS_IRAM;
+                        
+                     when others => null;
+                  
+                  end case;
+               end if;
+               
+            when READSTATECHEATS_EWRAM =>
+               readStateCheats    <= READSTATECHEATS_IDLE;
+               Cheats_BusReadData <= largeram_DataOut; 
+               Cheats_Bus_done    <= '1';
+            
+            when READSTATECHEATS_IRAM =>
+               readStateCheats    <= READSTATECHEATS_IDLE;
+               Cheats_BusReadData <= smallram_DataOut; 
+               Cheats_Bus_done    <= '1';
+               
+         end case;
 
          -- ce stopped handling
          if ((ce = '1' and mem_bus_done_out = '1') or reset = '1' or loading_savestate = '1') then
@@ -759,7 +826,7 @@ begin
                end if;
             end if;
          end if;
-
+         
          case state is
          
             when IDLE =>
