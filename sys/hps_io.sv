@@ -27,7 +27,7 @@
 // VDNUM 1..10
 // BLKSZ 0..7: 0 = 128, 1 = 256, 2 = 512(default), .. 7 = 16384
 //
-module hps_io #(parameter CONF_STR, CONF_STR_BRAM=1, PS2DIV=0, WIDE=0, VDNUM=1, BLKSZ=2, PS2WE=0)
+module hps_io #(parameter CONF_STR, CONF_STR_BRAM=0, PS2DIV=0, WIDE=0, VDNUM=1, BLKSZ=2, PS2WE=0, STRLEN=$size(CONF_STR)>>3)
 (
 	input             clk_sys,
 	inout      [48:0] HPS_BUS,
@@ -39,7 +39,7 @@ module hps_io #(parameter CONF_STR, CONF_STR_BRAM=1, PS2DIV=0, WIDE=0, VDNUM=1, 
 	output reg [31:0] joystick_3,
 	output reg [31:0] joystick_4,
 	output reg [31:0] joystick_5,
-	
+
 	// analog -127..+127, Y: [15:8], X: [7:0]
 	output reg [15:0] joystick_l_analog_0,
 	output reg [15:0] joystick_l_analog_1,
@@ -226,14 +226,13 @@ video_calc video_calc
 	.new_vmode(new_vmode),
 	.video_rotated(video_rotated),
 
-	.par_num(byte_cnt[3:0]),
+	.par_num(byte_cnt[4:0]),
 	.dout(vc_dout)
 );
 
 /////////////////////////////////////////////////////////
 
-localparam STRLEN = $size(CONF_STR)>>3;
-localparam MAX_W = $clog2((32 > (STRLEN+2)) ? 32 : (STRLEN+2))-1;
+localparam MAX_W = $clog2((64 > (STRLEN+2)) ? 64 : (STRLEN+2))-1;
 
 wire [7:0] conf_byte;
 generate
@@ -281,7 +280,7 @@ always@(posedge clk_sys) begin : uio_block
 		stflg <= stflg + 1'd1;
 		status_req <= status_in;
 	end
-	
+
 	old_upload_req <= ioctl_upload_req;
 	if(~old_upload_req & ioctl_upload_req) upload_req <= 1;
 
@@ -502,7 +501,7 @@ always@(posedge clk_sys) begin : uio_block
 				'h22: RTC[(byte_cnt-6'd1)<<4 +:16] <= io_din;
 
 				//Video res.
-				'h23: if(!byte_cnt[MAX_W:4]) io_dout <= vc_dout;
+				'h23: if(!byte_cnt[MAX_W:5]) io_dout <= vc_dout;
 
 				//RTC
 				'h24: TIMESTAMP[(byte_cnt-6'd1)<<4 +:16] <= io_din;
@@ -523,7 +522,7 @@ always@(posedge clk_sys) begin : uio_block
 
 				//menu mask
 				'h2E: if(byte_cnt == 1) io_dout <= status_menumask;
-				
+
 				//sdram size set
 				'h31: if(byte_cnt == 1) sdram_sz <= io_din;
 
@@ -630,7 +629,7 @@ always@(posedge clk_sys) begin : fio_block
 	reg        has_cmd;
 	reg [26:0] addr;
 	reg        wr;
-	
+
 	ioctl_rd <= 0;
 	ioctl_wr <= wr;
 	wr <= 0;
@@ -663,7 +662,7 @@ always@(posedge clk_sys) begin : fio_block
 					FIO_FILE_TX:
 						begin
 							cnt <= cnt + 1'd1;
-							case(cnt) 
+							case(cnt)
 								0:	if(io_din[7:0] == 8'hAA) begin
 										ioctl_addr <= 0;
 										ioctl_upload <= 1;
@@ -872,7 +871,7 @@ module video_calc
 	input new_vmode,
 	input video_rotated,
 
-	input       [3:0] par_num,
+	input       [4:0] par_num,
 	output reg [15:0] dout
 );
 
@@ -891,29 +890,58 @@ always @(posedge clk_sys) begin
 	  11: dout <= vid_pix[31:16];
 	  12: dout <= vid_vtime_hdmi[15:0];
 	  13: dout <= vid_vtime_hdmi[31:16];
+	  14: dout <= vid_ccnt[15:0];
+	  15: dout <= vid_ccnt[31:16];
+	  16: dout <= vid_pixrep;
+	  17: dout <= vid_de_h;
+	  18: dout <= vid_de_v;
 	  default dout <= 0;
 	endcase
 end
 
 reg [31:0] vid_hcnt = 0;
 reg [31:0] vid_vcnt = 0;
+reg [31:0] vid_ccnt = 0;
 reg  [7:0] vid_nres = 0;
 reg  [1:0] vid_int  = 0;
+reg  [7:0] vid_pixrep;
+reg [15:0] vid_de_h;
+reg  [7:0] vid_de_v;
 
 always @(posedge clk_vid) begin
 	integer hcnt;
 	integer vcnt;
-	reg old_vs= 0, old_de = 0, old_vmode = 0;
+	integer ccnt;
+	reg [7:0] pcnt;
+	reg [7:0] de_v;
+	reg [15:0] de_h;
+	reg old_vs = 0, old_hs = 0, old_hs_vclk = 0, old_de = 0, old_de_vclk = 0, old_de1 = 0, old_vmode = 0;
 	reg [3:0] resto = 0;
 	reg calch = 0;
 
+	if(calch & de) ccnt <= ccnt + 1;
+	pcnt <= pcnt + 1'd1;
+
+	old_hs_vclk <= hs;
+	de_h <= de_h + 1'd1;
+	if(old_hs_vclk & ~hs) de_h <= 1;
+
+	old_de_vclk <= de;
+	if(calch & ~old_de_vclk & de) vid_de_h <= de_h;
+
 	if(ce_pix) begin
 		old_vs <= vs;
+		old_hs <= hs;
 		old_de <= de;
+		old_de1 <= old_de;
+		pcnt <= 1;
 
 		if(~vs & ~old_de & de) vcnt <= vcnt + 1;
 		if(calch & de) hcnt <= hcnt + 1;
 		if(old_de & ~de) calch <= 0;
+		if(~old_de1 & old_de) vid_pixrep <= pcnt;
+		if(old_hs & ~hs) de_v <= de_v + 1'd1;
+		if(calch & ~old_de & de) vid_de_v <= de_v;
 
 		if(old_vs & ~vs) begin
 			vid_int <= {vid_int[0],f1};
@@ -927,10 +955,13 @@ always @(posedge clk_vid) begin
 					if(&resto) vid_nres <= vid_nres + 1'd1;
 					vid_hcnt <= hcnt;
 					vid_vcnt <= vcnt;
+					vid_ccnt <= ccnt;
 				end
 				vcnt <= 0;
 				hcnt <= 0;
+				ccnt <= 0;
 				calch <= 1;
+				de_v <= 0;
 			end
 		end
 	end
@@ -1000,8 +1031,15 @@ module confstr_rom #(parameter CONF_STR, STRLEN)
 	output reg [7:0] conf_byte
 );
 
-wire [7:0] rom[STRLEN];
-initial for(int i = 0; i < STRLEN; i++) rom[i] = CONF_STR[((STRLEN-i)*8)-1 -:8];
+reg [7:0] rom[STRLEN];
+
+initial begin
+	if( CONF_STR=="" )
+		$readmemh("cfgstr.hex",rom);
+	else
+		for(int i = 0; i < STRLEN; i++) rom[i] = CONF_STR[((STRLEN-i)*8)-1 -:8];
+end
+
 always @ (posedge clk_sys) conf_byte <= rom[conf_addr];
 
 endmodule
