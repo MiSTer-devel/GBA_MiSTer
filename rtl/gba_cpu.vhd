@@ -1005,8 +1005,9 @@ begin
                                  when x"A" => decode_datacomb(24 downto 21) := x"D"; decode_datacomb(19) := '1'; decode_datacomb(15) := '1';                             -- 1010 MOV Hd, Rs MOV Hd, Rs Move a value from a register in the range 0 - 7 to a register in the range 8 - 15.
                                  when x"B" => decode_datacomb(24 downto 21) := x"D"; decode_datacomb( 3) := '1'; decode_datacomb(19) := '1'; decode_datacomb(15) := '1'; -- 1011 MOV Hd, Hs MOV Hd, Hs Move a value between two registers in the range 8 - 15.
                                                                                     
-                                 when x"C" => decode_functions := branch_and_exchange;                               -- 1100 BX Rs Perform branch(plus optional state change) to address in a register in the range 0 - 7.
+                                 when x"C" => decode_functions := branch_and_exchange;                             -- 1100 BX Rs Perform branch(plus optional state change) to address in a register in the range 0 - 7.
                                  when x"D" => decode_functions := branch_and_exchange; decode_datacomb(3) := '1';  -- 1101 BX Hs Perform branch(plus optional state change) to address in a register in the range 8 - 15.
+                                 when x"E" => decode_functions := branch_and_exchange;                             -- 1110 BX Hs Perform branch(plus optional state change) to address in a register in the range 0 - 7.(E same as C)
       
                                  -- can't do this check, as prefetch may fetch data that could contain this
                                  --when others => report "decode_data(12 downto 10) = 1 => case should never happen" severity failure;
