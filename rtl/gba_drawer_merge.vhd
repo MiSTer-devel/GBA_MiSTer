@@ -348,7 +348,7 @@ begin
             elsif (inwin_1y = '1' and ((WND1_X1 <= WND1_X2 and xpos >= WND1_X1 and xpos < WND1_X2) or (WND1_X1 > WND1_X2 and (xpos >= WND1_X1 or xpos < WND1_X2)))) then
                special_enable_cycle1  <= enables_wnd1(5);
                enables_var            := enables_var and enables_wnd1(4 downto 0);
-            elsif (objwindow_in = '1') then
+            elsif (objwindow_in = '1' and WNDOBJ_on = '1') then
                special_enable_cycle1  <= enables_wndobj(5);
                enables_var            := enables_var and enables_wndobj(4 downto 0);
             else

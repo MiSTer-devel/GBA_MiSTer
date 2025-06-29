@@ -206,7 +206,7 @@ architecture arch of gba_drawer_obj is
    signal second_pix_eval   : std_logic;   
    
    signal vram_reuse_eval   : std_logic;
-   signal VRAM_data_next    : std_logic_vector(7 downto 0) := (others => '0');
+   signal VRAM_data_next    : std_logic_vector(31 downto 0) := (others => '0');
    
    signal zeroread_eval     : std_logic;
                             
@@ -523,8 +523,8 @@ begin
                   end if;
                   PIXELGen <= PIXELISSUE;
                   if (Pixel_data0(OAM_AFFINE) = '0') then
-                     if ((pixeladdr_calc = pixeladdr_x and firstpix = '0') or VRAM_Drawer_valid = '1') then
-                        if (pixeladdr_calc = pixeladdr_x and firstpix = '0') then
+                     if ((pixeladdr_calc / 2 = pixeladdr_x(pixeladdr_x'left downto 1) and firstpix = '0') or VRAM_Drawer_valid = '1') then
+                        if (pixeladdr_calc / 2 = pixeladdr_x(pixeladdr_x'left downto 1) and firstpix = '0') then
                            vram_reuse  <= '1';
                         end if;
                         if ((x + posX) < 240 and (x + posX) >= 0) then
@@ -637,8 +637,9 @@ begin
    
    -- Pixel Pipeline
    process (clk)
-      variable colorbyte : std_logic_vector(7 downto 0);
-      variable colordata : std_logic_vector(3 downto 0);
+      variable colorbyte             : std_logic_vector(7 downto 0);
+      variable colordata             : std_logic_vector(3 downto 0);
+      variable VRAM_Drawer_dataMuxed : std_logic_vector(31 downto 0);
    begin
       if rising_edge(clk) then
       
@@ -684,22 +685,25 @@ begin
          if (mode_eval= "01") then Pixel_wait.alpha  <= '1'; else Pixel_wait.alpha  <= '0'; end if;
          if (mode_eval = "10") then Pixel_wait.objwnd <= '1'; else Pixel_wait.objwnd <= '0'; end if;
          
+         if (VRAM_Drawer_valid = '1') then
+            VRAM_data_next <= VRAM_Drawer_data;
+         end if;
+            
+         VRAM_Drawer_dataMuxed := VRAM_Drawer_data;
+         if (vram_reuse_eval = '1') then
+            VRAM_Drawer_dataMuxed := VRAM_data_next;
+         end if;
+         
          colorbyte := x"00";
          if (zeroread_eval = '0') then
             case (readaddr_mux_eval(1 downto 0)) is
-               when "00" => colorbyte := VRAM_Drawer_data(7  downto 0);
-               when "01" => colorbyte := VRAM_Drawer_data(15 downto 8);
-               when "10" => colorbyte := VRAM_Drawer_data(23 downto 16);
-               when "11" => colorbyte := VRAM_Drawer_data(31 downto 24);
+               when "00" => colorbyte := VRAM_Drawer_dataMuxed(7  downto 0);
+               when "01" => colorbyte := VRAM_Drawer_dataMuxed(15 downto 8);
+               when "10" => colorbyte := VRAM_Drawer_dataMuxed(23 downto 16);
+               when "11" => colorbyte := VRAM_Drawer_dataMuxed(31 downto 24);
                when others => null;
             end case;
          end if;
-         
-         if (vram_reuse_eval = '1') then
-            colorbyte := VRAM_data_next;
-         end if;
-         
-         VRAM_data_next <= colorbyte;
          
          if (enable_eval = '1') then
             if (hicolor_eval = '0') then
