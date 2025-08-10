@@ -104,7 +104,6 @@ architecture arch of gba_dma_module is
    signal Start_Timing       : integer range 0 to 3;
    signal Repeat             : std_logic;
    signal Transfer_Type_DW   : std_logic;
-   signal iRQ_on             : std_logic;
 
    signal addr_source        : unsigned(27 downto 0);
    signal addr_target        : unsigned(27 downto 0);
@@ -162,7 +161,7 @@ begin
    SAVESTATE_DMAMIXED_BACK(26 downto 25) <= std_logic_vector(to_unsigned(Start_Timing, 2));      
    SAVESTATE_DMAMIXED_BACK(27)           <= Repeat;           
    SAVESTATE_DMAMIXED_BACK(28)           <= Transfer_Type_DW; 
-   SAVESTATE_DMAMIXED_BACK(29)           <= iRQ_on;            
+   SAVESTATE_DMAMIXED_BACK(29)           <= '0';
    SAVESTATE_DMAMIXED_BACK(30)           <= dmaon;            
    
    is_idle <= '1' when state = IDLE else '0';
@@ -200,7 +199,6 @@ begin
             Start_Timing       <= to_integer(unsigned(SAVESTATE_DMAMIXED(26 downto 25)));
             Repeat             <= SAVESTATE_DMAMIXED(27);
             Transfer_Type_DW   <= SAVESTATE_DMAMIXED(28);
-            iRQ_on             <= SAVESTATE_DMAMIXED(29);
             dmaon              <= SAVESTATE_DMAMIXED(30);
          
             waitTicks          <= 0;
@@ -227,7 +225,6 @@ begin
                   Start_Timing       <= to_integer(unsigned(CNT_H_DMA_Start_Timing));
                   Repeat             <= CNT_H_DMA_Repeat(CNT_H_DMA_Repeat'left);
                   Transfer_Type_DW   <= CNT_H_DMA_Transfer_Type(CNT_H_DMA_Transfer_Type'left);
-                  iRQ_on             <= CNT_H_IRQ_on(CNT_H_IRQ_on'left);
    
                   addr_source <= unsigned(SAD(27 downto 0));
                   addr_target <= unsigned(DAD(27 downto 0));
@@ -402,7 +399,7 @@ begin
                               running <= '0';
                               dmaon   <= '0';
    
-                              IRP_DMA <= iRQ_on;
+                              IRP_DMA <= CNT_H_IRQ_on(CNT_H_IRQ_on'left);
    
                               if (Repeat = '1' and Start_Timing /= 0) then
                                  waiting <= '1';
