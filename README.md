@@ -24,7 +24,7 @@ As the BIOS is already replaced at boot time, you must save this setting and har
 ~1600 games tested until ingame.
 There is no known official game that doesn't work.
 Exceptions are games that require rare extra hardware (mostly japanese).
-Some small video glitches remain, see issue list.
+Some small video and audio glitches remain, see issue list.
 
 ## Features
 - Saving as in GBA
